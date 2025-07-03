@@ -21,83 +21,67 @@ const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
-let censoMode = false, censoIds = null;
+let censoMode = false,
+  censoIds = null;
 
 // Spinner overlay
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
 
 // ---------------------------------------------------------------------
-// Carrega dinamicamente apenas os postes visíveis via BBOX + batch render
+// Carrega /api/postes, trata 401 redirecionando
 // ---------------------------------------------------------------------
-async function carregarPostesVisiveis() {
-  if (overlay) overlay.style.display = "flex";
-  const bounds = map.getBounds().toBBoxString(); // "minLon,minLat,maxLon,maxLat"
-  const url = `/api/postes?bbox=${bounds}`;
-  try {
-    const res = await fetch(url, { credentials: "include" });
+fetch("/api/postes")
+  .then((res) => {
     if (res.status === 401) {
       window.location.href = "/login.html";
-      return;
+      throw new Error("Não autorizado");
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    return res.json();
+  })
+  .then((data) => {
+    if (overlay) overlay.style.display = "none";
+    const agrupado = {};
+    data.forEach((p) => {
+      if (!p.coordenadas) return;
+      const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
+      if (isNaN(lat) || isNaN(lon)) return;
+      if (!agrupado[p.id])
+        agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
+      if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
+        agrupado[p.id].empresas.add(p.empresa);
+    });
+    const postsArray = Object.values(agrupado).map((p) => ({
+      ...p,
+      empresas: [...p.empresas],
+    }));
 
-    // Limpa dados antigos
-    markers.clearLayers();
-    todosPostes.length = 0;
-    municipiosSet.clear();
-    bairrosSet.clear();
-    logradourosSet.clear();
-    Object.keys(empresasContagem).forEach((k) => delete empresasContagem[k]);
-
-    // Render em batches de 500 para performance
-    function addBatch(i = 0) {
-      const batchSize = 500;
-      const slice = data.slice(i, i + batchSize);
-      slice.forEach((p) => {
-        if (!p.coordenadas) return;
-        const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
-        if (isNaN(lat) || isNaN(lon)) return;
-        // coleta dados
-        todosPostes.push({ ...p, lat, lon });
-        municipiosSet.add(p.nome_municipio);
-        bairrosSet.add(p.nome_bairro);
-        logradourosSet.add(p.nome_logradouro);
-        p.empresas.forEach((e) => {
-          empresasContagem[e] = (empresasContagem[e] || 0) + 1;
-        });
-        // add marker
-        const color = p.empresas.length >= 5 ? "red" : "green";
-        const marker = L.circleMarker([lat, lon], {
-          radius: 6,
-          fillColor: color,
-          color: "#fff",
-          weight: 2,
-          fillOpacity: 0.8,
-        }).bindTooltip(
-          `ID: ${p.id} — ${p.empresas.length} empresas`,
-          { direction: "top", sticky: true }
+    // Render em batches
+    function addBatch(i = 0, batchSize = 500) {
+      const slice = postsArray.slice(i, i + batchSize);
+      slice.forEach((poste) => {
+        todosPostes.push(poste);
+        adicionarMarker(poste);
+        municipiosSet.add(poste.nome_municipio);
+        bairrosSet.add(poste.nome_bairro);
+        logradourosSet.add(poste.nome_logradouro);
+        poste.empresas.forEach(
+          (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
         );
-        marker.on("click", () => abrirPopup(p));
-        markers.addLayer(marker);
       });
-      if (i + batchSize < data.length) {
-        setTimeout(() => addBatch(i + batchSize), 0);
-      } else {
-        if (overlay) overlay.style.display = "none";
-        preencherListas();
-      }
+      if (i + batchSize < postsArray.length)
+        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
+      else preencherListas();
     }
     addBatch();
-  } catch (err) {
-    console.error("Erro ao carregar postes por BBOX:", err);
+  })
+  .catch((err) => {
+    console.error("Erro ao carregar postes:", err);
     if (overlay) overlay.style.display = "none";
-    alert("Erro ao carregar dados dos postes.");
-  }
-}
-map.on("moveend", carregarPostesVisiveis);
-carregarPostesVisiveis();
+    if (err.message !== "Não autorizado")
+      alert("Erro ao carregar dados dos postes.");
+  });
 
 // ---------------------------------------------------------------------
 // Preenche datalists de autocomplete
@@ -105,7 +89,6 @@ carregarPostesVisiveis();
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
-    dl.innerHTML = "";
     Array.from(set)
       .sort()
       .forEach((v) => {
@@ -117,8 +100,8 @@ function preencherListas() {
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
+  // empresas com label
   const dlEmp = document.getElementById("lista-empresas");
-  dlEmp.innerHTML = "";
   Object.keys(empresasContagem)
     .sort()
     .forEach((e) => {
@@ -136,6 +119,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
   if (!censoMode) return todosPostes.forEach(adicionarMarker);
+
   if (!censoIds) {
     try {
       const res = await fetch("/api/censo");
@@ -190,8 +174,7 @@ function buscarCoordenada() {
 
 // Filtro Município/Bairro/Logradouro/Empresa
 function filtrarLocal() {
-  const getVal = (id) =>
-    document.getElementById(id).value.trim().toLowerCase();
+  const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
   const [mun, bai, log, emp] = [
     "busca-municipio",
     "busca-bairro",
@@ -205,7 +188,8 @@ function filtrarLocal() {
       (!log || p.nome_logradouro.toLowerCase() === log) &&
       (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
   );
-  if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
+  if (!filtro.length)
+    return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
   filtro.forEach(adicionarMarker);
 
@@ -225,7 +209,7 @@ function filtrarLocal() {
         let err;
         try {
           err = (await res.json()).error;
-        } catch {};
+        } catch {}
         throw new Error(err || `HTTP ${res.status}`);
       }
       return res.blob();
@@ -284,6 +268,7 @@ function abrirPopup(p) {
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
 }
+
 // ---------------------------------------------------------------------
 // Minha localização
 // ---------------------------------------------------------------------
