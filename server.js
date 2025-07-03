@@ -9,27 +9,30 @@ const ExcelJS = require("exceljs");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// aumenta o limite para uploads gigantes
+// Uploads grandes
 app.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
 // CORS
 app.use(cors());
 
-// Sessão em cookie de sessão (expira ao fechar o navegador)
-app.use(
-  session({
-    secret: "uma-chave-secreta",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: false, // em produção use true com HTTPS
-    },
-  })
-);
+// Sessão (válida apenas fora da Vercel)
+const isVercel = !!process.env.VERCEL;
+if (!isVercel) {
+  app.use(
+    session({
+      secret: "uma-chave-secreta",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false,
+      },
+    })
+  );
+}
 
-// Conexão com o banco
+// Banco
 const pool = new Pool({
   connectionString:
     "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-blue-heart-a8qoih6k-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
@@ -39,11 +42,9 @@ const pool = new Pool({
 // Rota de registro
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res
-      .status(400)
-      .json({ error: "username e password são obrigatórios" });
-  }
+  if (!username || !password)
+    return res.status(400).json({ error: "username e password obrigatórios" });
+
   try {
     const hash = await bcrypt.hash(password, 10);
     await pool.query(
@@ -60,7 +61,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Rota de login
+// Login
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -69,11 +70,12 @@ app.post("/login", async (req, res) => {
       [username]
     );
     if (!rows.length) return res.sendStatus(401);
+
     const { id, password_hash } = rows[0];
     const match = await bcrypt.compare(password, password_hash);
     if (!match) return res.sendStatus(401);
-    // grava na sessão
-    req.session.user = { id, username };
+
+    if (!isVercel) req.session.user = { id, username };
     res.sendStatus(200);
   } catch (err) {
     console.error("Erro no login:", err);
@@ -81,54 +83,44 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Rota de logout
+// Logout
 app.post("/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Erro ao destruir sessão:", err);
-      return res.sendStatus(500);
-    }
-    res.clearCookie("connect.sid", { path: "/" });
+  if (!isVercel) {
+    req.session.destroy((err) => {
+      if (err) return res.sendStatus(500);
+      res.clearCookie("connect.sid", { path: "/" });
+      return res.sendStatus(200);
+    });
+  } else {
     res.sendStatus(200);
-  });
+  }
 });
 
-// Middleware de proteção de rotas
+// Proteção de rotas (desativada na Vercel)
 app.use((req, res, next) => {
-  const openPaths = [
-    "/login",
-    "/register",
-    "/login.html",
-    "/register.html",
-    "/lgpd/",
-  ];
-  // libera caminhos públicos e arquivos estáticos
+  const openPaths = ["/login", "/register", "/login.html", "/register.html", "/lgpd/"];
   if (
     openPaths.some((p) => req.path.startsWith(p)) ||
-    req.path.match(/\.(html|css|js|png|ico|avif)$/)
+    req.path.match(/\.(html|css|js|png|ico|webp|avif)$/)
   ) {
     return next();
   }
-  // se for API, retorne 401 em vez de redirecionar
+
   if (req.path.startsWith("/api/")) {
-    if (!req.session.user) {
+    if (!isVercel && !req.session.user)
       return res.status(401).json({ error: "Não autorizado" });
-    }
     return next();
   }
-  // para rotas normais, redireciona
-  if (!req.session.user) {
+
+  if (!isVercel && !req.session.user)
     return res.redirect("/login.html");
-  }
+
   next();
 });
 
-// Serve estáticos (login.html, register.html, index.html etc)
+// Estáticos
 app.use(express.static(path.join(__dirname, "public")));
 
-// ---------------------------------------------------------------------
-// Cache para /api/postes
-// ---------------------------------------------------------------------
 let cachePostes = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000;
@@ -139,16 +131,15 @@ app.get("/api/postes", async (req, res) => {
   if (cachePostes && now - cacheTimestamp < CACHE_TTL) {
     return res.json(cachePostes);
   }
-  const sql = `
-    SELECT d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
-           d.material, d.altura, d.tensao_mecanica, d.coordenadas,
-           ep.empresa
-    FROM dados_poste d
-    LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''  
-  `;
   try {
-    const { rows } = await pool.query(sql);
+    const { rows } = await pool.query(`
+      SELECT d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
+             d.material, d.altura, d.tensao_mecanica, d.coordenadas,
+             ep.empresa
+      FROM dados_poste d
+      LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
+      WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''
+    `);
     cachePostes = rows;
     cacheTimestamp = now;
     res.json(rows);
@@ -193,14 +184,14 @@ app.post("/api/postes/report", async (req, res) => {
   `;
   try {
     const { rows } = await pool.query(sql, [clean]);
-    if (!rows.length) {
-      return res.status(404).json({ error: "Nenhum poste encontrado" });
-    }
+    if (!rows.length) return res.status(404).json({ error: "Nenhum poste encontrado" });
+
     const mapPostes = {};
     rows.forEach((r) => {
       if (!mapPostes[r.id]) mapPostes[r.id] = { ...r, empresas: new Set() };
       if (r.empresa) mapPostes[r.id].empresas.add(r.empresa);
     });
+
     const wb = new ExcelJS.Workbook();
     const sh = wb.addWorksheet("Relatório de Postes");
     sh.columns = [
@@ -227,14 +218,8 @@ app.post("/api/postes/report", async (req, res) => {
         empresas: [...info.empresas].join(", "),
       });
     });
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=relatorio_postes.xlsx"
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=relatorio_postes.xlsx");
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -243,8 +228,8 @@ app.post("/api/postes/report", async (req, res) => {
   }
 });
 
-// 404 genérico
+// 404
 app.use((req, res) => res.status(404).send("Rota não encontrada"));
 
-// Inicia o servidor
+// Inicia
 app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
