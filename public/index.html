@@ -376,6 +376,8 @@
     <!-- JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <!-- Inserido: SheetJS para Excel no cliente -->
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
@@ -387,6 +389,47 @@
           await fetch("/logout", { method: "POST" });
           window.location.href = "/login.html";
         });
+    </script>
+    <!-- Inserido: função de geração de Excel no cliente -->
+    <script>
+      function gerarExcelCliente(filtroIds) {
+        const dadosParaExcel = todosPostes
+          .filter((p) => filtroIds.includes(p.id))
+          .map((p) => ({
+            "ID POSTE": p.id,
+            Município: p.nome_municipio,
+            Bairro: p.nome_bairro,
+            Logradouro: p.nome_logradouro,
+            Empresas: p.empresas.join(", "),
+            Coordenadas: p.coordenadas,
+          }));
+
+        const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Filtro");
+        XLSX.writeFile(wb, "relatorio_filtrado.xlsx");
+      }
+
+      const _origFiltrarLocal = filtrarLocal;
+      filtrarLocal = function () {
+        _origFiltrarLocal();
+        const mun = document.getElementById("busca-municipio").value.trim().toLowerCase();
+        const bai = document.getElementById("busca-bairro").value.trim().toLowerCase();
+        const log = document.getElementById("busca-logradouro").value.trim().toLowerCase();
+        const emp = document.getElementById("busca-empresa").value.trim().toLowerCase();
+
+        const filtro = todosPostes.filter((p) =>
+          (!mun || p.nome_municipio.toLowerCase() === mun) &&
+          (!bai || p.nome_bairro.toLowerCase() === bai) &&
+          (!log || p.nome_logradouro.toLowerCase() === log) &&
+          (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
+        );
+
+        if (filtro.length) {
+          const ids = filtro.map((p) => p.id);
+          gerarExcelCliente(ids);
+        }
+      };
     </script>
   </body>
 </html>
