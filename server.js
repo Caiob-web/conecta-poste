@@ -164,6 +164,19 @@ app.get("/api/censo", async (req, res) => {
     const { rows } = await pool.query(`
       SELECT poste, cidade, coordenadas
       FROM censo_municipio
+      WHERE coordenadas IS NOT NULL AND TRIM(coordenadas)<>''
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("Erro /api/censo:", err);
+    res.status(500).json({ error: "Erro no servidor" });
+  }
+});
+app.get("/api/censo", async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT poste, cidade, coordenadas
+      FROM censo_municipio
       WHERE coordenadas IS NOT NULL AND TRIM(coordenadas)<>''`);
     res.json(rows);
   } catch (err) {
