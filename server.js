@@ -29,10 +29,10 @@ app.use(
   })
 );
 
-// Conexão com o banco
+// Conexão com o banco (Neon ep-broad-smoke)
 const pool = new Pool({
   connectionString:
-    "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-blue-heart-a8qoih6k-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
+    "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
   ssl: { rejectUnauthorized: false },
 });
 
@@ -225,7 +225,7 @@ app.post("/api/postes/report", async (req, res) => {
         tensao_mecanica: info.tensao_mecanica,
         coordenadas: info.coordenadas,
         empresas: [...info.empresas].join(", "),
-      });
+      }),
     });
     res.setHeader(
       "Content-Type",
