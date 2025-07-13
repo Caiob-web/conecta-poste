@@ -9,23 +9,19 @@ const ExcelJS = require("exceljs");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// aumenta o limite para uploads gigantes
-app.use(express.json({ limit: "1gb" }));
+// aumenta o limite para uploads grandes\ napp.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
-// CORS
+// Habilita CORS
 app.use(cors());
 
-// Sessão em cookie de sessão (expira ao fechar o navegador)
+// Sessão em cookie (expira ao fechar navegador)
 app.use(
   session({
     secret: "uma-chave-secreta",
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: false, // em produção use true com HTTPS
-    },
+    cookie: { httpOnly: true, secure: false },
   })
 );
 
@@ -36,13 +32,11 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Rota de registro
+// Rotas de autenticação
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res
-      .status(400)
-      .json({ error: "username e password são obrigatórios" });
+    return res.status(400).json({ error: "username e password são obrigatórios" });
   }
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -53,14 +47,11 @@ app.post("/register", async (req, res) => {
     res.sendStatus(201);
   } catch (err) {
     console.error("Erro no registro:", err);
-    if (err.code === "23505") {
-      return res.status(409).json({ error: "username já existe" });
-    }
+    if (err.code === "23505") return res.status(409).json({ error: "username já existe" });
     res.sendStatus(500);
   }
 });
 
-// Rota de login
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -70,9 +61,7 @@ app.post("/login", async (req, res) => {
     );
     if (!rows.length) return res.sendStatus(401);
     const { id, password_hash } = rows[0];
-    const match = await bcrypt.compare(password, password_hash);
-    if (!match) return res.sendStatus(401);
-    // grava na sessão
+    if (!(await bcrypt.compare(password, password_hash))) return res.sendStatus(401);
     req.session.user = { id, username };
     res.sendStatus(200);
   } catch (err) {
@@ -81,9 +70,8 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Rota de logout
 app.post("/logout", (req, res) => {
-  req.session.destroy((err) => {
+  req.session.destroy(err => {
     if (err) {
       console.error("Erro ao destruir sessão:", err);
       return res.sendStatus(500);
@@ -95,40 +83,25 @@ app.post("/logout", (req, res) => {
 
 // Middleware de proteção de rotas
 app.use((req, res, next) => {
-  const openPaths = [
-    "/login",
-    "/register",
-    "/login.html",
-    "/register.html",
-    "/lgpd/",
-  ];
-  // libera caminhos públicos e arquivos estáticos
+  const openPaths = ["/login", "/register", "/login.html", "/register.html", "/lgpd/"];
   if (
-    openPaths.some((p) => req.path.startsWith(p)) ||
+    openPaths.some(p => req.path.startsWith(p)) ||
     req.path.match(/\.(html|css|js|png|ico|avif)$/)
-  ) {
-    return next();
-  }
-  // se for API, retorne 401 em vez de redirecionar
+  ) return next();
+
   if (req.path.startsWith("/api/")) {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
+    if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
     return next();
   }
-  // para rotas normais, redireciona
-  if (!req.session.user) {
-    return res.redirect("/login.html");
-  }
+
+  if (!req.session.user) return res.redirect("/login.html");
   next();
 });
 
-// Serve estáticos (login.html, register.html, index.html etc)
+// Serve arquivos estáticos (public)
 app.use(express.static(path.join(__dirname, "public")));
 
-// ---------------------------------------------------------------------
 // Cache para /api/postes
-// ---------------------------------------------------------------------
 let cachePostes = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000;
@@ -172,18 +145,6 @@ app.get("/api/censo", async (req, res) => {
     res.status(500).json({ error: "Erro no servidor" });
   }
 });
-app.get("/api/censo", async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT poste, cidade, coordenadas
-      FROM censo_municipio
-      WHERE coordenadas IS NOT NULL AND TRIM(coordenadas)<>''`);
-    res.json(rows);
-  } catch (err) {
-    console.error("Erro /api/censo:", err);
-    res.status(500).json({ error: "Erro no servidor" });
-  }
-});
 
 // POST /api/postes/report
 app.post("/api/postes/report", async (req, res) => {
@@ -191,29 +152,28 @@ app.post("/api/postes/report", async (req, res) => {
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: "IDs inválidos" });
   }
-  const clean = ids.map((x) => String(x).trim()).filter(Boolean);
-  if (!clean.length) {
-    return res.status(400).json({ error: "Nenhum ID válido" });
-  }
+  const clean = ids.map(x => String(x).trim()).filter(Boolean);
+  if (!clean.length) return res.status(400).json({ error: "Nenhum ID válido" });
+
   const sql = `
     SELECT d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
            d.material, d.altura, d.tensao_mecanica, d.coordenadas,
            ep.empresa
     FROM dados_poste d
     LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''  
+    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''
       AND d.id::text = ANY($1)
   `;
   try {
     const { rows } = await pool.query(sql, [clean]);
-    if (!rows.length) {
-      return res.status(404).json({ error: "Nenhum poste encontrado" });
-    }
+    if (!rows.length) return res.status(404).json({ error: "Nenhum poste encontrado" });
+
     const mapPostes = {};
-    rows.forEach((r) => {
+    rows.forEach(r => {
       if (!mapPostes[r.id]) mapPostes[r.id] = { ...r, empresas: new Set() };
       if (r.empresa) mapPostes[r.id].empresas.add(r.empresa);
     });
+
     const wb = new ExcelJS.Workbook();
     const sh = wb.addWorksheet("Relatório de Postes");
     sh.columns = [
@@ -225,21 +185,23 @@ app.post("/api/postes/report", async (req, res) => {
       { header: "ALTURA", key: "altura", width: 10 },
       { header: "TENSÃO", key: "tensao_mecanica", width: 18 },
       { header: "COORDENADAS", key: "coordenadas", width: 30 },
-      { header: "EMPRESAS", key: "empresas", width: 40 },
+      { header: "EMPRESAS", key: "empresas", width: 40 }
     ];
+
     Object.values(mapPostes).forEach((info) => {
-    sh.addRow({
-      id: info.id,
-      nome_municipio: info.nome_municipio,
-      nome_bairro: info.nome_bairro,
-      nome_logradouro: info.nome_logradouro,
-      material: info.material,
-      altura: info.altura,
-      tensao_mecanica: info.tensao_mecanica,
-      coordenadas: info.coordenadas,
-      empresas: [...info.empresas].join(", "),
+      sh.addRow({
+        id: info.id,
+        nome_municipio: info.nome_municipio,
+        nome_bairro: info.nome_bairro,
+        nome_logradouro: info.nome_logradouro,
+        material: info.material,
+        altura: info.altura,
+        tensao_mecanica: info.tensao_mecanica,
+        coordenadas: info.coordenadas,
+        empresas: [...info.empresas].join(", "),
+      });
     });
-  });
+
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -262,5 +224,4 @@ app.use((req, res) => {
 });
 
 // Inicia o servidor
-app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
 app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
