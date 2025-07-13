@@ -257,7 +257,10 @@ app.post("/api/postes/report", async (req, res) => {
 });
 
 // 404 genérico
-app.use((req, res) => res.status(404).send("Rota não encontrada"));
+app.use((req, res) => {
+  res.status(404).send("Rota não encontrada");
+});
 
 // Inicia o servidor
+app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
 app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
