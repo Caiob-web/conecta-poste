@@ -215,18 +215,18 @@ app.post("/api/postes/report", async (req, res) => {
       { header: "EMPRESAS", key: "empresas", width: 40 },
     ];
     Object.values(mapPostes).forEach((info) => {
-      sh.addRow({
-        id: info.id,
-        nome_municipio: info.nome_municipio,
-        nome_bairro: info.nome_bairro,
-        nome_logradouro: info.nome_logradouro,
-        material: info.material,
-        altura: info.altura,
-        tensao_mecanica: info.tensao_mecanica,
-        coordenadas: info.coordenadas,
-        empresas: [...info.empresas].join(", "),
-      }),
+    sh.addRow({
+      id: info.id,
+      nome_municipio: info.nome_municipio,
+      nome_bairro: info.nome_bairro,
+      nome_logradouro: info.nome_logradouro,
+      material: info.material,
+      altura: info.altura,
+      tensao_mecanica: info.tensao_mecanica,
+      coordenadas: info.coordenadas,
+      empresas: [...info.empresas].join(", "),
     });
+  });
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
