@@ -9,7 +9,8 @@ const ExcelJS = require("exceljs");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// aumenta o limite para uploads grandes\ napp.use(express.json({ limit: "1gb" }));
+// aumenta o limite para uploads grandes
+app.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
 // Habilita CORS
@@ -141,7 +142,7 @@ app.get("/api/censo", async (req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    console.error("Erro /api/censo:", err);
+    console.error("Erro em /api/censo:", err);
     res.status(500).json({ error: "Erro no servidor" });
   }
 });
@@ -188,7 +189,7 @@ app.post("/api/postes/report", async (req, res) => {
       { header: "EMPRESAS", key: "empresas", width: 40 }
     ];
 
-    Object.values(mapPostes).forEach((info) => {
+    Object.values(mapPostes).forEach(info => {
       sh.addRow({
         id: info.id,
         nome_municipio: info.nome_municipio,
@@ -225,7 +226,3 @@ app.use((req, res) => {
 
 // Inicia o servidor
 app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
-
-// no fim de server.js
-module.exports = app;
-
