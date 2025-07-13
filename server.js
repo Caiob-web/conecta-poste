@@ -225,3 +225,7 @@ app.use((req, res) => {
 
 // Inicia o servidor
 app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
+
+// no fim de server.js
+module.exports = app;
+
