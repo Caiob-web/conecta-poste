@@ -21,8 +21,7 @@ const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
-let censoMode = false,
-  censoIds = null;
+let censoMode = false, censoIds = null;
 
 // Spinner overlay
 const overlay = document.getElementById("carregando");
@@ -47,8 +46,7 @@ fetch("/api/postes")
       if (!p.coordenadas) return;
       const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
       if (isNaN(lat) || isNaN(lon)) return;
-      if (!agrupado[p.id])
-        agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
+      if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
@@ -113,9 +111,10 @@ function preencherListas() {
 }
 
 // ---------------------------------------------------------------------
-// Função para gerar Excel no cliente usando SheetJS
+// Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
+  // monta dados
   const dadosParaExcel = todosPostes
     .filter((p) => filtroIds.includes(p.id))
     .map((p) => ({
@@ -127,10 +126,11 @@ function gerarExcelCliente(filtroIds) {
       Coordenadas: p.coordenadas,
     }));
 
+  // cria planilha
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Filtro");
-  XLSX.writeFile(wb, "relatorio_filtrado.xlsx");
+  XLSX.writeFile(wb, "relatorio_postes_filtrados.xlsx");
 }
 
 // ---------------------------------------------------------------------
@@ -214,7 +214,7 @@ function filtrarLocal() {
   markers.clearLayers();
   filtro.forEach(adicionarMarker);
 
-  // exporta direto para Excel, enviando cookie de sessão
+  // exporta back-end
   fetch("/api/postes/report", {
     method: "POST",
     credentials: "same-origin",
@@ -226,20 +226,14 @@ function filtrarLocal() {
         window.location.href = "/login.html";
         throw new Error("Não autorizado");
       }
-      if (!res.ok) {
-        let err;
-        try {
-          err = (await res.json()).error;
-        } catch {}
-        throw new Error(err || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
       return res.blob();
     })
     .then((b) => {
       const u = URL.createObjectURL(b);
       const a = document.createElement("a");
       a.href = u;
-      a.download = "relatorio_postes_filtro.xlsx";
+      a.download = "relatorio_postes_filtro_backend.xlsx";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -247,12 +241,11 @@ function filtrarLocal() {
     })
     .catch((e) => {
       console.error("Erro exportar filtro:", e);
-      alert("Falha ao gerar Excel:\n" + e.message);
+      alert("Falha ao gerar Excel backend:\n" + e.message);
     });
 
-  // Gera também Excel local no cliente
-  const ids = filtro.map((p) => p.id);
-  gerarExcelCliente(ids);
+  // Gera também no cliente
+  gerarExcelCliente(filtro.map((p) => p.id));
 }
 
 // Reset mapa
@@ -293,7 +286,6 @@ function abrirPopup(p) {
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
 }
-
 // ---------------------------------------------------------------------
 // Minha localização
 // ---------------------------------------------------------------------
@@ -448,4 +440,144 @@ function adicionarNumerado(p, num) {
       p.nome_municipio
     }<br><b>Empresas:</b><ul>${p.empresas
       .map((e) => `<li>${e}</li>`)
-      .join("")}...
+      .join("")}</ul>`
+  );
+  mk.addTo(markers);
+  window.numeroMarkers.push(mk);
+}
+
+function gerarPDFComMapa() {
+  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
+
+  leafletImage(map, (err, canvas) => {
+    if (err) return alert("Erro ao capturar imagem.");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    // adiciona o mapa
+    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
+
+    // dados do resumo
+    const resumo = window.ultimoResumoPostes || {
+      disponiveis: 0,
+      ocupados: 0,
+      naoEncontrados: [],
+      intermediarios: 0,
+    };
+
+    let y = 140;
+    doc.setFontSize(12);
+    doc.text("Resumo da Verificação:", 10, y);
+
+    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
+    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
+
+    // linha que lista os IDs não encontrados
+    if (resumo.naoEncontrados.length) {
+      const textoIds = resumo.naoEncontrados.join(", ");
+      doc.text(
+        [`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds],
+        10,
+        y + 30
+      );
+    } else {
+      doc.text("⚠️ Não encontrados: 0", 10, y + 30);
+    }
+
+    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
+    doc.save("tracado_postes.pdf");
+  });
+}
+
+// Distância em metros (haversine)
+function getDistanciaMetros(lat1, lon1, lat2, lon2) {
+  const R = 6371000,
+    toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1),
+    dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Limpa campos e layers auxiliares
+function limparTudo() {
+  if (window.tracadoMassivo) {
+    map.removeLayer(window.tracadoMassivo);
+    window.tracadoMassivo = null;
+  }
+  window.intermediarios?.forEach((m) => map.removeLayer(m));
+  [
+    "ids-multiplos",
+    "busca-id",
+    "busca-coord",
+    "busca-municipio",
+    "busca-bairro",
+    "busca-logradouro",
+    "busca-empresa",
+  ].forEach((id) => {
+    document.getElementById(id).value = "";
+  });
+  resetarMapa();
+}
+
+// Exporta Excel genérico
+function exportarExcel(ids) {
+  fetch("/api/postes/report", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  })
+    .then(async (res) => {
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+        throw new Error("Não autorizado");
+      }
+      if (!res.ok) {
+        let err;
+        try {
+          err = (await res.json()).error;
+        } catch {}
+        throw new Error(err || `HTTP ${res.status}`);
+      }
+      return res.blob();
+    })
+    .then((b) => {
+      const u = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = "relatorio_postes.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(u);
+    })
+    .catch((e) => {
+      console.error("Erro Excel:", e);
+      alert("Falha ao gerar Excel:\n" + e.message);
+    });
+}
+
+// Botão Excel
+document.getElementById("btnGerarExcel").addEventListener("click", () => {
+  const ids = document
+    .getElementById("ids-multiplos")
+    .value.split(/[^0-9]+/)
+    .filter(Boolean);
+  if (!ids.length) return alert("Informe ao menos um ID.");
+  exportarExcel(ids);
+});
+
+// Toggle painel
+document.getElementById("togglePainel").addEventListener("click", () => {
+  const p = document.querySelector(".painel-busca");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+});
+
+// Logout
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await fetch("/logout", { method: "POST" });
+  window.location.href = "/login.html";
+});
