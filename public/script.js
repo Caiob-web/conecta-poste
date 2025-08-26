@@ -1,583 +1,343 @@
-// =====================================================================
-//  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
-// =====================================================================
+// ===== script.js — Visualização =====
+// BBOX com paginação; overlay só no 1º load; sem mensagem em zoom baixo;
+// debounce; timeout de fetch; render em lotes; cores por #empresas;
+// popup com empresas numeradas; relógio+clima (com cidade) no canto;
+// botões flutuantes: ocultar/mostrar painel e localizar usuário.
 
-// Inicializa mapa e clusters
-const map = L.map("map").setView([-23.2, -45.9], 12);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+/* ---------------------- Config ---------------------- */
+const ZOOM_MIN = 12;
+const PAGE_LIMIT = 20000;
+const FETCH_TIMEOUT_MS = 12000;
+
+/* UX */
+const DEBOUNCE_MS = 400;
+const FIRST_LOAD_OVERLAY = true;
+const SLOW_FIRST_LOAD_MS = 700;
+
+/* ---------------------- Estado ---------------------- */
+let isLoading = false;
+let lastToken = 0;
+let firstLoadDone = false;
+let overlayTimer = null;
+let widgetStarted = false;
+
+/* ---------------------- Mapa ---------------------- */
+const map = L.map("map", { preferCanvas: true }).setView([-23.2237, -45.9009], 13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(map);
+
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
   zoomToBoundsOnClick: false,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
+  chunkedLoading: true,
 });
-markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
 
-// Dados e sets para autocomplete
-const todosPostes = [];
-const empresasContagem = {};
-const municipiosSet = new Set();
-const bairrosSet = new Set();
-const logradourosSet = new Set();
-let censoMode = false, censoIds = null;
-
-// Spinner overlay
+/* ---------------------- Overlay ---------------------- */
 const overlay = document.getElementById("carregando");
-if (overlay) overlay.style.display = "flex";
+const overlayText = overlay?.querySelector(".texto-loading");
+function setLoading(show, msg) { if (overlayText) overlayText.textContent = msg || "Carregando postes…"; if (overlay) overlay.style.display = show ? "flex" : "none"; }
+function showOverlayDeferred(msg, delay = SLOW_FIRST_LOAD_MS) { clearTimeout(overlayTimer); overlayTimer = setTimeout(() => setLoading(true, msg), delay); }
+function hideOverlay(){ clearTimeout(overlayTimer); setLoading(false); }
 
-// ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
-// ---------------------------------------------------------------------
-fetch("/api/postes")
-  .then((res) => {
-    if (res.status === 401) {
-      window.location.href = "/login.html";
-      throw new Error("Não autorizado");
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-  .then((data) => {
-    if (overlay) overlay.style.display = "none";
-    const agrupado = {};
-    data.forEach((p) => {
-      if (!p.coordenadas) return;
-      const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
-      if (isNaN(lat) || isNaN(lon)) return;
-      if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
-      if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
-        agrupado[p.id].empresas.add(p.empresa);
-    });
-    const postsArray = Object.values(agrupado).map((p) => ({
-      ...p,
-      empresas: [...p.empresas],
-    }));
-
-    // Render em batches
-    function addBatch(i = 0, batchSize = 500) {
-      const slice = postsArray.slice(i, i + batchSize);
-      slice.forEach((poste) => {
-        todosPostes.push(poste);
-        adicionarMarker(poste);
-        municipiosSet.add(poste.nome_municipio);
-        bairrosSet.add(poste.nome_bairro);
-        logradourosSet.add(poste.nome_logradouro);
-        poste.empresas.forEach(
-          (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
-        );
-      });
-      if (i + batchSize < postsArray.length)
-        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
-      else preencherListas();
-    }
-    addBatch();
-  })
-  .catch((err) => {
-    console.error("Erro ao carregar postes:", err);
-    if (overlay) overlay.style.display = "none";
-    if (err.message !== "Não autorizado")
-      alert("Erro ao carregar dados dos postes.");
-  });
-
-// ---------------------------------------------------------------------
-// Preenche datalists de autocomplete
-// ---------------------------------------------------------------------
-function preencherListas() {
-  const mount = (set, id) => {
-    const dl = document.getElementById(id);
-    Array.from(set)
-      .sort()
-      .forEach((v) => {
-        const o = document.createElement("option");
-        o.value = v;
-        dl.appendChild(o);
-      });
-  };
-  mount(municipiosSet, "lista-municipios");
-  mount(bairrosSet, "lista-bairros");
-  mount(logradourosSet, "lista-logradouros");
-  // empresas com label
-  const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem)
-    .sort()
-    .forEach((e) => {
-      const o = document.createElement("option");
-      o.value = e;
-      o.label = `${e} (${empresasContagem[e]} postes)`;
-      dlEmp.appendChild(o);
-    });
+/* ---------------------- Helpers ---------------------- */
+function buildBBoxQS() {
+  const b = map.getBounds();
+  return new URLSearchParams({ minLat: b.getSouth(), maxLat: b.getNorth(), minLng: b.getWest(), maxLng: b.getEast() });
 }
-
-// ---------------------------------------------------------------------
-// Geração de Excel no cliente via SheetJS
-// ---------------------------------------------------------------------
-function gerarExcelCliente(filtroIds) {
-  // monta dados
-  const dadosParaExcel = todosPostes
-    .filter((p) => filtroIds.includes(p.id))
-    .map((p) => ({
-      "ID POSTE": p.id,
-      Município: p.nome_municipio,
-      Bairro: p.nome_bairro,
-      Logradouro: p.nome_logradouro,
-      Empresas: p.empresas.join(", "),
-      Coordenadas: p.coordenadas,
-    }));
-
-  // cria planilha
-  const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Filtro");
-  XLSX.writeFile(wb, "relatorio_postes_filtrados.xlsx");
+async function fetchJsonGuard(url) {
+  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort("timeout"), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { credentials: "same-origin", signal: ctrl.signal });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status} em ${url}: ${text.slice(0,120)}…`);
+    try { return JSON.parse(text); } catch { throw new Error(`Resposta não-JSON: ${text.slice(0,120)}…`); }
+  } finally { clearTimeout(to); }
 }
-
-// ---------------------------------------------------------------------
-// Modo Censo
-// ---------------------------------------------------------------------
-document.getElementById("btnCenso").addEventListener("click", async () => {
-  censoMode = !censoMode;
-  markers.clearLayers();
-  if (!censoMode) return todosPostes.forEach(adicionarMarker);
-
-  if (!censoIds) {
-    try {
-      const res = await fetch("/api/censo");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const arr = await res.json();
-      censoIds = new Set(arr.map((i) => String(i.poste)));
-    } catch {
-      alert("Não foi possível carregar dados do censo.");
-      censoMode = false;
-      return todosPostes.forEach(adicionarMarker);
-    }
+function parseLatLng(p) {
+  let lat = p.latitude ?? p.Latitude ?? p.y;
+  let lng = p.longitude ?? p.Longitude ?? p.x;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    if (p.coordenadas) { const [a,b] = String(p.coordenadas).split(",").map(s=>parseFloat(s.trim())); lat=a; lng=b; }
   }
-  todosPostes
-    .filter((p) => censoIds.has(String(p.id)))
-    .forEach((poste) => {
-      const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6,
-        color: "#666",
-        fillColor: "#bbb",
-        weight: 2,
-        fillOpacity: 0.8,
-      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("click", () => abrirPopup(poste));
-      markers.addLayer(c);
-    });
+  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat,lng] : null;
+}
+function escHTML(s){ return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }
+
+function empresasComoLista(empresas){
+  if (!Array.isArray(empresas) || empresas.length === 0) return "—";
+  const clean=[], seen=new Set();
+  for (const e of empresas){ const v=String(e||"").trim(); if(!v||seen.has(v)) continue; seen.add(v); clean.push(v); }
+  const lis = clean.map(e=>`<li>${escHTML(e)}</li>`).join("");
+  return `<ol style="margin:6px 0 0 18px;padding:0">${lis}</ol>`;
+}
+function corPorEmpresas(qtd){ if(Number(qtd)>5) return "red"; if(Number(qtd)>=4) return "yellow"; return "green"; }
+
+/* ---------------------- Render em lotes ---------------------- */
+function addBatch(items, start=0, batch=1200){
+  const end = Math.min(start+batch, items.length);
+  const toAdd=[];
+  for (let i=start;i<end;i++){
+    const p = items[i];
+    const ll = parseLatLng(p);
+    if(!ll) continue;
+    const qtd = Number(p.qtd_empresas ?? 0);
+    const fill = corPorEmpresas(qtd);
+    const m = L.circleMarker(ll, { radius:6, fillColor:fill, color:"#fff", weight:2, fillOpacity:0.9 })
+      .bindPopup(`
+        <b>ID:</b> ${escHTML(p.id ?? "")}<br>
+        <b>Coord:</b> ${ll[0].toFixed(6)}, ${ll[1].toFixed(6)}<br>
+        <b>Município:</b> ${escHTML(p.nome_municipio ?? "")}<br>
+        <b>Bairro:</b> ${escHTML(p.nome_bairro ?? "")}<br>
+        <b>Logradouro:</b> ${escHTML(p.nome_logradouro ?? "")}<br>
+        <b>Material:</b> ${escHTML(p.material ?? "")}<br>
+        <b>Altura:</b> ${escHTML(p.altura ?? "")}<br>
+        <b>Tensão:</b> ${escHTML(p.tensao_mecanica ?? "")}<br>
+        <b>Empresas (${qtd}):</b>
+        ${empresasComoLista(p.empresas)}
+      `);
+    toAdd.push(m);
+  }
+  if (toAdd.length) markers.addLayers(toAdd);
+  if (end<items.length) (self.requestIdleCallback || setTimeout)(()=>addBatch(items,end,batch),0);
+}
+
+/* ---------------------- Carregar BBOX ---------------------- */
+async function loadVisible(){
+  if (isLoading) return;
+
+  if (map.getZoom() < ZOOM_MIN) { markers.clearLayers(); hideOverlay(); return; }
+
+  hideOverlay();
+  isLoading = true;
+  const token = ++lastToken;
+  let cleared=false;
+
+  if (!firstLoadDone && FIRST_LOAD_OVERLAY) showOverlayDeferred("Carregando…");
+
+  let page=1, total=null, loaded=0;
+
+  try {
+    while (true){
+      if (token !== lastToken) break;
+
+      const qs = buildBBoxQS(); qs.set("page", String(page)); qs.set("limit", String(PAGE_LIMIT));
+      const payload = await fetchJsonGuard(`/api/postes?${qs.toString()}`);
+      const items = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+      const got = items.length;
+
+      if (total==null) total = Number(payload?.total ?? got ?? 0);
+      if (!got) break;
+
+      if (!cleared && token===lastToken){ markers.clearLayers(); cleared=true; }
+
+      addBatch(items);
+      loaded += got;
+
+      if (total>0 && loaded>=total) break;
+      await new Promise(r=>setTimeout(r,60));
+      page++;
+    }
+
+    if (!firstLoadDone){
+      firstLoadDone = true;
+      hideOverlay();
+      initClockAndWeather();
+    }
+  } catch(e){
+    console.error("Erro ao carregar BBOX:", e);
+    hideOverlay();
+  } finally {
+    isLoading=false;
+  }
+}
+
+/* ---------------------- Eventos do mapa ---------------------- */
+let moveendTimer=null;
+map.on("moveend", ()=>{ clearTimeout(moveendTimer); moveendTimer=setTimeout(loadVisible, DEBOUNCE_MS); });
+map.on("zoomend",  ()=>{ clearTimeout(moveendTimer); moveendTimer=setTimeout(loadVisible, DEBOUNCE_MS); });
+map.whenReady(()=>{ loadVisible(); initClockAndWeather(); });
+
+/* ---------------------- Botões do painel (somente visualização) ---------------------- */
+function toast(msg){
+  try{
+    const el=document.createElement("div");
+    el.textContent=msg;
+    Object.assign(el.style,{position:"fixed",bottom:"20px",left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.8)",color:"#fff",padding:"8px 12px",borderRadius:"8px",font:"14px system-ui, Arial",zIndex:"9999"});
+    document.body.appendChild(el); setTimeout(()=>el.remove(),1800);
+  }catch{ alert(msg); }
+}
+function buscarID(){ toast("Função indisponível nesta versão (visualização)."); }
+function buscarCoordenada(){ toast("Função indisponível nesta versão (visualização)."); }
+function filtrarLocal(){ toast("Função indisponível nesta versão (visualização)."); }
+function consultarIDsEmMassa(){ toast("Função indisponível nesta versão (visualização)."); }
+function resetarMapa(){ map.setView([-23.2237,-45.9009],13); }
+function gerarPDFComMapa(){ toast("Função indisponível nesta versão (visualização)."); }
+Object.assign(window,{buscarID,buscarCoordenada,filtrarLocal,consultarIDsEmMassa,resetarMapa,gerarPDFComMapa});
+
+/* ---------------------- Botões flutuantes (funcionais) ---------------------- */
+document.getElementById("togglePainel")?.addEventListener("click", () => {
+  const p = document.getElementById("painelBusca");
+  const show = (p.style.display === "none");
+  p.style.display = show ? "block" : "none";
 });
 
-// ---------------------------------------------------------------------
-// Interações / filtros
-// ---------------------------------------------------------------------
-
-// Busca por ID
-function buscarID() {
-  const id = document.getElementById("busca-id").value.trim();
-  const p = todosPostes.find((x) => x.id === id);
-  if (!p) return alert("Poste não encontrado.");
-  map.setView([p.lat, p.lon], 18);
-  abrirPopup(p);
-}
-
-// Busca por coordenada
-function buscarCoordenada() {
-  const inpt = document.getElementById("busca-coord").value.trim();
-  const [lat, lon] = inpt.split(/,\s*/).map(Number);
-  if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
-  map.setView([lat, lon], 18);
-  L.popup()
-    .setLatLng([lat, lon])
-    .setContent(`<b>Coordenada:</b> ${lat}, ${lon}`)
-    .openOn(map);
-}
-
-// Filtro Município/Bairro/Logradouro/Empresa
-function filtrarLocal() {
-  const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
-  const [mun, bai, log, emp] = [
-    "busca-municipio",
-    "busca-bairro",
-    "busca-logradouro",
-    "busca-empresa",
-  ].map(getVal);
-  const filtro = todosPostes.filter(
-    (p) =>
-      (!mun || p.nome_municipio.toLowerCase() === mun) &&
-      (!bai || p.nome_bairro.toLowerCase() === bai) &&
-      (!log || p.nome_logradouro.toLowerCase() === log) &&
-      (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
-  );
-  if (!filtro.length)
-    return alert("Nenhum poste encontrado com esses filtros.");
-  markers.clearLayers();
-  filtro.forEach(adicionarMarker);
-
-  // exporta back-end
-  fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
-  })
-    .then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = "/login.html";
-        throw new Error("Não autorizado");
-      }
-      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
-      return res.blob();
-    })
-    .then((b) => {
-      const u = URL.createObjectURL(b);
-      const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes_filtro_backend.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(u);
-    })
-    .catch((e) => {
-      console.error("Erro exportar filtro:", e);
-      alert("Falha ao gerar Excel backend:\n" + e.message);
-    });
-
-  // Gera também no cliente
-  gerarExcelCliente(filtro.map((p) => p.id));
-}
-
-// Reset mapa
-function resetarMapa() {
-  markers.clearLayers();
-  todosPostes.forEach(adicionarMarker);
-}
-
-// Adiciona marker padrão
-function adicionarMarker(p) {
-  const cor = p.empresas.length >= 5 ? "red" : "green";
-  const c = L.circleMarker([p.lat, p.lon], {
-    radius: 6,
-    fillColor: cor,
-    color: "#fff",
-    weight: 2,
-    fillOpacity: 0.8,
-  }).bindTooltip(
-    `ID: ${p.id} — ${p.empresas.length} ${
-      p.empresas.length === 1 ? "empresa" : "empresas"
-    }`,
-    { direction: "top", sticky: true }
-  );
-  c.on("click", () => abrirPopup(p));
-  markers.addLayer(c);
-}
-
-// Abre popup
-function abrirPopup(p) {
-  const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
-  const html = `
-    <b>ID:</b> ${p.id}<br>
-    <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
-    <b>Município:</b> ${p.nome_municipio}<br>
-    <b>Bairro:</b> ${p.nome_bairro}<br>
-    <b>Logradouro:</b> ${p.nome_logradouro}<br>
-    <b>Empresas:</b><ul>${list}</ul>
-  `;
-  L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
-}
-// ---------------------------------------------------------------------
-// Minha localização
-// ---------------------------------------------------------------------
-document.getElementById("localizacaoUsuario").addEventListener("click", () => {
-  if (!navigator.geolocation) return alert("Geolocalização não suportada.");
+let myLocMarker = null;
+let myLocCircle = null;
+document.getElementById("localizacaoUsuario")?.addEventListener("click", () => {
+  if (!navigator.geolocation) return alert("Geolocalização não suportada");
   navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      const latlng = [coords.latitude, coords.longitude];
-      L.marker(latlng).addTo(map).bindPopup("📍 Você está aqui!").openPopup();
-      map.setView(latlng, 17);
-      obterPrevisaoDoTempo(coords.latitude, coords.longitude);
-    },
-    () => alert("Erro ao obter localização."),
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-});
+    (pos) => {
+      const { latitude:lat, longitude:lng, accuracy } = pos.coords;
+      const ll = [lat, lng];
 
-// ---------------------------------------------------------------------
-// Hora local
-// ---------------------------------------------------------------------
-function mostrarHoraLocal() {
-  const s = document.querySelector("#hora span");
-  if (!s) return;
-  s.textContent = new Date().toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-setInterval(mostrarHoraLocal, 60000);
-mostrarHoraLocal();
-
-// ---------------------------------------------------------------------
-// Clima via OpenWeatherMap
-// ---------------------------------------------------------------------
-function obterPrevisaoDoTempo(lat, lon) {
-  const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
-  fetch(
-    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`
-  )
-    .then((r) => r.json())
-    .then((data) => {
-      const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-      const div = document.getElementById("tempo");
-      div.querySelector("img").src = url;
-      div.querySelector("span").textContent = `${
-        data.weather[0].description
-      }, ${data.main.temp.toFixed(1)}°C (${data.name})`;
-    })
-    .catch(() => {
-      document.querySelector("#tempo span").textContent =
-        "Erro ao obter clima.";
-    });
-}
-navigator.geolocation.getCurrentPosition(
-  ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-  () => {}
-);
-setInterval(
-  () =>
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-      () => {}
-    ),
-  600000
-);
-
-// ---------------------------------------------------------------------
-// Verificar (Consulta massiva + traçado + intermediários)
-// ---------------------------------------------------------------------
-function consultarIDsEmMassa() {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
-  if (!ids.length) return alert("Nenhum ID fornecido.");
-  markers.clearLayers();
-  if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
-  window.intermediarios?.forEach((m) => map.removeLayer(m));
-  window.numeroMarkers = [];
-
-  const encontrados = ids
-    .map((id) => todosPostes.find((p) => p.id === id))
-    .filter(Boolean);
-  if (!encontrados.length) return alert("Nenhum poste encontrado.");
-  encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
-
-  // intermediários e traçado
-  window.intermediarios = [];
-  encontrados.slice(0, -1).forEach((a, i) => {
-    const b = encontrados[i + 1];
-    const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
-    if (d > 50) {
-      todosPostes
-        .filter((p) => !ids.includes(p.id))
-        .filter(
-          (p) =>
-            getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
-              getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <=
-            d + 20
-        )
-        .forEach((p) => {
-          const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6,
-            color: "gold",
-            fillColor: "yellow",
-            fillOpacity: 0.8,
-          })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, {
-              direction: "top",
-              sticky: true,
-            })
-            .on("click", () => abrirPopup(p))
-            .addTo(map);
-          window.intermediarios.push(m);
+      // cria/atualiza marcador azul
+      if (!myLocMarker) {
+        const blueIcon = L.divIcon({
+          className: "user-loc",
+          html: `<div style="width:14px;height:14px;background:#2196f3;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 2px rgba(33,150,243,.3)"></div>`,
+          iconSize: [18,18],
+          iconAnchor: [9,9]
         });
-    }
-  });
-  map.addLayer(markers);
-  const coords = encontrados.map((p) => [p.lat, p.lon]);
-  if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, {
-      color: "blue",
-      weight: 3,
-      dashArray: "4,6",
-    }).addTo(map);
-    map.fitBounds(L.latLngBounds(coords));
-  } else {
-    map.setView(coords[0], 18);
-  }
+        myLocMarker = L.marker(ll, { icon: blueIcon }).bindPopup("Você está aqui");
+        myLocMarker.addTo(map);
+      } else {
+        myLocMarker.setLatLng(ll);
+      }
 
-  window.ultimoResumoPostes = {
-    total: ids.length,
-    disponiveis: encontrados.filter((p) => p.empresas.length <= 4).length,
-    ocupados: encontrados.filter((p) => p.empresas.length >= 5).length,
-    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
-    intermediarios: window.intermediarios.length,
-  };
-}
+      // cria/atualiza círculo de precisão
+      if (!myLocCircle) {
+        myLocCircle = L.circle(ll, { radius: accuracy || 30, color: "#2196f3", fillColor: "#2196f3", fillOpacity: 0.15, weight: 1 });
+        myLocCircle.addTo(map);
+      } else {
+        myLocCircle.setLatLng(ll).setRadius(accuracy || 30);
+      }
 
-// Adiciona marcador numerado
-function adicionarNumerado(p, num) {
-  const cor = p.empresas.length >= 5 ? "red" : "green";
-  const html = `<div style="
-      background:${cor};color:white;width:22px;height:22px;
-      border-radius:50%;display:flex;align-items:center;
-      justify-content:center;font-size:12px;border:2px solid white
-    ">${num}</div>`;
-  const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
-  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.bindPopup(
-    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${
-      p.nome_municipio
-    }<br><b>Empresas:</b><ul>${p.empresas
-      .map((e) => `<li>${e}</li>`)
-      .join("")}</ul>`
+      map.setView(ll, Math.max(map.getZoom(), 16));
+      myLocMarker.openPopup();
+    },
+    (err) => {
+      console.warn(err);
+      alert("Não foi possível obter sua localização.");
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
-  mk.addTo(markers);
-  window.numeroMarkers.push(mk);
+});
+
+/* ---------------------- Relógio + Clima + Cidade ---------------------- */
+const horaDiv  = document.querySelector("#widget-clima #hora");
+const horaSpan = document.querySelector("#widget-clima #hora span");
+let dataSmall  = document.querySelector("#widget-clima #hora small");
+if (!dataSmall && horaDiv) {
+  dataSmall = document.createElement("small");
+  dataSmall.style.marginLeft = "6px";
+  dataSmall.style.fontSize = "12px";
+  dataSmall.style.opacity = "0.8";
+  dataSmall.style.fontWeight = "normal";
+  horaDiv.appendChild(dataSmall);
 }
 
-function gerarPDFComMapa() {
-  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
+const tempoWrap = document.querySelector("#widget-clima #tempo");
+const tempoImg  = document.querySelector("#widget-clima #tempo img");
+const tempoSpan = document.querySelector("#widget-clima #tempo span");
 
-  leafletImage(map, (err, canvas) => {
-    if (err) return alert("Erro ao capturar imagem.");
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape" });
-
-    // adiciona o mapa
-    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
-
-    // dados do resumo
-    const resumo = window.ultimoResumoPostes || {
-      disponiveis: 0,
-      ocupados: 0,
-      naoEncontrados: [],
-      intermediarios: 0,
-    };
-
-    let y = 140;
-    doc.setFontSize(12);
-    doc.text("Resumo da Verificação:", 10, y);
-
-    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
-    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
-
-    // linha que lista os IDs não encontrados
-    if (resumo.naoEncontrados.length) {
-      const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text(
-        [`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds],
-        10,
-        y + 30
-      );
-    } else {
-      doc.text("⚠️ Não encontrados: 0", 10, y + 30);
-    }
-
-    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
-    doc.save("tracado_postes.pdf");
-  });
+function formatShortDate(d){
+  let s = d.toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"});
+  s = s.replace(/\.$/, "").toLowerCase();
+  return s;
 }
-
-// Distância em metros (haversine)
-function getDistanciaMetros(lat1, lon1, lat2, lon2) {
-  const R = 6371000,
-    toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1),
-    dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Limpa campos e layers auxiliares
-function limparTudo() {
-  if (window.tracadoMassivo) {
-    map.removeLayer(window.tracadoMassivo);
-    window.tracadoMassivo = null;
+function startClock(){
+  function tick(){
+    const now = new Date();
+    const hhmm = now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    if (horaSpan) horaSpan.textContent = hhmm;
+    if (dataSmall) dataSmall.textContent = ` ${formatShortDate(now)}`;
   }
-  window.intermediarios?.forEach((m) => map.removeLayer(m));
-  [
-    "ids-multiplos",
-    "busca-id",
-    "busca-coord",
-    "busca-municipio",
-    "busca-bairro",
-    "busca-logradouro",
-    "busca-empresa",
-  ].forEach((id) => {
-    document.getElementById(id).value = "";
-  });
-  resetarMapa();
+  tick(); setInterval(tick, 1000);
+}
+function wxDesc(code){
+  const c=Number(code);
+  if ([0].includes(c)) return "Céu limpo";
+  if ([1,2].includes(c)) return "Parcialmente nublado";
+  if ([3].includes(c)) return "Nublado";
+  if ([45,48].includes(c)) return "Neblina";
+  if ([51,53,55].includes(c)) return "Garoa";
+  if ([61,63,65].includes(c)) return "Chuva";
+  if ([80,81,82].includes(c)) return "Pancadas de chuva";
+  if ([71,73,75,77].includes(c)) return "Neve";
+  if ([95,96,99].includes(c)) return "Tempestade";
+  return "Tempo indefinido";
+}
+function wxIconDataURI(code,isDay){
+  const c=Number(code);
+  const sun=`<circle cx="16" cy="16" r="6" fill="${isDay ? '#FDB813' : '#B0C4DE'}"/>`;
+  const cloud=`<ellipse cx="18" cy="18" rx="10" ry="6" fill="#cfd8dc"/>`;
+  const drops=`<path d="M10 26 l2 -4 l2 4 z M18 26 l2 -4 l2 4 z M26 26 l2 -4 l2 4 z" fill="#4fc3f7"/>`;
+  const bolt=`<polygon points="18,16 14,24 20,24 16,32 26,22 20,22 24,16" fill="#fdd835"/>`;
+  let inner='';
+  if (c===0) inner=sun;
+  else if ([1,2].includes(c)) inner=`${sun}${cloud}`;
+  else if ([3,45,48].includes(c)) inner=cloud;
+  else if ([51,53,55,61,63,65,80,81,82].includes(c)) inner=`${cloud}${drops}`;
+  else if ([95,96,99].includes(c)) inner=`${cloud}${bolt}`;
+  else inner=`${cloud}`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${inner}</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-// Exporta Excel genérico
-function exportarExcel(ids) {
-  fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids }),
-  })
-    .then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = "/login.html";
-        throw new Error("Não autorizado");
-      }
-      if (!res.ok) {
-        let err;
-        try {
-          err = (await res.json()).error;
-        } catch {}
-        throw new Error(err || `HTTP ${res.status}`);
-      }
-      return res.blob();
-    })
-    .then((b) => {
-      const u = URL.createObjectURL(b);
-      const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(u);
-    })
-    .catch((e) => {
-      console.error("Erro Excel:", e);
-      alert("Falha ao gerar Excel:\n" + e.message);
-    });
+/* Reverse geocoding p/ cidade */
+const geoCache = new Map();
+async function reverseGeocodeName(lat, lon){
+  const key=`${lat.toFixed(3)},${lon.toFixed(3)}`;
+  if (geoCache.has(key)) return geoCache.get(key);
+  const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=pt-BR`;
+  try{
+    const data=await fetchJsonGuard(url);
+    const a=data?.address || {};
+    const city=a.city || a.town || a.village || a.municipality || a.city_district || a.suburb || a.county;
+    const state=a.state || a.region;
+    const place = city ? (state ? `${city} - ${state}` : city) : (state || (data?.display_name?.split(",")[0] || "Local"));
+    geoCache.set(key, place);
+    return place;
+  }catch{
+    geoCache.set(key, "");
+    return "";
+  }
 }
 
-// Botão Excel
-document.getElementById("btnGerarExcel").addEventListener("click", () => {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
-  if (!ids.length) return alert("Informe ao menos um ID.");
-  exportarExcel(ids);
-});
+async function refreshWeather(lat, lon){
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,is_day&timezone=auto`;
+    const data=await fetchJsonGuard(url);
+    const c=data?.current; if(!c) throw new Error("Sem dados de clima");
+    const desc=wxDesc(c.weather_code);
+    const temp=Math.round(c.temperature_2m);
 
-// Toggle painel
-document.getElementById("togglePainel").addEventListener("click", () => {
-  const p = document.querySelector(".painel-busca");
-  p.style.display = p.style.display === "none" ? "block" : "none";
-});
+    const place=await reverseGeocodeName(lat,lon);
 
-// Logout
-document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await fetch("/logout", { method: "POST" });
-  window.location.href = "/login.html";
-});
+    if (tempoSpan) tempoSpan.textContent = `${place ? place + " — " : ""}${temp}°C — ${desc}`;
+    if (tempoImg){ tempoImg.src=wxIconDataURI(c.weather_code, c.is_day===1); tempoImg.alt=desc; tempoImg.style.display="inline-block"; }
+  }catch(e){
+    if (tempoSpan) tempoSpan.textContent="Clima indisponível";
+    if (tempoImg) tempoImg.style.display="none";
+    console.warn("Falha ao obter clima:", e);
+  }
+}
+
+function initClockAndWeather(){
+  if (widgetStarted) return;
+  widgetStarted=true;
+
+  startClock();
+  const c=map.getCenter();
+  refreshWeather(c.lat, c.lng);
+
+  setInterval(()=>{ const cc=map.getCenter(); refreshWeather(cc.lat, cc.lng); }, 10*60*1000);
+
+  tempoWrap?.addEventListener("click", ()=>{ const cc=map.getCenter(); refreshWeather(cc.lat, cc.lng); });
+}
