@@ -2,15 +2,20 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// Inicializa mapa e clusters
-const map = L.map("map").setView([-23.2, -45.9], 12);
+// Inicializa mapa e clusters  (perf: preferCanvas p/ circleMarker leve)
+const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+// (perf) clusters com carregamento em pedaços
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
   zoomToBoundsOnClick: false,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
+  chunkedLoading: true,   // adiciona em lotes
+  chunkDelay: 5,
+  chunkInterval: 50
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
@@ -254,80 +259,104 @@ function resetarMapa() {
   todosPostes.forEach(adicionarMarker);
 }
 
-// ===== ÍCONE 48px em SVG inline (data URI) =====
-function poleIcon48(color) {
-  const halo = color === "red" ? "#D32F2F" : "#2E7D32";
-
-  // SVG “realista”: halo, travessa metálica, isoladores e poste em madeira
-  const svg = encodeURIComponent(`
-    <svg width="48" height="48" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="woodGrad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="#6D5E4E"/>
-          <stop offset="45%" stop-color="#7C6D5A"/>
-          <stop offset="100%" stop-color="#5C4F41"/>
-        </linearGradient>
-        <linearGradient id="steelGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="#888"/>
-          <stop offset="50%" stop-color="#D0D0D0"/>
-          <stop offset="100%" stop-color="#777"/>
-        </linearGradient>
-        <radialGradient id="haloGrad" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stop-color="${halo}" stop-opacity="0.20"/>
-          <stop offset="100%" stop-color="${halo}" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-
-      <!-- halo suave -->
-      <circle cx="12" cy="12" r="10" fill="url(#haloGrad)"/>
-
-      <!-- fio sutil (decorativo) -->
-      <path d="M3.5 6.8 C 8.5 9.2, 15.5 9.2, 20.5 6.8" fill="none" stroke="#707070" stroke-width="0.7" opacity="0.45"/>
-
-      <!-- travessa -->
-      <rect x="5.5" y="8" width="13" height="1.7" rx="0.8" fill="url(#steelGrad)"/>
-
-      <!-- isoladores -->
-      <circle cx="7.5" cy="8.8" r="0.9" fill="#A8A8A8"/>
-      <circle cx="12"  cy="8.8" r="0.9" fill="#A8A8A8"/>
-      <circle cx="16.5" cy="8.8" r="0.9" fill="#A8A8A8"/>
-
-      <!-- poste (madeira) -->
-      <rect x="11.2" y="4.8" width="1.6" height="14.4" rx="0.8" fill="url(#woodGrad)"/>
-      <rect x="11.4" y="4.8" width="0.5" height="14.4" fill="rgba(255,255,255,0.14)"/>
-    </svg>
-  `);
-
-  const url = `data:image/svg+xml;charset=utf-8,${svg}`;
-  return L.icon({
-    iconUrl: url,
-    iconSize: [48, 48],
-    iconAnchor: [24, 28],   // “assenta” melhor na via
-    popupAnchor: [0, -22],
-    tooltipAnchor: [0, -22],
-  });
+// ===== ÍCONES 48px em SVG inline (CACHE ÚNICO) =====
+function makePoleDataUri(hex) {
+  const svg = `
+  <svg width="48" height="48" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="woodGrad" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="#6D5E4E"/>
+        <stop offset="45%" stop-color="#7C6D5A"/>
+        <stop offset="100%" stop-color="#5C4F41"/>
+      </linearGradient>
+      <linearGradient id="steelGrad" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0%" stop-color="#888"/>
+        <stop offset="50%" stop-color="#D0D0D0"/>
+        <stop offset="100%" stop-color="#777"/>
+      </linearGradient>
+      <radialGradient id="haloGrad" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stop-color="${hex}" stop-opacity="0.20"/>
+        <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="12" cy="12" r="10" fill="url(#haloGrad)"/>
+    <path d="M3.5 6.8 C 8.5 9.2, 15.5 9.2, 20.5 6.8" fill="none" stroke="#707070" stroke-width="0.7" opacity="0.45"/>
+    <rect x="5.5" y="8" width="13" height="1.7" rx="0.8" fill="url(#steelGrad)"/>
+    <circle cx="7.5" cy="8.8" r="0.9" fill="#A8A8A8"/>
+    <circle cx="12"  cy="8.8" r="0.9" fill="#A8A8A8"/>
+    <circle cx="16.5" cy="8.8" r="0.9" fill="#A8A8A8"/>
+    <rect x="11.2" y="4.8" width="1.6" height="14.4" rx="0.8" fill="url(#woodGrad)"/>
+    <rect x="11.4" y="4.8" width="0.5" height="14.4" fill="rgba(255,255,255,0.14)"/>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
-
+const ICON_GREEN_48 = L.icon({
+  iconUrl: makePoleDataUri("#2E7D32"),
+  iconSize: [48, 48],
+  iconAnchor: [24, 28],
+  popupAnchor: [0, -22],
+  tooltipAnchor: [0, -22]
+});
+const ICON_RED_48 = L.icon({
+  iconUrl: makePoleDataUri("#D32F2F"),
+  iconSize: [48, 48],
+  iconAnchor: [24, 28],
+  popupAnchor: [0, -22],
+  tooltipAnchor: [0, -22]
+});
+function poleIcon48(color) {
+  return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
+}
 function poleColorByEmpresas(qtd) {
   return (qtd >= 5) ? "red" : "green";
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão  (TROCADO: bolinha -> ícone de poste 48px)
+// Adiciona marker padrão  (adaptativo por zoom p/ reduzir custo)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
+
+  // baixo zoom: circles (Canvas) — muito leve
+  if (map.getZoom() < 15) {
+    const c = L.circleMarker([p.lat, p.lon], {
+      radius: 4.5,
+      color: "#fff",
+      weight: 1.5,
+      fillColor: cor === "red" ? "#d32f2f" : "#2e7d32",
+      fillOpacity: 0.9,
+      renderer: map.options.renderer
+    }).bindTooltip(
+      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+      { direction: "top", sticky: true }
+    );
+    c.on("click", () => abrirPopup(p));
+    markers.addLayer(c);
+    return;
+  }
+
+  // alto zoom: ícone realista 48px (cacheado)
   const m = L.marker([p.lat, p.lon], {
     icon: poleIcon48(cor),
   }).bindTooltip(
-    `ID: ${p.id} — ${p.empresas.length} ${
-      p.empresas.length === 1 ? "empresa" : "empresas"
-    }`,
+    `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
     { direction: "top", sticky: true }
   );
   m.on("click", () => abrirPopup(p));
   markers.addLayer(m);
 }
+
+// Re-render rápido quando o usuário muda o zoom
+const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 0));
+map.on("zoomend", () => {
+  if (!todosPostes.length) return;
+  markers.clearLayers();
+  const batch = 800;
+  (function step(i = 0) {
+    todosPostes.slice(i, i + batch).forEach(adicionarMarker);
+    if (i + batch < todosPostes.length) idle(() => step(i + batch));
+  })();
+});
 
 // Abre popup
 function abrirPopup(p) {
