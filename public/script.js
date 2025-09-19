@@ -254,23 +254,41 @@ function resetarMapa() {
   todosPostes.forEach(adicionarMarker);
 }
 
-// Adiciona marker padrão
+// ===== ÍCONES 48px (realistas) =====
+// Coloque os arquivos em /public/img/ ou ajuste os caminhos abaixo.
+function poleIcon48(color) {
+  const url = color === "red"
+    ? "/img/pole_realistic_red_48.png"    // >5 empresas
+    : "/img/pole_realistic_green_48.png"; // <=4 empresas
+
+  return L.icon({
+    iconUrl: url,
+    iconSize: [48, 48],
+    iconAnchor: [24, 28],   // “assenta” melhor na via
+    popupAnchor: [0, -22],
+    tooltipAnchor: [0, -22],
+  });
+}
+
+function poleColorByEmpresas(qtd) {
+  return (qtd >= 5) ? "red" : "green";
+}
+
+// ---------------------------------------------------------------------
+// Adiciona marker padrão  (TROCADO: bolinha -> ícone de poste 48px)
+// ---------------------------------------------------------------------
 function adicionarMarker(p) {
-  const cor = p.empresas.length >= 5 ? "red" : "green";
-  const c = L.circleMarker([p.lat, p.lon], {
-    radius: 6,
-    fillColor: cor,
-    color: "#fff",
-    weight: 2,
-    fillOpacity: 0.8,
+  const cor = poleColorByEmpresas(p.empresas.length);
+  const m = L.marker([p.lat, p.lon], {
+    icon: poleIcon48(cor),
   }).bindTooltip(
     `ID: ${p.id} — ${p.empresas.length} ${
       p.empresas.length === 1 ? "empresa" : "empresas"
     }`,
     { direction: "top", sticky: true }
   );
-  c.on("click", () => abrirPopup(p));
-  markers.addLayer(c);
+  m.on("click", () => abrirPopup(p));
+  markers.addLayer(m);
 }
 
 // Abre popup
