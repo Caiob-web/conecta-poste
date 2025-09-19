@@ -2,18 +2,18 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// Inicializa mapa e clusters  (perf: preferCanvas p/ circleMarker leve)
+// Inicializa mapa e clusters  (perf: preferCanvas não afeta markers)
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-// (perf) clusters com carregamento em pedaços
+// Clusters com carregamento em pedaços (performance)
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
   zoomToBoundsOnClick: false,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
-  chunkedLoading: true,   // adiciona em lotes
+  chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50
 });
@@ -119,7 +119,6 @@ function preencherListas() {
 // Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
-  // monta dados
   const dadosParaExcel = todosPostes
     .filter((p) => filtroIds.includes(p.id))
     .map((p) => ({
@@ -130,8 +129,6 @@ function gerarExcelCliente(filtroIds) {
       Empresas: p.empresas.join(", "),
       Coordenadas: p.coordenadas,
     }));
-
-  // cria planilha
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Filtro");
@@ -177,7 +174,6 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // Interações / filtros
 // ---------------------------------------------------------------------
 
-// Busca por ID
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
   const p = todosPostes.find((x) => x.id === id);
@@ -186,27 +182,17 @@ function buscarID() {
   abrirPopup(p);
 }
 
-// Busca por coordenada
 function buscarCoordenada() {
   const inpt = document.getElementById("busca-coord").value.trim();
   const [lat, lon] = inpt.split(/,\s*/).map(Number);
   if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
   map.setView([lat, lon], 18);
-  L.popup()
-    .setLatLng([lat, lon])
-    .setContent(`<b>Coordenada:</b> ${lat}, ${lon}`)
-    .openOn(map);
+  L.popup().setLatLng([lat, lon]).setContent(`<b>Coordenada:</b> ${lat}, ${lon}`).openOn(map);
 }
 
-// Filtro Município/Bairro/Logradouro/Empresa
 function filtrarLocal() {
   const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
-  const [mun, bai, log, emp] = [
-    "busca-municipio",
-    "busca-bairro",
-    "busca-logradouro",
-    "busca-empresa",
-  ].map(getVal);
+  const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
   const filtro = todosPostes.filter(
     (p) =>
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
@@ -214,12 +200,10 @@ function filtrarLocal() {
       (!log || p.nome_logradouro.toLowerCase() === log) &&
       (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
   );
-  if (!filtro.length)
-    return alert("Nenhum poste encontrado com esses filtros.");
+  if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
   filtro.forEach(adicionarMarker);
 
-  // exporta back-end
   fetch("/api/postes/report", {
     method: "POST",
     credentials: "same-origin",
@@ -249,11 +233,9 @@ function filtrarLocal() {
       alert("Falha ao gerar Excel backend:\n" + e.message);
     });
 
-  // Gera também no cliente
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-// Reset mapa
 function resetarMapa() {
   markers.clearLayers();
   todosPostes.forEach(adicionarMarker);
@@ -312,30 +294,10 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão  (adaptativo por zoom p/ reduzir custo)
+// Adiciona marker padrão (sempre ícone 48px; sem limpar no zoom)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
-
-  // baixo zoom: circles (Canvas) — muito leve
-  if (map.getZoom() < 15) {
-    const c = L.circleMarker([p.lat, p.lon], {
-      radius: 4.5,
-      color: "#fff",
-      weight: 1.5,
-      fillColor: cor === "red" ? "#d32f2f" : "#2e7d32",
-      fillOpacity: 0.9,
-      renderer: map.options.renderer
-    }).bindTooltip(
-      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-      { direction: "top", sticky: true }
-    );
-    c.on("click", () => abrirPopup(p));
-    markers.addLayer(c);
-    return;
-  }
-
-  // alto zoom: ícone realista 48px (cacheado)
   const m = L.marker([p.lat, p.lon], {
     icon: poleIcon48(cor),
   }).bindTooltip(
@@ -345,18 +307,6 @@ function adicionarMarker(p) {
   m.on("click", () => abrirPopup(p));
   markers.addLayer(m);
 }
-
-// Re-render rápido quando o usuário muda o zoom
-const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 0));
-map.on("zoomend", () => {
-  if (!todosPostes.length) return;
-  markers.clearLayers();
-  const batch = 800;
-  (function step(i = 0) {
-    todosPostes.slice(i, i + batch).forEach(adicionarMarker);
-    if (i + batch < todosPostes.length) idle(() => step(i + batch));
-  })();
-});
 
 // Abre popup
 function abrirPopup(p) {
@@ -371,6 +321,7 @@ function abrirPopup(p) {
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
 }
+
 // ---------------------------------------------------------------------
 // Minha localização
 // ---------------------------------------------------------------------
@@ -539,10 +490,8 @@ function gerarPDFComMapa() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: "landscape" });
 
-    // adiciona o mapa
     doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
 
-    // dados do resumo
     const resumo = window.ultimoResumoPostes || {
       disponiveis: 0,
       ocupados: 0,
@@ -557,14 +506,9 @@ function gerarPDFComMapa() {
     doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
     doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
 
-    // linha que lista os IDs não encontrados
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text(
-        [`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds],
-        10,
-        y + 30
-      );
+      doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
@@ -576,13 +520,10 @@ function gerarPDFComMapa() {
 
 // Distância em metros (haversine)
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
-  const R = 6371000,
-    toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1),
-    dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -593,17 +534,8 @@ function limparTudo() {
     window.tracadoMassivo = null;
   }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
-  [
-    "ids-multiplos",
-    "busca-id",
-    "busca-coord",
-    "busca-municipio",
-    "busca-bairro",
-    "busca-logradouro",
-    "busca-empresa",
-  ].forEach((id) => {
-    document.getElementById(id).value = "";
-  });
+  ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
+    .forEach((id) => { document.getElementById(id).value = ""; });
   resetarMapa();
 }
 
@@ -622,9 +554,7 @@ function exportarExcel(ids) {
       }
       if (!res.ok) {
         let err;
-        try {
-          err = (await res.json()).error;
-        } catch {}
+        try { err = (await res.json()).error; } catch {}
         throw new Error(err || `HTTP ${res.status}`);
       }
       return res.blob();
@@ -647,10 +577,7 @@ function exportarExcel(ids) {
 
 // Botão Excel
 document.getElementById("btnGerarExcel").addEventListener("click", () => {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
+  const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Informe ao menos um ID.");
   exportarExcel(ids);
 });
