@@ -241,50 +241,76 @@ function resetarMapa() {
   todosPostes.forEach(adicionarMarker);
 }
 
-// ===== ÍCONES 48px em SVG inline (CACHE ÚNICO) =====
+// ===== ÍCONES 36px em SVG inline (poste realista, 2 travessas) =====
 function makePoleDataUri(hex) {
   const svg = `
-  <svg width="48" height="48" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="woodGrad" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%" stop-color="#6D5E4E"/>
-        <stop offset="45%" stop-color="#7C6D5A"/>
-        <stop offset="100%" stop-color="#5C4F41"/>
+        <stop offset="0%"  stop-color="#7a5c34"/>
+        <stop offset="55%" stop-color="#8b673d"/>
+        <stop offset="100%" stop-color="#6a4e2c"/>
       </linearGradient>
       <linearGradient id="steelGrad" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0%" stop-color="#888"/>
-        <stop offset="50%" stop-color="#D0D0D0"/>
-        <stop offset="100%" stop-color="#777"/>
+        <stop offset="0%" stop-color="#8e8e8e"/>
+        <stop offset="45%" stop-color="#d9d9d9"/>
+        <stop offset="100%" stop-color="#7a7a7a"/>
       </linearGradient>
-      <radialGradient id="haloGrad" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stop-color="${hex}" stop-opacity="0.20"/>
+      <radialGradient id="haloGrad" cx="12" cy="13" r="10" gradientUnits="userSpaceOnUse">
+        <stop offset="0%"   stop-color="${hex}" stop-opacity="0.18"/>
         <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
       </radialGradient>
     </defs>
-    <circle cx="12" cy="12" r="10" fill="url(#haloGrad)"/>
-    <path d="M3.5 6.8 C 8.5 9.2, 15.5 9.2, 20.5 6.8" fill="none" stroke="#707070" stroke-width="0.7" opacity="0.45"/>
-    <rect x="5.5" y="8" width="13" height="1.7" rx="0.8" fill="url(#steelGrad)"/>
-    <circle cx="7.5" cy="8.8" r="0.9" fill="#A8A8A8"/>
-    <circle cx="12"  cy="8.8" r="0.9" fill="#A8A8A8"/>
-    <circle cx="16.5" cy="8.8" r="0.9" fill="#A8A8A8"/>
-    <rect x="11.2" y="4.8" width="1.6" height="14.4" rx="0.8" fill="url(#woodGrad)"/>
-    <rect x="11.4" y="4.8" width="0.5" height="14.4" fill="rgba(255,255,255,0.14)"/>
+
+    <!-- halo -->
+    <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
+
+    <!-- poste (leve afunilado) -->
+    <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
+             C11.1 20.1 11.7 20.6 12.0 20.6
+             C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
+             C12.8 4.4 12.5 4.2 12.0 4.2 Z"
+          fill="url(#woodGrad)"/>
+    <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
+
+    <!-- travessa superior -->
+    <g transform="rotate(-2 12 7.2)">
+      <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
+      <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
+      <circle cx="12.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
+      <circle cx="17.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
+      <path d="M5.0 6.9 C 7.8 8.0, 16.2 8.0, 19.0 6.9" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round"/>
+      <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
+    </g>
+
+    <!-- travessa inferior (menor) -->
+    <g transform="rotate(1 12 10.2)">
+      <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
+      <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
+      <circle cx="12.0" cy="10.2" r="0.65" fill="#c7c7c7"/>
+      <circle cx="16.2" cy="10.2" r="0.65" fill="#c7c7c7"/>
+      <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
+    </g>
+
+    <!-- brilho lateral do poste -->
+    <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
+
 const ICON_GREEN_48 = L.icon({
   iconUrl: makePoleDataUri("#2E7D32"),
-  iconSize: [48, 48],
-  iconAnchor: [24, 28],
-  popupAnchor: [0, -22],
-  tooltipAnchor: [0, -22]
+  iconSize: [36, 36],
+  iconAnchor: [18, 21],
+  popupAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 const ICON_RED_48 = L.icon({
   iconUrl: makePoleDataUri("#D32F2F"),
-  iconSize: [48, 48],
-  iconAnchor: [24, 28],
-  popupAnchor: [0, -22],
-  tooltipAnchor: [0, -22]
+  iconSize: [36, 36],
+  iconAnchor: [18, 21],
+  popupAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
@@ -294,7 +320,7 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão (sempre ícone 48px; sem limpar no zoom)
+// Adiciona marker padrão (sempre ícone 36px; sem limpar no zoom)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
