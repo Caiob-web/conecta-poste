@@ -2,6 +2,69 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
+// ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
+(function injectHudStyles() {
+  const css = `
+    /* container do bloco de hora+tempo já existente (#tempo) */
+    #tempo{
+      display:flex;
+      align-items:center;
+      gap:14px;               /* respiro entre itens */
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.9);
+      box-shadow:0 6px 18px rgba(0,0,0,.12);
+      backdrop-filter:saturate(1.2) blur(2px);
+    }
+    #tempo img{
+      width:28px; height:28px; object-fit:contain;
+      margin-right:6px;
+    }
+    #tempo .tempo-text{
+      line-height:1.15;
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#1f2937;
+    }
+    #tempo .hora{
+      font-weight:700;
+      margin-right:2px;
+      color:#0f172a;
+    }
+    /* seletor de mapa (ao lado, com bom espaçamento) */
+    #base-switcher{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin-left:22px;       /* solta do bloco de tempo */
+      padding-left:14px;
+      border-left:1px solid rgba(0,0,0,.08);
+    }
+    #base-switcher .lbl{
+      font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      letter-spacing:.2px;
+      color:#475569;
+      font-weight:600;
+    }
+    #base-switcher select{
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      padding:6px 28px 6px 10px;
+      border:1px solid #d1d5db;
+      border-radius:8px;
+      background:#fff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+      outline:none;
+      transition:border-color .15s ease, box-shadow .15s ease;
+    }
+    #base-switcher select:focus{
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.20);
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
 // Inicializa mapa (preferCanvas ajuda em muitas features vetoriais)
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
@@ -417,11 +480,24 @@ function obterPrevisaoDoTempo(lat, lon) {
     .then((data) => {
       const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
       const div = document.getElementById("tempo");
-      div.querySelector("img").src = url;
-      div.querySelector("span").textContent = `${data.weather[0].description}, ${data.main.temp.toFixed(1)}°C (${data.name})`;
+      // garante estrutura: <img> + <span.tempo-text>
+      let img = div.querySelector("img");
+      if (!img) {
+        img = document.createElement("img");
+        div.prepend(img);
+      }
+      let span = div.querySelector("span.tempo-text");
+      if (!span) {
+        span = document.createElement("span");
+        span.className = "tempo-text";
+        div.appendChild(span);
+      }
+      img.src = url;
+      span.textContent = `${data.weather[0].description}, ${data.main.temp.toFixed(1)}°C (${data.name})`;
     })
     .catch(() => {
-      document.querySelector("#tempo span").textContent = "Erro ao obter clima.";
+      const t = document.querySelector("#tempo .tempo-text") || document.querySelector("#tempo span");
+      if (t) t.textContent = "Erro ao obter clima.";
     });
 }
 navigator.geolocation.getCurrentPosition(
@@ -444,12 +520,10 @@ setInterval(
 
   const wrap = document.createElement("span");
   wrap.id = "base-switcher";
-  wrap.style.cssText =
-    "display:inline-flex;align-items:center;gap:6px;margin-left:10px;font:13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial;";
 
   const lbl = document.createElement("span");
   lbl.textContent = "Mapa:";
-  lbl.style.opacity = "0.8";
+  lbl.className = "lbl";
 
   const select = document.createElement("select");
   select.innerHTML = `
@@ -457,9 +531,6 @@ setInterval(
     <option value="sat">Satélite</option>
     <option value="satlabels">Satélite + rótulos</option>
   `;
-  select.style.cssText =
-    "padding:2px 6px;border:1px solid #ccc;border-radius:6px;background:#fff;";
-
   select.addEventListener("change", (e) => setBase(e.target.value));
 
   wrap.appendChild(lbl);
