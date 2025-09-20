@@ -2,46 +2,43 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// Inicializa mapa e clusters  (perf: preferCanvas não afeta markers)
+// Inicializa mapa (preferCanvas ajuda em muitas features vetoriais)
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
-// ====== CAMADAS BASE ======
-const osm = L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  { attribution: '&copy; OpenStreetMap contributors' }
-).addTo(map); // padrão inicial
-
-// Satélite (ESRI World Imagery)
+// ------------------------- Camadas base -------------------------------
+// Rua (OSM)
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+});
+// Satélite (Esri)
 const esriSat = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  { attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" }
+  { maxZoom: 19 }
 );
-
-// (Opcional) rótulos por cima do satélite
-map.createPane("labels");
-map.getPane("labels").style.zIndex = 650;
-map.getPane("labels").style.pointerEvents = "none";
-
-const labels = L.tileLayer(
+// Rótulos por cima do satélite
+const labelsPane = map.createPane("labels");
+labelsPane.style.zIndex = 650;
+labelsPane.style.pointerEvents = "none";
+const cartoLabels = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
-  { pane: "labels", attribution: "© CARTO" }
+  { pane: "labels", maxZoom: 19, subdomains: "abcd" }
 );
+const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
-// Base combinada: Satélite + Rótulos
-const satComRotulos = L.layerGroup([esriSat, labels]);
+// Começa com Rua (OSM)
+osm.addTo(map);
 
-// Controle de camadas (base layers)
-L.control.layers(
-  {
-    "Rua (OSM)": osm,
-    "Satélite (Esri)": esriSat,
-    "Satélite + rótulos": satComRotulos
-  },
-  null,
-  { collapsed: true }
-).addTo(map);
+// Alternador de base (usado pelo seletor no rodapé)
+let currentBase = osm;
+function setBase(mode) {
+  if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
+  if (mode === "sat") currentBase = esriSat;
+  else if (mode === "satlabels") currentBase = satComRotulos;
+  else currentBase = osm;
+  currentBase.addTo(map);
+}
 
-// Clusters com carregamento em pedaços (performance)
+// -------------------- Clusters com chunked loading -------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -50,7 +47,7 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50
+  chunkInterval: 50,
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
@@ -296,10 +293,8 @@ function makePoleDataUri(hex) {
       </radialGradient>
     </defs>
 
-    <!-- halo -->
     <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
 
-    <!-- poste (leve afunilado) -->
     <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
              C11.1 20.1 11.7 20.6 12.0 20.6
              C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
@@ -307,7 +302,6 @@ function makePoleDataUri(hex) {
           fill="url(#woodGrad)"/>
     <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
 
-    <!-- travessa superior -->
     <g transform="rotate(-2 12 7.2)">
       <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
       <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
@@ -317,7 +311,6 @@ function makePoleDataUri(hex) {
       <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
     </g>
 
-    <!-- travessa inferior (menor) -->
     <g transform="rotate(1 12 10.2)">
       <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
       <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
@@ -326,7 +319,6 @@ function makePoleDataUri(hex) {
       <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
     </g>
 
-    <!-- brilho lateral do poste -->
     <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -337,24 +329,24 @@ const ICON_GREEN_48 = L.icon({
   iconSize: [36, 36],
   iconAnchor: [18, 21],
   popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16]
+  tooltipAnchor: [0, -16],
 });
 const ICON_RED_48 = L.icon({
   iconUrl: makePoleDataUri("#D32F2F"),
   iconSize: [36, 36],
   iconAnchor: [18, 21],
   popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16]
+  tooltipAnchor: [0, -16],
 });
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
 }
 function poleColorByEmpresas(qtd) {
-  return (qtd >= 5) ? "red" : "green";
+  return qtd >= 5 ? "red" : "green";
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão (sempre ícone 36px; sem limpar no zoom)
+// Adiciona marker padrão (ícone 36px; sem limpar no zoom)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
@@ -426,13 +418,10 @@ function obterPrevisaoDoTempo(lat, lon) {
       const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
       const div = document.getElementById("tempo");
       div.querySelector("img").src = url;
-      div.querySelector("span").textContent = `${
-        data.weather[0].description
-      }, ${data.main.temp.toFixed(1)}°C (${data.name})`;
+      div.querySelector("span").textContent = `${data.weather[0].description}, ${data.main.temp.toFixed(1)}°C (${data.name})`;
     })
     .catch(() => {
-      document.querySelector("#tempo span").textContent =
-        "Erro ao obter clima.";
+      document.querySelector("#tempo span").textContent = "Erro ao obter clima.";
     });
 }
 navigator.geolocation.getCurrentPosition(
@@ -447,6 +436,36 @@ setInterval(
     ),
   600000
 );
+
+// ----------------- Seletor de base no rodapé (ao lado do clima) ------
+(function mountBaseSwitcher() {
+  const tempoDiv = document.getElementById("tempo");
+  if (!tempoDiv) return;
+
+  const wrap = document.createElement("span");
+  wrap.id = "base-switcher";
+  wrap.style.cssText =
+    "display:inline-flex;align-items:center;gap:6px;margin-left:10px;font:13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial;";
+
+  const lbl = document.createElement("span");
+  lbl.textContent = "Mapa:";
+  lbl.style.opacity = "0.8";
+
+  const select = document.createElement("select");
+  select.innerHTML = `
+    <option value="rua">Rua</option>
+    <option value="sat">Satélite</option>
+    <option value="satlabels">Satélite + rótulos</option>
+  `;
+  select.style.cssText =
+    "padding:2px 6px;border:1px solid #ccc;border-radius:6px;background:#fff;";
+
+  select.addEventListener("change", (e) => setBase(e.target.value));
+
+  wrap.appendChild(lbl);
+  wrap.appendChild(select);
+  tempoDiv.appendChild(wrap);
+})();
 
 // ---------------------------------------------------------------------
 // Verificar (Consulta massiva + traçado + intermediários)
@@ -534,9 +553,7 @@ function adicionarNumerado(p, num) {
   mk.bindPopup(
     `<b>ID:</b> ${p.id}<br><b>Município:</b> ${
       p.nome_municipio
-    }<br><b>Empresas:</b><ul>${p.empresas
-      .map((e) => `<li>${e}</li>`)
-      .join("")}</ul>`
+    }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
   );
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
@@ -582,8 +599,9 @@ function gerarPDFComMapa() {
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
