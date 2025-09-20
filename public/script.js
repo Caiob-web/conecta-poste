@@ -4,7 +4,42 @@
 
 // Inicializa mapa e clusters  (perf: preferCanvas não afeta markers)
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+// ====== CAMADAS BASE ======
+const osm = L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  { attribution: '&copy; OpenStreetMap contributors' }
+).addTo(map); // padrão inicial
+
+// Satélite (ESRI World Imagery)
+const esriSat = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" }
+);
+
+// (Opcional) rótulos por cima do satélite
+map.createPane("labels");
+map.getPane("labels").style.zIndex = 650;
+map.getPane("labels").style.pointerEvents = "none";
+
+const labels = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
+  { pane: "labels", attribution: "© CARTO" }
+);
+
+// Base combinada: Satélite + Rótulos
+const satComRotulos = L.layerGroup([esriSat, labels]);
+
+// Controle de camadas (base layers)
+L.control.layers(
+  {
+    "Rua (OSM)": osm,
+    "Satélite (Esri)": esriSat,
+    "Satélite + rótulos": satComRotulos
+  },
+  null,
+  { collapsed: true }
+).addTo(map);
 
 // Clusters com carregamento em pedaços (performance)
 const markers = L.markerClusterGroup({
@@ -173,7 +208,6 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // ---------------------------------------------------------------------
 // Interações / filtros
 // ---------------------------------------------------------------------
-
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
   const p = todosPostes.find((x) => x.id === id);
