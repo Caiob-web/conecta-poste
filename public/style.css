@@ -10,3 +10,6 @@ html {
   height: 100vh;
   width: 100vw;
 }
+#tempo { display: inline-flex; align-items: center; gap: 8px; }
+#tempo img { width: 20px; height: 20px; }
+
