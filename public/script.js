@@ -163,6 +163,60 @@ const markers = L.markerClusterGroup({
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
 
+// -------------------- Virtualização / LOD (mantendo seus ícones) ----
+const MIN_ZOOM_POSTES = 15;     // só mostra postes a partir deste zoom
+const VIEWPORT_PADDING = 0.20;  // padding no bbox para evitar "piscar"
+const idToMarker = new Map();   // cache: id -> L.Marker
+let lastRenderBounds = null;
+
+const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a), ms); }; }
+
+function renderizarPostesVisiveis() {
+  if (map.getZoom() < MIN_ZOOM_POSTES) {
+    markers.clearLayers();
+    lastRenderBounds = null;
+    return;
+  }
+  const b = map.getBounds().pad(VIEWPORT_PADDING);
+
+  // Se já cobrimos este bbox ampliado, não refaz
+  if (lastRenderBounds && lastRenderBounds.contains && lastRenderBounds.contains(b)) return;
+  lastRenderBounds = b;
+
+  const dentro = [];
+  const fora = [];
+
+  for (const p of todosPostes) {
+    (b.contains([p.lat, p.lon]) ? dentro : fora).push(p);
+  }
+
+  // remove os que estão fora (se estiverem no layer)
+  fora.forEach((p) => {
+    const mk = idToMarker.get(p.id);
+    if (mk && markers.hasLayer(mk)) markers.removeLayer(mk);
+  });
+
+  // adiciona os que estão dentro, em lotes
+  const lote = 800; // ajuste conforme necessidade
+  let i = 0;
+  function addChunk() {
+    const slice = dentro.slice(i, i + lote);
+    slice.forEach((p) => {
+      const mk = idToMarker.get(p.id);
+      if (mk) {
+        if (!markers.hasLayer(mk)) markers.addLayer(mk);
+      } else {
+        adicionarMarker(p); // cria e adiciona com seu ícone fotorealista
+      }
+    });
+    i += lote;
+    if (i < dentro.length) idle(addChunk);
+  }
+  idle(addChunk);
+}
+map.on("moveend zoomend", debounce(renderizarPostesVisiveis, 60));
+
 // Dados e sets para autocomplete
 const todosPostes = [];
 const empresasContagem = {};
@@ -253,24 +307,20 @@ fetch("/api/postes")
       empresas: [...p.empresas],
     }));
 
-    // Render em batches
-    function addBatch(i = 0, batchSize = 500) {
-      const slice = postsArray.slice(i, i + batchSize);
-      slice.forEach((poste) => {
-        todosPostes.push(poste);
-        adicionarMarker(poste);
-        municipiosSet.add(poste.nome_municipio);
-        bairrosSet.add(poste.nome_bairro);
-        logradourosSet.add(poste.nome_logradouro);
-        poste.empresas.forEach(
-          (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
-        );
-      });
-      if (i + batchSize < postsArray.length)
-        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
-      else preencherListas();
-    }
-    addBatch();
+    // Popular estruturas (sem criar markers de todos de uma vez)
+    postsArray.forEach((poste) => {
+      todosPostes.push(poste);
+      municipiosSet.add(poste.nome_municipio);
+      bairrosSet.add(poste.nome_bairro);
+      logradourosSet.add(poste.nome_logradouro);
+      poste.empresas.forEach(
+        (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
+      );
+    });
+    preencherListas();
+
+    // Desenha apenas os visíveis no viewport (LOD)
+    renderizarPostesVisiveis();
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
@@ -333,7 +383,11 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) return todosPostes.forEach(adicionarMarker);
+  if (!censoMode) {
+    // volta para o render padrão (visíveis)
+    renderizarPostesVisiveis();
+    return;
+  }
 
   if (!censoIds) {
     try {
@@ -344,7 +398,8 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      return todosPostes.forEach(adicionarMarker);
+      renderizarPostesVisiveis();
+      return;
     }
   }
   todosPostes
@@ -393,6 +448,8 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
+
+  // para filtro, mantém o comportamento atual (adiciona todos do filtro)
   filtro.forEach(adicionarMarker);
 
   fetch("/api/postes/report", {
@@ -429,7 +486,8 @@ function filtrarLocal() {
 
 function resetarMapa() {
   markers.clearLayers();
-  todosPostes.forEach(adicionarMarker);
+  // volta para o modo virtualizado (apenas visíveis)
+  renderizarPostesVisiveis();
 }
 
 /* ====================================================================
@@ -551,9 +609,14 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão
+// Adiciona marker padrão (agora com cache por ID)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
+  if (idToMarker.has(p.id)) {
+    const mk = idToMarker.get(p.id);
+    if (!markers.hasLayer(mk)) markers.addLayer(mk);
+    return;
+  }
   const cor = poleColorByEmpresas(p.empresas.length);
   const m = L.marker([p.lat, p.lon], {
     icon: poleIcon48(cor),
@@ -562,6 +625,7 @@ function adicionarMarker(p) {
     { direction: "top", sticky: true }
   );
   m.on("click", () => abrirPopup(p));
+  idToMarker.set(p.id, m);
   markers.addLayer(m);
 }
 
