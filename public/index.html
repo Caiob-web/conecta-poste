@@ -191,7 +191,20 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+
+    <!-- App -->
     <script src="script.js"></script>
+
+    <!-- Reforço para manter o popup fixo mesmo após recarregar camadas/zoom -->
+    <script>
+      window.addEventListener("load", () => {
+        if (window.map && typeof window.reabrirPopupFixo === "function") {
+          map.on("layeradd", () => reabrirPopupFixo(60));
+          map.on("zoomend",   () => reabrirPopupFixo(60));
+        }
+      });
+    </script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
@@ -225,6 +238,7 @@
       const _origFiltrarLocal = filtrarLocal;
       filtrarLocal = function () {
         _origFiltrarLocal();
+
         const mun = document.getElementById("busca-municipio").value.trim().toLowerCase();
         const bai = document.getElementById("busca-bairro").value.trim().toLowerCase();
         const log = document.getElementById("busca-logradouro").value.trim().toLowerCase();
@@ -240,6 +254,11 @@
         if (filtro.length) {
           const ids = filtro.map((p) => p.id);
           gerarExcelCliente(ids);
+        }
+
+        // >>> garante reabrir o popup salvo após o filtro <<<
+        if (typeof window.reabrirPopupFixo === "function") {
+          reabrirPopupFixo(60);
         }
       };
     </script>
