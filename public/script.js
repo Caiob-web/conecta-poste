@@ -270,7 +270,7 @@ const markers = L.markerClusterGroup({
   zoomToBoundsOnClick: false,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
-  // chunking para adicionar em lotes
+  // chunking interno do plugin
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50
@@ -278,42 +278,94 @@ const markers = L.markerClusterGroup({
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers); // 🔒 nunca removemos do mapa
 
-// -------------------- Visibilidade por zoom + adição em chunks -------
+// -------------------- Visibilidade por zoom + adição progressiva ----
 const MIN_ZOOM_POSTES = 15;      // aparece a partir desse zoom
-const CHUNK_SIZE = 1200;         // quantos marcadores por rodada
+const CHUNK_SIZE = 1200;         // não é mais o limitador principal; mantido por compat.
 const idToMarker = new Map();    // cache: id -> L.Marker
 let todosPostes = [];            // preenchido após fetch
 let carregouTodosNoCluster = false; // evita reprocessar
 let emCenso = false;
 
-// util — adicionar uma lista de postes ao cluster em chunks
-function addMarkersInChunks(postes, onDone) {
+// ---------------- Overlay helper ----------------
+const overlay = document.getElementById("carregando");
+function showOverlay(txt){
+  if (!overlay) return;
+  overlay.style.display = "flex";
+  const span = overlay.querySelector(".texto") || overlay.querySelector("span");
+  if (span) span.textContent = txt || "Carregando…";
+}
+function setOverlayProgress(pct){
+  if (!overlay) return;
+  const span = overlay.querySelector(".texto") || overlay.querySelector("span");
+  if (span) span.textContent = `Carregando postes… ${pct}%`;
+}
+function hideOverlay(){ if (overlay) overlay.style.display = "none"; }
+showOverlay("Carregando dados…");
+
+// --------- fábrica de marker sem adicionar (usado no carregamento) ---
+function createMarkerForPoste(p){
+  let mk = idToMarker.get(p.id);
+  if (!mk) {
+    const cor = poleColorByEmpresas(p.empresas.length);
+    mk = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
+      .bindTooltip(
+        `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+        { direction: "top", sticky: true }
+      );
+    mk.on("click", () => abrirPopup(p));
+    idToMarker.set(p.id, mk);
+  }
+  return mk;
+}
+
+// util — adicionar uma lista de postes ao cluster, PROGRESSIVO e leve
+function addMarkersInChunks(postes, onDone, factory) {
+  // requestIdleCallback se disponível, senão rAF
+  const hasRIC = typeof window.requestIdleCallback === "function";
   let i = 0;
-  function step() {
-    const limit = Math.min(i + CHUNK_SIZE, postes.length);
-    for (; i < limit; i++) {
-      const p = postes[i];
-      let mk = idToMarker.get(p.id);
-      if (!mk) {
-        const cor = poleColorByEmpresas(p.empresas.length);
-        mk = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
-          .bindTooltip(
-            `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-            { direction: "top", sticky: true }
-          );
-        mk.on("click", () => abrirPopup(p));
-        idToMarker.set(p.id, mk);
-      }
-      if (!markers.hasLayer(mk)) markers.addLayer(mk);
+  let firstShown = false;
+
+  function step(deadline){
+    const t0 = performance.now();
+    const batch = [];
+
+    while (i < postes.length) {
+      const p = postes[i++];
+      const lyr = factory ? factory(p) : createMarkerForPoste(p);
+      if (lyr) batch.push(lyr);
+
+      // orçamento de ~10–12ms por frame (ou timeRemaining do RIC)
+      const budgetOK = hasRIC ? (deadline.timeRemaining() > 7) : ((performance.now() - t0) < 10);
+      if (!budgetOK || batch.length >= 500) break;
     }
+
+    if (batch.length) {
+      // adicionar em lote é MUITO mais rápido do que addLayer 1 a 1
+      markers.addLayers(batch);
+      if (!firstShown) { hideOverlay(); firstShown = true; }
+      const pct = Math.min(100, Math.round((i / postes.length) * 100));
+      setOverlayProgress(pct);
+    }
+
     if (i < postes.length) {
-      // rende o thread
-      requestAnimationFrame(step);
+      schedule();
     } else {
       onDone && onDone();
     }
   }
-  requestAnimationFrame(step);
+
+  function schedule(){
+    if (hasRIC) requestIdleCallback(step, { timeout: 100 });
+    else requestAnimationFrame(() => step({ timeRemaining: () => 0 }));
+  }
+
+  if (postes.length) {
+    setOverlayProgress(0);
+    schedule();
+  } else {
+    hideOverlay();
+    onDone && onDone();
+  }
 }
 
 // controla quando mostrar os postes (zoom gate)
@@ -322,16 +374,15 @@ function atualizarVisibilidadePorZoom() {
 
   const z = map.getZoom();
   if (z >= MIN_ZOOM_POSTES) {
-    // carrega todos (uma única vez)
+    // carrega todos (uma única vez) de modo progressivo
     if (!carregouTodosNoCluster && todosPostes.length) {
-      showOverlay("Carregando postes...");
+      showOverlay("Carregando postes…");
       markers.clearLayers(); // grupo continua no mapa
       addMarkersInChunks(todosPostes, () => {
         carregouTodosNoCluster = true;
         hideOverlay();
       });
     }
-    // se já carregou, não faz nada — ficam visíveis
   } else {
     // abaixo do zoom mínimo, mantemos o cluster vazio (sem remover o layer)
     markers.clearLayers();
@@ -348,17 +399,6 @@ const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoIds = null;
-
-// ---------------- Overlay helper ----------------
-const overlay = document.getElementById("carregando");
-function showOverlay(txt){
-  if (!overlay) return;
-  overlay.style.display = "flex";
-  const span = overlay.querySelector(".texto") || overlay.querySelector("span");
-  if (span) span.textContent = txt || "Carregando…";
-}
-function hideOverlay(){ if (overlay) overlay.style.display = "none"; }
-showOverlay("Carregando dados…");
 
 // ---------------------- HUD: estrutura dentro de #tempo --------------
 (function buildHud() {
@@ -540,10 +580,12 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     }
   }
 
-  // adiciona marcadores do censo
-  todosPostes
-    .filter((p) => censoIds.has(String(p.id)))
-    .forEach((poste) => {
+  // adiciona marcadores do censo de forma progressiva
+  const lista = todosPostes.filter((p) => censoIds.has(String(p.id)));
+  addMarkersInChunks(
+    lista,
+    () => hideOverlay(),
+    (poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
         radius: 6,
         color: "#666",
@@ -552,9 +594,9 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
         fillOpacity: 0.8,
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
-      markers.addLayer(c);
-    });
-  hideOverlay();
+      return c;
+    }
+  );
 });
 
 // ---------------------------------------------------------------------
@@ -599,7 +641,7 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
 
-  // exibe somente o filtro
+  // exibe somente o filtro (progressivo)
   emCenso = false;
   carregouTodosNoCluster = false;
   markers.clearLayers();
@@ -949,6 +991,9 @@ function consultarIDsEmMassa() {
     naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
     intermediarios: window.intermediarios.length,
   };
+
+  // Mostra apenas estes no cluster (progressivo)
+  addMarkersInChunks(encontrados, () => {});
 }
 
 // Adiciona marcador numerado
