@@ -247,12 +247,18 @@ fetch("/api/postes")
       empresas: [...p.empresas],
     }));
 
-    // Render em batches
-    function addBatch(i = 0, batchSize = 500) {
-      const slice = postsArray.slice(i, i + batchSize);
+    // Render em batches (addLayers + requestIdleCallback para UI fluída)
+    const BATCH = 700; // tamanho de lote (ajuste se desejar)
+    function runLater(fn) {
+      if (window.requestIdleCallback) return requestIdleCallback(() => fn(), { timeout: 120 });
+      return setTimeout(fn, 0);
+    }
+    function addBatch(i = 0) {
+      const slice = postsArray.slice(i, i + BATCH);
+      const novoLote = [];
       slice.forEach((poste) => {
         todosPostes.push(poste);
-        adicionarMarker(poste);
+        novoLote.push(adicionarMarker(poste)); // cria marker (não adiciona)
         municipiosSet.add(poste.nome_municipio);
         bairrosSet.add(poste.nome_bairro);
         logradourosSet.add(poste.nome_logradouro);
@@ -260,9 +266,13 @@ fetch("/api/postes")
           (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
         );
       });
-      if (i + batchSize < postsArray.length)
-        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
-      else preencherListas();
+      if (novoLote.length) markers.addLayers(novoLote);
+
+      if (i + BATCH < postsArray.length) {
+        runLater(() => addBatch(i + BATCH));
+      } else {
+        preencherListas();
+      }
     }
     addBatch();
   })
@@ -327,7 +337,12 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) return todosPostes.forEach(adicionarMarker);
+  if (!censoMode) {
+    // volta tudo (em batch)
+    const arr = todosPostes.map(adicionarMarker);
+    markers.addLayers(arr);
+    return;
+  }
 
   if (!censoIds) {
     try {
@@ -338,9 +353,12 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      return todosPostes.forEach(adicionarMarker);
+      const arr = todosPostes.map(adicionarMarker);
+      markers.addLayers(arr);
+      return;
     }
   }
+  const modoArr = [];
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
@@ -352,8 +370,9 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
         fillOpacity: 0.8,
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
-      markers.addLayer(c);
+      modoArr.push(c);
     });
+  if (modoArr.length) markers.addLayers(modoArr);
 });
 
 // ---------------------------------------------------------------------
@@ -387,7 +406,8 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
-  filtro.forEach(adicionarMarker);
+  const arr = filtro.map(adicionarMarker);
+  markers.addLayers(arr);
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -423,7 +443,8 @@ function filtrarLocal() {
 
 function resetarMapa() {
   markers.clearLayers();
-  todosPostes.forEach(adicionarMarker);
+  const arr = todosPostes.map(adicionarMarker);
+  markers.addLayers(arr);
 }
 
 /* ====================================================================
@@ -496,7 +517,7 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão
+// Adiciona marker padrão (RETORNA o marker — não adiciona aqui)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
@@ -507,7 +528,7 @@ function adicionarMarker(p) {
     { direction: "top", sticky: true }
   );
   m.on("click", () => abrirPopup(p));
-  markers.addLayer(m);
+  return m;
 }
 
 // Abre popup
