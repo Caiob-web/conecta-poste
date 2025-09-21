@@ -1158,3 +1158,140 @@ function atualizarIndicadores() {
     };
   }
 }
+
+/* ====================================================================
+   TEMA ESCURO – PALETA DO PRINT (apenas estilo, sem alterar lógica)
+   - Aplica na .painel-busca (inputs, selects, botões) e no HUD #tempo
+   - Verdes: contorno/realce
+==================================================================== */
+(function injectDarkPanelStyles(){
+  const css = `
+  :root{
+    --ui-bg:#0f1b2a;           /* fundo principal (azul petróleo) */
+    --ui-elev:#132235;         /* cartões elevados */
+    --ui-text:#e6edf7;         /* texto principal */
+    --ui-muted:#9fb3c8;        /* texto secundário */
+    --ui-border:#19d68f;       /* verde contorno */
+    --ui-border-dim:#134e37;   /* verde escurecido para hover */
+    --ui-accent:#18c77f;       /* verde botões */
+    --ui-accent-2:#0fb171;     /* hover */
+    --ui-danger:#ef4444;
+  }
+
+  /* Painel */
+  .painel-busca{
+    color:var(--ui-text);
+    background:var(--ui-bg);
+    border:1px solid var(--ui-border);
+    border-radius:14px;
+    box-shadow:0 8px 28px rgba(0,0,0,.25);
+    padding:12px;
+  }
+  .painel-busca h2, .painel-busca h3{
+    margin:0 0 8px 0;
+    font-weight:800;
+    letter-spacing:.3px;
+    color:var(--ui-text);
+  }
+  .painel-busca .row, .painel-busca .fields, .painel-busca .actions{
+    display:grid; gap:10px;
+  }
+  .painel-busca .fields{ grid-template-columns:repeat(12,1fr); }
+  .painel-busca .actions{ grid-template-columns:repeat(6,1fr); }
+  @media (max-width: 900px){
+    .painel-busca .fields{ grid-template-columns:repeat(2,1fr); }
+    .painel-busca .actions{ grid-template-columns:repeat(3,1fr); }
+  }
+
+  /* Inputs */
+  .painel-busca input,
+  .painel-busca select,
+  .painel-busca textarea{
+    width:100%;
+    background:var(--ui-elev);
+    color:var(--ui-text);
+    border:1px solid var(--ui-border);
+    border-radius:10px;
+    padding:8px 10px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .painel-busca input::placeholder,
+  .painel-busca textarea::placeholder{ color:#89a2b7; }
+  .painel-busca input:focus,
+  .painel-busca select:focus,
+  .painel-busca textarea:focus{
+    border-color:var(--ui-accent);
+    box-shadow:0 0 0 3px rgba(24,199,127,.25);
+  }
+
+  /* Botões */
+  .painel-busca button,
+  .painel-busca .actions button{
+    background:var(--ui-accent);
+    color:#031d12;
+    font-weight:800;
+    border:1px solid var(--ui-border);
+    border-radius:10px;
+    padding:8px 10px;
+    cursor:pointer;
+    transition:transform .12s ease, background .15s ease, border-color .15s ease;
+  }
+  .painel-busca button:hover{ background:var(--ui-accent-2); transform:translateY(-1px); }
+  .painel-busca button:disabled{ opacity:.6; cursor:not-allowed; }
+
+  /* Estilo alternativo para botões “fantasmas” (se houver) */
+  .painel-busca .btn-ghost{
+    background:transparent !important;
+    color:var(--ui-text) !important;
+    border-color:var(--ui-border);
+  }
+  .painel-busca .btn-ghost:hover{
+    background:rgba(24,199,127,.08) !important;
+    border-color:var(--ui-accent);
+  }
+
+  /* Tabelas / cards genéricos nessa área escura */
+  .painel-busca .card, .painel-busca table{
+    background:var(--ui-elev);
+    color:var(--ui-text);
+    border:1px solid var(--ui-border);
+    border-radius:10px;
+  }
+  .painel-busca table th, .painel-busca table td{
+    border-bottom:1px solid rgba(25,214,143,.18);
+  }
+
+  /* HUD (#tempo) no tema escuro */
+  #tempo{
+    background:rgba(10,20,32,.9) !important;
+    color:var(--ui-text) !important;
+    border:1px solid var(--ui-border);
+  }
+  #tempo .hora-row{ color:var(--ui-text) !important; }
+  #tempo .hora-row .dot{
+    background:radial-gradient(circle at 40% 40%, var(--ui-accent), #0b6a45);
+    box-shadow:0 0 0 2px rgba(24,199,127,.25) inset;
+  }
+  #tempo .weather-card{
+    background:rgba(15,27,42,.92) !important;
+    border:1px solid var(--ui-border);
+  }
+  #tempo .tempo-text{ color:var(--ui-text) !important; }
+  #tempo .tempo-text small{ color:var(--ui-muted) !important; }
+  #tempo .map-row{ border-top:1px dashed rgba(25,214,143,.35) !important; }
+  #tempo .select-wrap{
+    background:#0d1a2b !important; color:var(--ui-text);
+    border-color:var(--ui-border) !important;
+  }
+  #tempo select{ color:var(--ui-text) !important; }
+  #tempo .select-wrap:focus-within{
+    box-shadow:0 0 0 3px rgba(24,199,127,.22) !important;
+    border-color:var(--ui-accent) !important;
+  }
+  `;
+  const style = document.createElement('style');
+  style.id = 'dark-poste-theme';
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
