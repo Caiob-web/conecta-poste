@@ -134,8 +134,7 @@
 
 /* ====================================================================
    Sidebar fixa (dock) na divisória direita + botão de recolher/exibir
-   - Não altera a estrutura do HTML: apenas reestiliza e move o botão.
-   - Mapa recebe invalidateSize após a transição.
+   + grade de botões corrigida para caber na largura do dock
 ==================================================================== */
 (function injectDockSidebarStyles(){
   const css = `
@@ -149,19 +148,46 @@
       height: 100vh;
       width: var(--dock-w);
       overflow: auto;
+      overflow-x: hidden;
       border-left: 2px solid var(--ui-border, #19d68f);
-      border-radius: 0 0 0 0 !important;
+      border-radius: 0 !important;
+      padding: 12px;
       padding-bottom: 16px;
       transform: translateX(0%);
       transition: transform .25s ease;
       z-index: 1000;
-    }
-    /* estado recolhido (fora da tela) */
-    .painel-busca.collapsed{
-      transform: translateX(100%);
+      box-sizing: border-box;
     }
 
-    /* botão/aba na própria divisória (usa o #togglePainel existente) */
+    /* inputs/áreas para não estourarem a largura */
+    .painel-busca .field,
+    .painel-busca input,
+    .painel-busca textarea,
+    .painel-busca select{
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    /* AÇÕES — 2 colunas fixas no dock (sem cortar) */
+    .painel-busca .actions{
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important;
+      margin-top: 6px;
+    }
+    .painel-busca .actions button{
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* estado recolhido (fora da tela) */
+    .painel-busca.collapsed{ transform: translateX(100%); }
+
+    /* botão/aba na divisória (usa o #togglePainel existente) */
     #togglePainel{
       position: fixed !important;
       top: 50%;
@@ -173,12 +199,10 @@
       border: 1px solid var(--ui-border, #19d68f) !important;
       box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
       z-index: 1100;
+      display:flex;align-items:center;justify-content:center;
     }
     /* quando recolhido, a aba encosta na borda direita da janela */
-    .painel-busca.collapsed + #togglePainel,
-    body.sidebar-collapsed #togglePainel{
-      right: 6px !important;
-    }
+    body.sidebar-collapsed #togglePainel{ right: 6px !important; }
 
     /* demais botões de topo se alinham à divisória */
     #localizacaoUsuario, #logoutBtn{
@@ -200,7 +224,7 @@
   style.textContent = css;
   document.head.appendChild(style);
 
-  // Ajusta o rótulo/ícone inicial
+  // Ajusta o rótulo/ícone inicial do toggle
   window.addEventListener('DOMContentLoaded', () => {
     const tgl = document.getElementById('togglePainel');
     if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
@@ -211,9 +235,7 @@
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
 // Rua (OSM)
-const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-});
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
 // Satélite (Esri)
 const esriSat = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -353,7 +375,6 @@ if (overlay) overlay.style.display = "flex";
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
-        <!-- Ícone globo (sem comandos de arco 'A') -->
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
@@ -589,7 +610,7 @@ function resetarMapa() {
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
    (verde para ≤4 empresas, vermelho para ≥5 empresas)
-   ==================================================================== */
+==================================================================== */
 function makePolePhoto48(glowHex) {
   const svg = `
   <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
@@ -1078,7 +1099,7 @@ function rowsToCSV(rows) {
   if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
-    btn.innerHTML = '<i class="fa fa-chart-column"></i>Indicadores';
+    btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
     btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
   }
@@ -1277,15 +1298,6 @@ function atualizarIndicadores() {
     letter-spacing:.3px;
     color:var(--ui-text);
   }
-  .painel-busca .row, .painel-busca .fields, .painel-busca .actions{
-    display:grid; gap:10px;
-  }
-  .painel-busca .fields{ grid-template-columns:repeat(12,1fr); }
-  .painel-busca .actions{ grid-template-columns:repeat(6,1fr); }
-  @media (max-width: 900px){
-    .painel-busca .fields{ grid-template-columns:repeat(2,1fr); }
-    .painel-busca .actions{ grid-template-columns:repeat(3,1fr); }
-  }
 
   /* Inputs */
   .painel-busca input,
@@ -1323,17 +1335,6 @@ function atualizarIndicadores() {
   }
   .painel-busca button:hover{ background:var(--ui-accent-2); transform:translateY(-1px); }
   .painel-busca button:disabled{ opacity:.6; cursor:not-allowed; }
-
-  /* Estilo alternativo para botões “fantasmas” (se houver) */
-  .painel-busca .btn-ghost{
-    background:transparent !important;
-    color:var(--ui-text) !important;
-    border-color:var(--ui-border);
-  }
-  .painel-busca .btn-ghost:hover{
-    background:rgba(24,199,127,.08) !important;
-    border-color:var(--ui-accent);
-  }
 
   /* Tabelas / cards genéricos nessa área escura */
   .painel-busca .card, .painel-busca table{
