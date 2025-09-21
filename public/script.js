@@ -263,7 +263,9 @@ function dotStyle(qtdEmpresas){
     weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
     fillOpacity: 0.95,
-    renderer: DOT_RENDERER
+    renderer: DOT_RENDERER,
+    interactive: true,            // garante clique sempre ativo
+    bubblingMouseEvents: true
   };
 }
 
@@ -305,8 +307,10 @@ function criarLayerPoste(p){
     .bindTooltip(
       `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
       { direction: "top", sticky: true }
-    )
-    .on("click", () => abrirPopup(p));
+    );
+  // guarda o dado no layer e amarra o clique de forma resiliente
+  layer.posteData = p;
+  layer.on("click", function(){ abrirPopup(this.posteData); });
   idToMarker.set(p.id, layer);
   return layer;
 }
@@ -317,11 +321,21 @@ function adicionarMarker(p) {
   if (!markers.hasLayer(layer)) markers.addLayer(layer);
 }
 
-// Exibe TODOS os já criados no cache
+// Exibe TODOS os já criados no cache (com re-montagem segura)
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
-  if (arr.length) markers.addLayers(arr); // usa chunkedLoading do cluster
+  if (!arr.length) return;
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
+  function addChunk(){
+    const slice = arr.slice(i, i + lote);
+    markers.addLayers(slice);              // usa chunkedLoading internamente
+    i += lote;
+    if (i < arr.length) scheduleIdle(addChunk);
+    else markers.refreshClusters();        // força re-ligação de eventos/ícones
+  }
+  scheduleIdle(addChunk);
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -331,12 +345,11 @@ function carregarTodosPostesGradualmente() {
   let i = 0;
   function addChunk() {
     const slice = todosPostes.slice(i, i + lote);
-    // cria (cache) e adiciona em lote
     const layers = slice.map(criarLayerPoste);
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else todosCarregados = true;
+    else { todosCarregados = true; markers.refreshClusters(); }
   }
   scheduleIdle(addChunk);
 }
@@ -537,7 +550,9 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
         fillColor: "#bbb",
         weight: 2,
         fillOpacity: 0.8,
-        renderer: DOT_RENDERER
+        renderer: DOT_RENDERER,
+        interactive: true,
+        bubblingMouseEvents: true
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
       markers.addLayer(c);
@@ -612,6 +627,12 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
+  // remove camadas auxiliares que possam ficar por cima
+  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
+  if (window.intermediarios?.length) { window.intermediarios.forEach((m)=> map.removeLayer(m)); window.intermediarios = []; }
+  if (window.numeroMarkers?.length) { window.numeroMarkers.forEach((m)=> markers.removeLayer(m)); window.numeroMarkers = []; }
+  map.closePopup();
+
   // volta a mostrar todos os postes carregados (sem apagar cache)
   exibirTodosPostes();
 }
@@ -871,6 +892,8 @@ function consultarIDsEmMassa() {
             color: "gold",
             fillColor: "yellow",
             fillOpacity: 0.8,
+            interactive: true,
+            bubblingMouseEvents: true
           })
             .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, {
               direction: "top",
