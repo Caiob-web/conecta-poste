@@ -202,7 +202,13 @@ if (overlay) overlay.style.display = "flex";
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
-        <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0  1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
+        <!-- Ícone globo (corrigido, sem comandos de arco 'A') -->
+        <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
+          <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
+          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20"
+                fill="none" stroke="#111827" stroke-width="2"/>
+        </svg>
         <select id="select-base">
           <option value="rua">Rua</option>
           <option value="sat">Satélite</option>
@@ -574,7 +580,6 @@ function streetImageryBlockHTML(lat, lng) {
    - Carrega SDK via CDN (dinamicamente)
    - Busca a imagem MAIS PRÓXIMA via API v4 (closeto)
    - Instancia o viewer no container do popup
-   Docs de CDN/SDK: mapillary-js v4 (CDN). API v4 + 'closeto'. :contentReference[oaicite:1]{index=1}
    ==================================================================== */
 const MAPILLARY_TOKEN = "COLOQUE_SUA_MAPILLARY_TOKEN_AQUI";
 
@@ -617,7 +622,6 @@ async function getNearestMapillaryImageId(lat, lng) {
     const j = await r.json();
     return j && j.data && j.data[0] && j.data[0].id ? j.data[0].id : null;
   };
-  // API costuma aceitar lng,lat; alguns exemplos usam lat,lon — testamos os dois.
   return (await tryFetch(`${lng},${lat}`)) || (await tryFetch(`${lat},${lng}`)) || null;
 }
 
@@ -916,7 +920,7 @@ function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * 2 * Math.atan2(Math.sqrt(Math.sqrt(a*a)) , Math.sqrt(1 - a)); // (mantém compat.)
 }
 
 // Limpa campos e layers auxiliares
