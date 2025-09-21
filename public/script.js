@@ -5,77 +5,111 @@
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
 (function injectHudStyles() {
   const css = `
-    /* container do bloco de hora+tempo já existente (#tempo) */
+    /* HUD raiz */
     #tempo{
       display:flex;
-      align-items:center;
-      gap:16px;               /* respiro entre itens */
+      align-items:stretch;
+      gap:18px;
       padding:12px 14px;
       border-radius:14px;
       background:rgba(255,255,255,0.92);
       box-shadow:0 8px 24px rgba(0,0,0,.12);
       backdrop-filter:saturate(1.15) blur(2px);
     }
-    #tempo img{
-      width:28px; height:28px; object-fit:contain;
-      margin-right:6px;
+    /* Colunas */
+    #tempo .hud-left{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width:220px;
     }
-    #tempo .tempo-text{
-      line-height:1.2;
+    #tempo .hora-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#1f2937;
-    }
-    #tempo .hora{
-      font-weight:700;
       color:#0f172a;
-      margin-right:2px;
+      font-weight:700;
+    }
+    #tempo .hora-row .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:linear-gradient(180deg,#1e3a8a,#2563eb);
+      box-shadow:0 0 0 2px #e5e7eb inset;
+      display:inline-block;
     }
 
-    /* --- seletor “profissional” em formato pill --- */
-    #base-switcher{
-      display:inline-flex;
+    /* Cartão do clima */
+    #tempo .weather-card{
+      display:flex;
       align-items:center;
       gap:10px;
-      margin-left:26px;       /* bem solto do bloco de tempo */
+      padding:12px 14px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.95);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+      min-height:44px;
+    }
+    #tempo .weather-card img{
+      width:28px; height:28px; object-fit:contain;
+    }
+    #tempo .tempo-text{
+      display:flex; flex-direction:column;
+      gap:2px;
+      font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#1f2937;
+    }
+    #tempo .tempo-text b{ font-weight:700; }
+    #tempo .tempo-text small{ color:#6b7280; }
+
+    /* Coluna direita: seletor de mapa dentro do HUD */
+    #tempo .hud-right{
+      display:flex;
+      align-items:center;
+      gap:10px;
       padding-left:16px;
       border-left:1px solid rgba(0,0,0,.08);
     }
-    #base-switcher .lbl{
+    #tempo .hud-right .lbl{
       font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       letter-spacing:.2px;
       color:#475569;
       font-weight:700;
     }
-
-    #base-switcher .select-wrap{
+    #tempo .select-wrap{
       position:relative;
       display:inline-flex;
       align-items:center;
       gap:8px;
-      padding:6px 34px 6px 10px;     /* espaço para caret à direita */
+      padding:8px 36px 8px 12px;
       border:1px solid #e5e7eb;
       border-radius:999px;           /* pill */
       background:#ffffff;
       transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
-    #base-switcher .select-wrap:focus-within{
+    #tempo .select-wrap:focus-within{
       border-color:#6366f1;
       box-shadow:0 0 0 3px rgba(99,102,241,.20);
     }
-    #base-switcher .select-wrap .ico-globe{
+    #tempo .select-wrap .ico-globe{
       width:16px;height:16px;opacity:.75;
     }
-    #base-switcher .select-wrap .ico-caret{
+    #tempo .select-wrap .ico-caret{
       position:absolute; right:10px; width:14px; height:14px; opacity:.6;
       pointer-events:none;
     }
-    #base-switcher select{
+    #tempo select{
       appearance:none; -webkit-appearance:none; -moz-appearance:none;
       border:0; outline:none; background:transparent;
       padding:0; margin:0;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       color:#111827; cursor:pointer;
+    }
+
+    /* Responsivo: empilha em telas estreitas */
+    @media (max-width: 560px){
+      #tempo{ flex-direction:column; gap:12px; }
+      #tempo .hud-right{ border-left:0; padding-left:0; }
     }
   `;
   const style = document.createElement("style");
@@ -143,6 +177,59 @@ let censoMode = false, censoIds = null;
 // Spinner overlay
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
+
+// ---------------------- HUD: estrutura dentro de #tempo --------------
+(function buildHud() {
+  const hud = document.getElementById("tempo");
+  if (!hud) return;
+
+  // limpa e reconstrói
+  hud.innerHTML = "";
+
+  // esquerda (hora + clima)
+  const left = document.createElement("div");
+  left.className = "hud-left";
+
+  const horaRow = document.createElement("div");
+  horaRow.className = "hora-row";
+  horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
+  left.appendChild(horaRow);
+
+  const card = document.createElement("div");
+  card.className = "weather-card";
+  card.innerHTML = `
+      <img alt="Clima" src="" />
+      <div class="tempo-text">
+        <b>Carregando…</b>
+        <span> </span>
+        <small> </small>
+      </div>
+  `;
+  left.appendChild(card);
+
+  // direita (seletor de mapa)
+  const right = document.createElement("div");
+  right.className = "hud-right";
+  right.innerHTML = `
+    <span class="lbl">Mapa</span>
+    <span class="select-wrap">
+      <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
+      <select id="select-base">
+        <option value="rua">Rua</option>
+        <option value="sat">Satélite</option>
+        <option value="satlabels">Satélite + rótulos</option>
+      </select>
+      <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+  `;
+
+  hud.appendChild(left);
+  hud.appendChild(right);
+
+  // wire do seletor
+  const selectBase = right.querySelector("#select-base");
+  selectBase.addEventListener("change", e => setBase(e.target.value));
+})();
 
 // ---------------------------------------------------------------------
 // Carrega /api/postes, trata 401 redirecionando
@@ -474,7 +561,7 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
 // Hora local
 // ---------------------------------------------------------------------
 function mostrarHoraLocal() {
-  const s = document.querySelector("#hora span");
+  const s = document.querySelector("#hora span, #tempo .hora-row .hora");
   if (!s) return;
   s.textContent = new Date().toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -485,94 +572,52 @@ setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
 // ---------------------------------------------------------------------
-// Clima via OpenWeatherMap
+// Clima via OpenWeatherMap (com fallback se geo falhar)
 // ---------------------------------------------------------------------
+function preencherClimaUI(data) {
+  const card = document.querySelector("#tempo .weather-card");
+  if (!card) return;
+  const img = card.querySelector("img");
+  const t = card.querySelector(".tempo-text");
+  try {
+    const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+    img.src = url;
+    t.innerHTML = `<b>${data.weather[0].description}</b><span>${data.main.temp.toFixed(1)}°C</span><small>(${data.name})</small>`;
+  } catch {
+    t.innerHTML = `<b>Erro ao obter clima</b>`;
+  }
+}
+
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
   fetch(
     `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`
   )
     .then((r) => r.json())
-    .then((data) => {
-      const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-      const div = document.getElementById("tempo");
-      // garante estrutura: <img> + <span.tempo-text>
-      let img = div.querySelector("img");
-      if (!img) {
-        img = document.createElement("img");
-        div.prepend(img);
-      }
-      let span = div.querySelector("span.tempo-text");
-      if (!span) {
-        span = document.createElement("span");
-        span.className = "tempo-text";
-        div.appendChild(span);
-      }
-      img.src = url;
-      span.textContent = `${data.weather[0].description}, ${data.main.temp.toFixed(1)}°C (${data.name})`;
-    })
+    .then(preencherClimaUI)
     .catch(() => {
-      const t = document.querySelector("#tempo .tempo-text") || document.querySelector("#tempo span");
-      if (t) t.textContent = "Erro ao obter clima.";
+      const t = document.querySelector("#tempo .tempo-text");
+      if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
     });
 }
-navigator.geolocation.getCurrentPosition(
-  ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-  () => {}
-);
-setInterval(
-  () =>
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-      () => {}
-    ),
-  600000
-);
 
-// ----------------- Seletor de base no rodapé (pill profissional) -----
-(function mountBaseSwitcher() {
-  const tempoDiv = document.getElementById("tempo");
-  if (!tempoDiv) return;
-
-  const wrap = document.createElement("span");
-  wrap.id = "base-switcher";
-
-  const lbl = document.createElement("span");
-  lbl.textContent = "Mapa";
-  lbl.className = "lbl";
-
-  const pill = document.createElement("span");
-  pill.className = "select-wrap";
-
-  // ícone globo (SVG inline)
-  const globe = document.createElementNS("http://www.w3.org/2000/svg","svg");
-  globe.setAttribute("viewBox","0 0 24 24");
-  globe.setAttribute("class","ico-globe");
-  globe.innerHTML = `<path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/>`;
-
-  // select
-  const select = document.createElement("select");
-  select.innerHTML = `
-    <option value="rua">Rua</option>
-    <option value="sat">Satélite</option>
-    <option value="satlabels">Satélite + rótulos</option>
-  `;
-  select.addEventListener("change", (e) => setBase(e.target.value));
-
-  // caret
-  const caret = document.createElementNS("http://www.w3.org/2000/svg","svg");
-  caret.setAttribute("viewBox","0 0 24 24");
-  caret.setAttribute("class","ico-caret");
-  caret.innerHTML = `<path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-
-  pill.appendChild(globe);
-  pill.appendChild(select);
-  pill.appendChild(caret);
-
-  wrap.appendChild(lbl);
-  wrap.appendChild(pill);
-  tempoDiv.appendChild(wrap);
+// tenta pegar geo; se falhar, usa SP
+(function initWeather() {
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
+  if (!navigator.geolocation) return fallback();
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+    fallback,
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+  );
 })();
+setInterval(() => {
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+    fallback
+  );
+}, 600000);
 
 // ---------------------------------------------------------------------
 // Verificar (Consulta massiva + traçado + intermediários)
