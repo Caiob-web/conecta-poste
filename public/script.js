@@ -2,13 +2,13 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// ==================== BASE LAYERS + MAP (corrigido maxZoom) ====================
+// ==================== BASE LAYERS (rua / satélite + rótulos) ====================
 
 // Rua (OSM)
 const osmStreets = L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   {
-    maxZoom: 19, // OSM entrega até 19
+    maxZoom: 19,
     minZoom: 2,
     attribution: "&copy; OpenStreetMap contributors",
   }
@@ -18,35 +18,79 @@ const osmStreets = L.tileLayer(
 const esriSat = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {
-    maxZoom: 19, // normalmente 19
+    maxZoom: 19,
     minZoom: 2,
     attribution:
       "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
   }
 );
 
-// Cria o mapa iniciando no satélite e limita o zoom ao maxZoom do layer ativo
-const map = L.map("map", { preferCanvas: true, layers: [esriSat] }).setView(
+// Overlays transparentes de rótulos da Esri (nomes de lugares + vias)
+const esriRefPlaces = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+  {
+    maxZoom: 19,
+    pane: "labels", // garante z-index acima do satélite
+    attribution: "Labels &copy; Esri",
+  }
+);
+const esriRefTransport = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+  {
+    maxZoom: 19,
+    pane: "labels",
+    attribution: "Labels &copy; Esri",
+  }
+);
+
+// cria um pane para os rótulos acima de tudo
+const labelsPane = mapPaneInit();
+function mapPaneInit() {
+  // criamos temporariamente um mapa somente para acessar L, depois substituímos
+  const tempMap = L.map(document.createElement("div"));
+  tempMap.remove();
+  // o verdadeiro pane será criado depois do map real; só retornamos o nome
+  return "labels";
+}
+
+// Cria o mapa iniciando no satélite
+const map = L.map("map", { preferCanvas: true, layers: [] }).setView(
   [-23.2, -45.9],
   12
 );
-map.setMaxZoom(esriSat.options.maxZoom);
+
+// cria o pane 'labels' agora no mapa real
+map.createPane("labels");
+map.getPane("labels").style.zIndex = 650; // acima dos tiles base e abaixo de tooltips/popups
+map.getPane("labels").style.pointerEvents = "none"; // rótulos não capturam clique
+
+// adiciona base inicial (satélite + rótulos)
+_escolherBase("sat");
 
 // Mantemos referências globais para alternar depois
 window._baseLayers = { rua: osmStreets, sat: esriSat };
+window._labelOverlays = [esriRefPlaces, esriRefTransport];
 
-// Função para ativar base e manter o maxZoom correto
-function _ativarBase(base) {
-  // troca o layer base
-  map.removeLayer(osmStreets);
-  map.removeLayer(esriSat);
+// Alterna a base e cuida do maxZoom + overlays de rótulos
+function _escolherBase(base) {
+  // remove tudo
+  [osmStreets, esriSat, ...window._labelOverlays].forEach((l) => {
+    if (map.hasLayer(l)) map.removeLayer(l);
+  });
+
+  // adiciona base escolhida
   const layer = base === "rua" ? osmStreets : esriSat;
   layer.addTo(map);
 
-  // atualiza limite de zoom do mapa (evita "Map data not yet available")
-  map.setMaxZoom(layer.options.maxZoom);
-  if (map.getZoom() > layer.options.maxZoom) {
-    map.setZoom(layer.options.maxZoom);
+  // se satélite, liga rótulos
+  if (base === "sat") {
+    window._labelOverlays.forEach((l) => l.addTo(map));
+  }
+
+  // ajusta maxZoom do mapa
+  map.setMaxZoom(layer.options.maxZoom || 19);
+  if (map.getZoom() > (layer.options.maxZoom || 19)) {
+    map.setZoom(layer.options.maxZoom || 19);
   }
 }
 
@@ -417,7 +461,7 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------
-// Hora local
+// Hora + Clima  (widget no index.html possui #hora e #tempo)
 // ---------------------------------------------------------------------
 function mostrarHoraLocal() {
   const s = document.querySelector("#hora span");
@@ -430,9 +474,6 @@ function mostrarHoraLocal() {
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
-// ---------------------------------------------------------------------
-// Clima via OpenWeatherMap
-// ---------------------------------------------------------------------
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
   fetch(
@@ -466,7 +507,7 @@ setInterval(
 );
 
 // ---------------------------------------------------------------------
-// HUD "Mapa" dentro do widget-clima (dropdown Rua/Satélite)
+// Seletor “Mapa: Rua / Satélite + rótulos” dentro do widget-clima
 // ---------------------------------------------------------------------
 (function mountHudMapa() {
   const widget = document.getElementById("widget-clima");
@@ -508,9 +549,10 @@ setInterval(
   const optRua = document.createElement("option");
   optRua.value = "rua";
   optRua.text = "Rua";
+
   const optSat = document.createElement("option");
   optSat.value = "sat";
-  optSat.text = "Satélite";
+  optSat.text = "Satélite + rótulos";
   optSat.selected = true;
 
   select.appendChild(optRua);
@@ -521,9 +563,8 @@ setInterval(
   row.appendChild(wrap);
   widget.appendChild(row);
 
-  // vínculo
   select.addEventListener("change", () =>
-    _ativarBase(select.value === "rua" ? "rua" : "sat")
+    _escolherBase(select.value === "rua" ? "rua" : "sat")
   );
 })();
 
@@ -741,5 +782,3 @@ document.getElementById("togglePainel").addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
   p.style.display = p.style.display === "none" ? "block" : "none";
 });
-
-// Logout já está no index.html
