@@ -154,6 +154,49 @@
       }
       .texto-loading { margin-top: 12px; font-family: "Segoe UI", sans-serif; color: #0055a5; }
       @keyframes girar { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+
+      /* ===========================================================
+         MELHORIAS (sem remover nada do original acima)
+         - Acessibilidade: focus visível
+         - Botões: micro animação e suavização
+         - Painel: responsivo
+         - HUD: harmonia com script.js
+      ============================================================*/
+      :root{
+        --azul:#0055a5;
+        --azul-esc:#003f7d;
+        --cinza-borda:#e5e7eb;
+        --sombra:0 6px 18px rgba(0,0,0,.12);
+      }
+      .painel-busca .actions button:focus-visible,
+      .botao-topo:focus-visible,
+      .legenda:focus-within{
+        outline: 3px solid rgba(0,85,165,.25);
+        outline-offset: 2px;
+      }
+      /* micro-efeito */
+      .botao-topo{ transition: transform .12s ease, box-shadow .15s ease, background .2s ease; }
+      .botao-topo:hover{ transform: translateY(-1px); box-shadow: var(--sombra); }
+      .painel-busca .actions button{
+        box-shadow: 0 1px 2px rgba(0,0,0,.08);
+        transition: transform .12s ease, box-shadow .15s ease, background .2s ease;
+      }
+      .painel-busca .actions button:active{ transform: translateY(1px) scale(.98); }
+
+      /* responsividade do painel */
+      @media (max-width: 880px){
+        .painel-busca{ right: 12px; width: 92vw; max-width: 420px; }
+        .painel-busca .actions{ grid-template-columns: repeat(2,1fr); }
+      }
+      @media (max-width: 560px){
+        .painel-busca{ left: 12px; right: 12px; width: auto; top: 72px; }
+        .painel-busca .actions{ grid-template-columns: 1fr 1fr; gap:10px; }
+        #widget-clima{ left:12px; bottom:12px; }
+      }
+      /* respeita usuários com redução de movimento */
+      @media (prefers-reduced-motion: reduce){
+        *{ transition:none !important; animation:none !important; }
+      }
     </style>
   </head>
 
