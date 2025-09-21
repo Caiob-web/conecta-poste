@@ -9,55 +9,73 @@
     #tempo{
       display:flex;
       align-items:center;
-      gap:14px;               /* respiro entre itens */
-      padding:10px 12px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.9);
-      box-shadow:0 6px 18px rgba(0,0,0,.12);
-      backdrop-filter:saturate(1.2) blur(2px);
+      gap:16px;               /* respiro entre itens */
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,0.92);
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+      backdrop-filter:saturate(1.15) blur(2px);
     }
     #tempo img{
       width:28px; height:28px; object-fit:contain;
       margin-right:6px;
     }
     #tempo .tempo-text{
-      line-height:1.15;
+      line-height:1.2;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       color:#1f2937;
     }
     #tempo .hora{
       font-weight:700;
-      margin-right:2px;
       color:#0f172a;
+      margin-right:2px;
     }
-    /* seletor de mapa (ao lado, com bom espaçamento) */
+
+    /* --- seletor “profissional” em formato pill --- */
     #base-switcher{
       display:inline-flex;
       align-items:center;
-      gap:8px;
-      margin-left:22px;       /* solta do bloco de tempo */
-      padding-left:14px;
+      gap:10px;
+      margin-left:26px;       /* bem solto do bloco de tempo */
+      padding-left:16px;
       border-left:1px solid rgba(0,0,0,.08);
     }
     #base-switcher .lbl{
       font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       letter-spacing:.2px;
       color:#475569;
-      font-weight:600;
+      font-weight:700;
     }
-    #base-switcher select{
-      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      padding:6px 28px 6px 10px;
-      border:1px solid #d1d5db;
-      border-radius:8px;
-      background:#fff;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
-      outline:none;
+
+    #base-switcher .select-wrap{
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 34px 6px 10px;     /* espaço para caret à direita */
+      border:1px solid #e5e7eb;
+      border-radius:999px;           /* pill */
+      background:#ffffff;
       transition:border-color .15s ease, box-shadow .15s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
-    #base-switcher select:focus{
+    #base-switcher .select-wrap:focus-within{
       border-color:#6366f1;
       box-shadow:0 0 0 3px rgba(99,102,241,.20);
+    }
+    #base-switcher .select-wrap .ico-globe{
+      width:16px;height:16px;opacity:.75;
+    }
+    #base-switcher .select-wrap .ico-caret{
+      position:absolute; right:10px; width:14px; height:14px; opacity:.6;
+      pointer-events:none;
+    }
+    #base-switcher select{
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      border:0; outline:none; background:transparent;
+      padding:0; margin:0;
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#111827; cursor:pointer;
     }
   `;
   const style = document.createElement("style");
@@ -65,10 +83,9 @@
   document.head.appendChild(style);
 })();
 
-// Inicializa mapa (preferCanvas ajuda em muitas features vetoriais)
+// ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
-// ------------------------- Camadas base -------------------------------
 // Rua (OSM)
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -91,7 +108,7 @@ const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 // Começa com Rua (OSM)
 osm.addTo(map);
 
-// Alternador de base (usado pelo seletor no rodapé)
+// alternância programática (usada pelo seletor)
 let currentBase = osm;
 function setBase(mode) {
   if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
@@ -110,7 +127,7 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50,
+  chunkInterval: 50
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
@@ -198,7 +215,6 @@ function preencherListas() {
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
-  // empresas com label
   const dlEmp = document.getElementById("lista-empresas");
   Object.keys(empresasContagem)
     .sort()
@@ -392,24 +408,24 @@ const ICON_GREEN_48 = L.icon({
   iconSize: [36, 36],
   iconAnchor: [18, 21],
   popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 const ICON_RED_48 = L.icon({
   iconUrl: makePoleDataUri("#D32F2F"),
   iconSize: [36, 36],
   iconAnchor: [18, 21],
   popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
 }
 function poleColorByEmpresas(qtd) {
-  return qtd >= 5 ? "red" : "green";
+  return (qtd >= 5) ? "red" : "green";
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão (ícone 36px; sem limpar no zoom)
+// Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
@@ -513,7 +529,7 @@ setInterval(
   600000
 );
 
-// ----------------- Seletor de base no rodapé (ao lado do clima) ------
+// ----------------- Seletor de base no rodapé (pill profissional) -----
 (function mountBaseSwitcher() {
   const tempoDiv = document.getElementById("tempo");
   if (!tempoDiv) return;
@@ -522,9 +538,19 @@ setInterval(
   wrap.id = "base-switcher";
 
   const lbl = document.createElement("span");
-  lbl.textContent = "Mapa:";
+  lbl.textContent = "Mapa";
   lbl.className = "lbl";
 
+  const pill = document.createElement("span");
+  pill.className = "select-wrap";
+
+  // ícone globo (SVG inline)
+  const globe = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  globe.setAttribute("viewBox","0 0 24 24");
+  globe.setAttribute("class","ico-globe");
+  globe.innerHTML = `<path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/>`;
+
+  // select
   const select = document.createElement("select");
   select.innerHTML = `
     <option value="rua">Rua</option>
@@ -533,8 +559,18 @@ setInterval(
   `;
   select.addEventListener("change", (e) => setBase(e.target.value));
 
+  // caret
+  const caret = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  caret.setAttribute("viewBox","0 0 24 24");
+  caret.setAttribute("class","ico-caret");
+  caret.innerHTML = `<path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  pill.appendChild(globe);
+  pill.appendChild(select);
+  pill.appendChild(caret);
+
   wrap.appendChild(lbl);
-  wrap.appendChild(select);
+  wrap.appendChild(pill);
   tempoDiv.appendChild(wrap);
 })();
 
