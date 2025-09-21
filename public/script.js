@@ -171,7 +171,7 @@
       background:transparent !important; border:none !important; box-shadow:none !important;
       color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
-      transform: translate(-50%, -50%);           /* centraliza no ponto */
+      transform: translate(-50%, -50%);
       user-select:none; pointer-events:auto;
     }
   `;
@@ -240,7 +240,7 @@ const markers = L.markerClusterGroup({
     return new L.DivIcon({
       html: String(cluster.getChildCount()),
       className: "cluster-num-only",
-      iconSize: null   // deixa o texto no tamanho natural
+      iconSize: null
     });
   }
 });
@@ -259,6 +259,20 @@ let todosCarregados = false;
 
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
+
+// === Popup fixo (persiste após reset/filtros) ========================
+let popupFixo = null;
+const POPUP_OPTS = { autoClose: true, closeOnClick: false, maxWidth: 360 };
+function reabrirPopupFixo(delay = 0){
+  if (!popupFixo) return;
+  const open = () => {
+    L.popup(POPUP_OPTS)
+      .setLatLng([popupFixo.lat, popupFixo.lon])
+      .setContent(popupFixo.html)
+      .openOn(map);
+  };
+  delay ? setTimeout(open, delay) : open();
+}
 
 // Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
 function criarLayerPoste(p){
@@ -285,6 +299,7 @@ function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
   if (arr.length) markers.addLayers(arr); // usa chunkedLoading
+  if (popupFixo) scheduleIdle(() => reabrirPopupFixo(0));
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -298,7 +313,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else todosCarregados = true;
+    else { todosCarregados = true; scheduleIdle(() => reabrirPopupFixo(0)); }
   }
   scheduleIdle(addChunk);
 }
@@ -321,7 +336,17 @@ if (overlay) overlay.style.display = "flex";
 // ---------------------- HUD na lateral --------------------------------
 (function buildHud() {
   const hud = document.getElementById("tempo");
-  if (!hud) return;
+  const painel = document.querySelector(".painel-busca");
+  if (!hud || !painel) return;
+
+  // move o HUD para o painel, logo abaixo do .actions (lado direito)
+  const actions = painel.querySelector(".actions");
+  hud.classList.add("dock-hud");
+  if (actions && actions.parentNode === painel) {
+    painel.insertBefore(hud, actions.nextSibling);
+  } else {
+    painel.appendChild(hud);
+  }
 
   hud.innerHTML = "";
 
@@ -455,7 +480,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) { exibirTodosPostes(); return; }
+  if (!censoMode) { exibirTodosPostes(); reabrirPopupFixo(60); return; }
 
   if (!censoIds) {
     try {
@@ -465,7 +490,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       censoIds = new Set(arr.map((i) => String(i.poste)));
     } catch {
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false; exibirTodosPostes(); return;
+      censoMode = false; exibirTodosPostes(); reabrirPopupFixo(60); return;
     }
   }
   todosPostes
@@ -478,6 +503,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       c.posteData = poste;
       markers.addLayer(c);
     });
+  reabrirPopupFixo(60);
 });
 
 // ---------------------------------------------------------------------
@@ -513,6 +539,7 @@ function filtrarLocal() {
   markers.clearLayers();
 
   filtro.forEach(adicionarMarker);
+  reabrirPopupFixo(60);
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -543,7 +570,7 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-function resetarMapa() { exibirTodosPostes(); }
+function resetarMapa() { exibirTodosPostes(); reabrirPopupFixo(60); }
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
@@ -657,7 +684,8 @@ function abrirPopup(p) {
     <b>Empresas:</b><ul>${list}</ul>
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
-  L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
+  L.popup(POPUP_OPTS).setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
+  popupFixo = { id: p.id, lat: p.lat, lon: p.lon, html };
 }
 
 // ---------------------------------------------------------------------
@@ -787,6 +815,8 @@ function consultarIDsEmMassa() {
     naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
     intermediarios: window.intermediarios.length,
   };
+
+  reabrirPopupFixo(60);
 }
 
 // Adiciona marcador numerado
