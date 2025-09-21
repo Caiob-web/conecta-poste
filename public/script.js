@@ -2,70 +2,153 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// ==================== MAPA + PANES ====================
+// ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
+(function injectHudStyles() {
+  const css = `
+    /* HUD raiz (caixa externa) */
+    #tempo{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,0.92);
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+      backdrop-filter:saturate(1.15) blur(2px);
+    }
+    /* Hora */
+    #tempo .hora-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#0f172a;
+      font-weight:700;
+    }
+    #tempo .hora-row .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:linear-gradient(180deg,#1e3a8a,#2563eb);
+      box-shadow:0 0 0 2px #e5e7eb inset;
+      display:inline-block;
+    }
+
+    /* Cartão do clima + seletor */
+    #tempo .weather-card{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.95);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+      min-width:260px;
+    }
+    #tempo .weather-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:40px;
+    }
+    #tempo .weather-row img{
+      width:28px; height:28px; object-fit:contain;
+    }
+    #tempo .tempo-text{
+      display:flex; flex-direction:column;
+      gap:2px;
+      font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#1f2937;
+    }
+    #tempo .tempo-text b{ font-weight:700; }
+    #tempo .tempo-text small{ color:#6b7280; }
+
+    /* Linha do seletor de mapa dentro do cartão */
+    #tempo .map-row{
+      margin-top:6px;
+      padding-top:8px;
+      border-top:1px dashed rgba(0,0,0,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    #tempo .map-row .lbl{
+      font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      letter-spacing:.2px;
+      color:#475569;
+      font-weight:700;
+    }
+    #tempo .select-wrap{
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 36px 8px 12px;
+      border:1px solid #e5e7eb;
+      border-radius:999px;           /* pill */
+      background:#ffffff;
+      transition:border-color .15s ease, box-shadow .15s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+    }
+    #tempo .select-wrap:focus-within{
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.20);
+    }
+    #tempo .select-wrap .ico-globe{
+      width:16px;height:16px;opacity:.75;
+    }
+    #tempo .select-wrap .ico-caret{
+      position:absolute; right:10px; width:14px; height:14px; opacity:.6;
+      pointer-events:none;
+    }
+    #tempo select{
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      border:0; outline:none; background:transparent;
+      padding:0; margin:0;
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#111827; cursor:pointer;
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+// ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
-// Pane para rótulos acima do tile base
-map.createPane("labels");
-map.getPane("labels").style.zIndex = 650;
-map.getPane("labels").style.pointerEvents = "none";
-
-// ==================== BASE LAYERS (rua / satélite + rótulos) ====================
 // Rua (OSM)
-const osmStreets = L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  { maxZoom: 19, minZoom: 2, attribution: "&copy; OpenStreetMap contributors" }
-);
-
-// Satélite (Esri World Imagery)
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+});
+// Satélite (Esri)
 const esriSat = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {
-    maxZoom: 19,
-    minZoom: 2,
-    attribution:
-      "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-  }
+  { maxZoom: 19 }
 );
-
-// Overlays transparentes de rótulos (Esri)
-const esriRefPlaces = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom: 19, pane: "labels", attribution: "Labels &copy; Esri" }
+// Rótulos por cima do satélite
+const labelsPane = map.createPane("labels");
+labelsPane.style.zIndex = 650;
+labelsPane.style.pointerEvents = "none";
+const cartoLabels = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
+  { pane: "labels", maxZoom: 19, subdomains: "abcd" }
 );
-const esriRefTransport = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom: 19, pane: "labels", attribution: "Labels &copy; Esri" }
-);
+const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
-// Guardamos referências globais ANTES de escolher a base
-window._baseLayers = { rua: osmStreets, sat: esriSat };
-window._labelOverlays = [esriRefPlaces, esriRefTransport];
+// Começa com Rua (OSM)
+osm.addTo(map);
 
-// Alterna a base e cuida de maxZoom e rótulos
-function _escolherBase(base) {
-  // remove tudo
-  [osmStreets, esriSat, ...window._labelOverlays].forEach((l) => {
-    if (map.hasLayer(l)) map.removeLayer(l);
-  });
-
-  // adiciona base
-  const layer = base === "rua" ? osmStreets : esriSat;
-  layer.addTo(map);
-
-  // satélite -> rótulos ligados
-  if (base === "sat") window._labelOverlays.forEach((l) => l.addTo(map));
-
-  // maxZoom coerente
-  const mz = layer.options.maxZoom || 19;
-  map.setMaxZoom(mz);
-  if (map.getZoom() > mz) map.setZoom(mz);
+// alternância programática (usada pelo seletor)
+let currentBase = osm;
+function setBase(mode) {
+  if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
+  if (mode === "sat") currentBase = esriSat;
+  else if (mode === "satlabels") currentBase = satComRotulos;
+  else currentBase = osm;
+  currentBase.addTo(map);
 }
 
-// Base inicial
-_escolherBase("sat");
-
-// ==================== CLUSTERS ====================
+// -------------------- Clusters com chunked loading -------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -74,12 +157,12 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50,
+  chunkInterval: 50
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
 
-// ==================== DADOS / AUTOCOMPLETE ====================
+// Dados e sets para autocomplete
 const todosPostes = [];
 const empresasContagem = {};
 const municipiosSet = new Set();
@@ -90,6 +173,51 @@ let censoMode = false, censoIds = null;
 // Spinner overlay
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
+
+// ---------------------- HUD: estrutura dentro de #tempo --------------
+(function buildHud() {
+  const hud = document.getElementById("tempo");
+  if (!hud) return;
+
+  hud.innerHTML = "";
+
+  // Hora
+  const horaRow = document.createElement("div");
+  horaRow.className = "hora-row";
+  horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
+  hud.appendChild(horaRow);
+
+  // Cartão: clima + seletor de mapa (dentro do mesmo card)
+  const card = document.createElement("div");
+  card.className = "weather-card";
+  card.innerHTML = `
+    <div class="weather-row">
+      <img alt="Clima" src="" />
+      <div class="tempo-text">
+        <b>Carregando…</b>
+        <span> </span>
+        <small> </small>
+      </div>
+    </div>
+    <div class="map-row">
+      <span class="lbl">Mapa</span>
+      <span class="select-wrap">
+        <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
+        <select id="select-base">
+          <option value="rua">Rua</option>
+          <option value="sat">Satélite</option>
+          <option value="satlabels">Satélite + rótulos</option>
+        </select>
+        <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+  `;
+  hud.appendChild(card);
+
+  // wire do seletor
+  const selectBase = card.querySelector("#select-base");
+  selectBase.addEventListener("change", e => setBase(e.target.value));
+})();
 
 // ---------------------------------------------------------------------
 // Carrega /api/postes, trata 401 redirecionando
@@ -114,7 +242,10 @@ fetch("/api/postes")
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
-    const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
+    const postsArray = Object.values(agrupado).map((p) => ({
+      ...p,
+      empresas: [...p.empresas],
+    }));
 
     // Render em batches
     function addBatch(i = 0, batchSize = 500) {
@@ -125,9 +256,12 @@ fetch("/api/postes")
         municipiosSet.add(poste.nome_municipio);
         bairrosSet.add(poste.nome_bairro);
         logradourosSet.add(poste.nome_logradouro);
-        poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
+        poste.empresas.forEach(
+          (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
+        );
       });
-      if (i + batchSize < postsArray.length) setTimeout(() => addBatch(i + batchSize, batchSize), 0);
+      if (i + batchSize < postsArray.length)
+        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
       else preencherListas();
     }
     addBatch();
@@ -135,7 +269,8 @@ fetch("/api/postes")
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
     if (overlay) overlay.style.display = "none";
-    if (err.message !== "Não autorizado") alert("Erro ao carregar dados dos postes.");
+    if (err.message !== "Não autorizado")
+      alert("Erro ao carregar dados dos postes.");
   });
 
 // ---------------------------------------------------------------------
@@ -144,22 +279,26 @@ fetch("/api/postes")
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
-    Array.from(set).sort().forEach((v) => {
-      const o = document.createElement("option");
-      o.value = v;
-      dl.appendChild(o);
-    });
+    Array.from(set)
+      .sort()
+      .forEach((v) => {
+        const o = document.createElement("option");
+        o.value = v;
+        dl.appendChild(o);
+      });
   };
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem).sort().forEach((e) => {
-    const o = document.createElement("option");
-    o.value = e;
-    o.label = `${e} (${empresasContagem[e]} postes)`;
-    dlEmp.appendChild(o);
-  });
+  Object.keys(empresasContagem)
+    .sort()
+    .forEach((e) => {
+      const o = document.createElement("option");
+      o.value = e;
+      o.label = `${e} (${empresasContagem[e]} postes)`;
+      dlEmp.appendChild(o);
+    });
 }
 
 // ---------------------------------------------------------------------
@@ -206,7 +345,11 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8,
+        radius: 6,
+        color: "#666",
+        fillColor: "#bbb",
+        weight: 2,
+        fillOpacity: 0.8,
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
       markers.addLayer(c);
@@ -303,12 +446,16 @@ function makePoleDataUri(hex) {
         <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
       </radialGradient>
     </defs>
+
     <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
+
     <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
              C11.1 20.1 11.7 20.6 12.0 20.6
              C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
-             C12.8 4.4 12.5 4.2 12.0 4.2 Z" fill="url(#woodGrad)"/>
+             C12.8 4.4 12.5 4.2 12.0 4.2 Z"
+          fill="url(#woodGrad)"/>
     <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
+
     <g transform="rotate(-2 12 7.2)">
       <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
       <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
@@ -317,6 +464,7 @@ function makePoleDataUri(hex) {
       <path d="M5.0 6.9 C 7.8 8.0, 16.2 8.0, 19.0 6.9" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round"/>
       <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
     </g>
+
     <g transform="rotate(1 12 10.2)">
       <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
       <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
@@ -324,6 +472,7 @@ function makePoleDataUri(hex) {
       <circle cx="16.2" cy="10.2" r="0.65" fill="#c7c7c7"/>
       <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
     </g>
+
     <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -334,24 +483,30 @@ const ICON_GREEN_48 = L.icon({
   iconSize: [36, 36],
   iconAnchor: [18, 21],
   popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 const ICON_RED_48 = L.icon({
   iconUrl: makePoleDataUri("#D32F2F"),
   iconSize: [36, 36],
   iconAnchor: [18, 21],
   popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
-function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
-function poleColorByEmpresas(qtd) { return qtd >= 5 ? "red" : "green"; }
+function poleIcon48(color) {
+  return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
+}
+function poleColorByEmpresas(qtd) {
+  return (qtd >= 5) ? "red" : "green";
+}
 
 // ---------------------------------------------------------------------
 // Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
-  const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) }).bindTooltip(
+  const m = L.marker([p.lat, p.lon], {
+    icon: poleIcon48(cor),
+  }).bindTooltip(
     `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
     { direction: "top", sticky: true }
   );
@@ -391,109 +546,88 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------
-// Hora + Clima
+// Hora local
 // ---------------------------------------------------------------------
 function mostrarHoraLocal() {
-  const s = document.querySelector("#hora span");
+  const s = document.querySelector("#hora span, #tempo .hora-row .hora");
   if (!s) return;
-  s.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  s.textContent = new Date().toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
+// ---------------------------------------------------------------------
+// Clima via OpenWeatherMap (com fallback se geo falhar)
+// ---------------------------------------------------------------------
+function preencherClimaUI(data) {
+  const card = document.querySelector("#tempo .weather-card");
+  if (!card) return;
+  const img = card.querySelector(".weather-row img");
+  const t = card.querySelector(".tempo-text");
+  try {
+    const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+    img.src = url;
+    t.innerHTML = `<b>${data.weather[0].description}</b><span>${data.main.temp.toFixed(1)}°C</span><small>(${data.name})</small>`;
+  } catch {
+    t.innerHTML = `<b>Erro ao obter clima</b>`;
+  }
+}
+
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
-  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
+  fetch(
+    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`
+  )
     .then((r) => r.json())
-    .then((data) => {
-      const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-      const div = document.getElementById("tempo");
-      div.querySelector("img").src = url;
-      div.querySelector("span").textContent = `${data.weather[0].description}, ${data.main.temp.toFixed(1)}°C (${data.name})`;
-    })
-    .catch(() => { document.querySelector("#tempo span").textContent = "Erro ao obter clima."; });
+    .then(preencherClimaUI)
+    .catch(() => {
+      const t = document.querySelector("#tempo .tempo-text");
+      if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
+    });
 }
-navigator.geolocation.getCurrentPosition(
-  ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-  () => {}
-);
-setInterval(() => navigator.geolocation.getCurrentPosition(
-  ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-  () => {}
-), 600000);
 
-// ---------------------------------------------------------------------
-// Seletor “Mapa: Rua / Satélite + rótulos” dentro do widget-clima
-// ---------------------------------------------------------------------
-(function mountHudMapa() {
-  const widget = document.getElementById("widget-clima");
-  if (!widget) return;
-
-  const row = document.createElement("div");
-  row.style.display = "flex";
-  row.style.alignItems = "center";
-  row.style.gap = "8px";
-  row.style.marginTop = "10px";
-
-  const label = document.createElement("span");
-  label.textContent = "Mapa";
-  label.style.color = "#536471";
-  label.style.fontSize = "12px";
-  label.style.fontWeight = "600";
-
-  const wrap = document.createElement("div");
-  wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.background = "#fff";
-  wrap.style.border = "1px solid #e5e7eb";
-  wrap.style.borderRadius = "999px";
-  wrap.style.padding = "6px 10px";
-  wrap.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
-
-  const globe = document.createElement("i");
-  globe.className = "fa fa-globe";
-  globe.style.marginRight = "8px";
-  globe.style.color = "#374151";
-
-  const select = document.createElement("select");
-  select.id = "mapaSelect";
-  select.style.border = "none";
-  select.style.outline = "none";
-  select.style.background = "transparent";
-  select.style.fontSize = "13px";
-
-  const optRua = document.createElement("option");
-  optRua.value = "rua"; optRua.text = "Rua";
-
-  const optSat = document.createElement("option");
-  optSat.value = "sat"; optSat.text = "Satélite + rótulos"; optSat.selected = true;
-
-  select.appendChild(optRua);
-  select.appendChild(optSat);
-  wrap.appendChild(globe);
-  wrap.appendChild(select);
-  row.appendChild(label);
-  row.appendChild(wrap);
-  widget.appendChild(row);
-
-  select.addEventListener("change", () => _escolherBase(select.value === "rua" ? "rua" : "sat"));
+// tenta pegar geo; se falhar, usa SP
+(function initWeather() {
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
+  if (!navigator.geolocation) return fallback();
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+    fallback,
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+  );
 })();
+setInterval(() => {
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+    fallback
+  );
+}, 600000);
 
 // ---------------------------------------------------------------------
 // Verificar (Consulta massiva + traçado + intermediários)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
-  const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
+  const ids = document
+    .getElementById("ids-multiplos")
+    .value.split(/[^0-9]+/)
+    .filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
+  const encontrados = ids
+    .map((id) => todosPostes.find((p) => p.id === id))
+    .filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
+  // intermediários e traçado
   window.intermediarios = [];
   encontrados.slice(0, -1).forEach((a, i) => {
     const b = encontrados[i + 1];
@@ -501,15 +635,23 @@ function consultarIDsEmMassa() {
     if (d > 50) {
       todosPostes
         .filter((p) => !ids.includes(p.id))
-        .filter((p) =>
-          getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
-          getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
+        .filter(
+          (p) =>
+            getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
+              getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <=
+            d + 20
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
+            radius: 6,
+            color: "gold",
+            fillColor: "yellow",
+            fillOpacity: 0.8,
           })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, {
+              direction: "top",
+              sticky: true,
+            })
             .on("click", () => abrirPopup(p))
             .addTo(map);
           window.intermediarios.push(m);
@@ -519,7 +661,11 @@ function consultarIDsEmMassa() {
   map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
+    window.tracadoMassivo = L.polyline(coords, {
+      color: "blue",
+      weight: 3,
+      dashArray: "4,6",
+    }).addTo(map);
     map.fitBounds(L.latLngBounds(coords));
   } else {
     map.setView(coords[0], 18);
@@ -544,7 +690,11 @@ function adicionarNumerado(p, num) {
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.bindPopup(`<b>ID:</b> ${p.id}<br><b>Município:</b> ${p.nome_municipio}<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`);
+  mk.bindPopup(
+    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${
+      p.nome_municipio
+    }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
+  );
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
 }
@@ -560,12 +710,16 @@ function gerarPDFComMapa() {
     doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
 
     const resumo = window.ultimoResumoPostes || {
-      disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0,
+      disponiveis: 0,
+      ocupados: 0,
+      naoEncontrados: [],
+      intermediarios: 0,
     };
 
     let y = 140;
     doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
+
     doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
     doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
 
@@ -585,13 +739,18 @@ function gerarPDFComMapa() {
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Limpa campos e layers auxiliares
 function limparTudo() {
-  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
+  if (window.tracadoMassivo) {
+    map.removeLayer(window.tracadoMassivo);
+    window.tracadoMassivo = null;
+  }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
     .forEach((id) => { document.getElementById(id).value = ""; });
@@ -601,7 +760,8 @@ function limparTudo() {
 // Exporta Excel genérico
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
-    method: "POST", credentials: "same-origin",
+    method: "POST",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
@@ -611,7 +771,8 @@ function exportarExcel(ids) {
         throw new Error("Não autorizado");
       }
       if (!res.ok) {
-        let err; try { err = (await res.json()).error; } catch {}
+        let err;
+        try { err = (await res.json()).error; } catch {}
         throw new Error(err || `HTTP ${res.status}`);
       }
       return res.blob();
@@ -619,11 +780,17 @@ function exportarExcel(ids) {
     .then((b) => {
       const u = URL.createObjectURL(b);
       const a = document.createElement("a");
-      a.href = u; a.download = "relatorio_postes.xlsx";
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(u);
+      a.href = u;
+      a.download = "relatorio_postes.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(u);
     })
-    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
+    .catch((e) => {
+      console.error("Erro Excel:", e);
+      alert("Falha ao gerar Excel:\n" + e.message);
+    });
 }
 
 // Botão Excel
@@ -637,4 +804,10 @@ document.getElementById("btnGerarExcel").addEventListener("click", () => {
 document.getElementById("togglePainel").addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
   p.style.display = p.style.display === "none" ? "block" : "none";
+});
+
+// Logout
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await fetch("/logout", { method: "POST" });
+  window.location.href = "/login.html";
 });
