@@ -28,16 +28,8 @@
 
     <style>
       /* --- RESET & MAPA --- */
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-      }
-      #map {
-        width: 100%;
-        height: 100%;
-      }
+      html, body { margin:0; padding:0; height:100%; }
+      #map { width:100%; height:100%; }
 
       /* --- PAINEL DE BUSCA --- */
       .painel-busca {
@@ -59,10 +51,7 @@
         color: #0055a5;
         font-size: 16px;
       }
-      .painel-busca .field {
-        position: relative;
-        margin-bottom: 12px;
-      }
+      .painel-busca .field { position: relative; margin-bottom: 12px; }
       .painel-busca .field input,
       .painel-busca .field textarea {
         width: 100%;
@@ -87,7 +76,6 @@
         font-size: 14px;
       }
 
-      /* ações em 3 colunas */
       .painel-busca .actions {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -106,12 +94,8 @@
         cursor: pointer;
         transition: background 0.2s;
       }
-      .painel-busca .actions button:hover {
-        background: #003f7d;
-      }
-      .painel-busca .actions button .fa {
-        margin-right: 6px;
-      }
+      .painel-busca .actions button:hover { background: #003f7d; }
+      .painel-busca .actions button .fa { margin-right: 6px; }
 
       /* --- LEGENDA --- */
       .legenda {
@@ -125,117 +109,51 @@
         font-size: 13px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
-      .legenda-item {
-        display: flex;
-        align-items: center;
-        margin-bottom: 6px;
-      }
+      .legenda-item { display: flex; align-items: center; margin-bottom: 6px; }
       .legenda-item .bolinha {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-        border: 1px solid #888;
+        width: 12px; height: 12px; border-radius: 50%;
+        margin-right: 8px; border: 1px solid #888;
       }
 
       /* --- BOTOES DE TOPO --- */
       .botao-topo {
         position: absolute;
         right: 20px;
-        width: 38px;
-        height: 38px;
+        width: 38px; height: 38px;
         background: #fff;
         border: 1px solid #ccc;
         border-radius: 50%;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: background 0.2s;
-        z-index: 1001;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.2s; z-index: 1001;
       }
-      .botao-topo:hover {
-        background: #f5f5f5;
-      }
-      #togglePainel {
-        top: 20px;
-      }
-      #localizacaoUsuario {
-        top: 68px;
-      }
-      #logoutBtn {
-        top: 116px;
+      .botao-topo:hover { background: #f5f5f5; }
+      #togglePainel { top: 20px; }
+      #localizacaoUsuario { top: 68px; }
+      #logoutBtn { top: 116px; }
+
+      /* --- HUD: posicionador do cartão (cartão real é #tempo criado no JS) --- */
+      #widget-clima{
+        position:absolute;
+        left:20px;
+        bottom:20px;
+        z-index:2000;
+        /* sem fundo/sombra aqui — o JS cria o cartão único em #tempo */
       }
 
-      /* --- WIDGET CLIMA, OVERLAY, SPINNER --- */
-      #widget-clima {
-        position: absolute;
-        bottom: 20px;
-        left: 20px;
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 6px;
-        padding: 12px 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        font-family: "Segoe UI", sans-serif;
-        font-size: 14px;
-        color: #333;
-        z-index: 2000;
-        width: 200px;
-      }
-      #widget-clima #hora {
-        font-weight: 600;
-        margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-      }
-      #widget-clima #hora .fa-clock {
-        margin-right: 6px;
-        color: #0055a5;
-      }
-      #widget-clima #tempo {
-        display: flex;
-        align-items: center;
-      }
-      #widget-clima #tempo img {
-        width: 32px;
-        height: 32px;
-        margin-right: 8px;
-      }
+      /* --- OVERLAY / SPINNER --- */
       .overlay-loading {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(255, 255, 255, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
+        display: flex; align-items: center; justify-content: center; flex-direction: column;
         z-index: 3000;
       }
       .spinner {
-        border: 6px solid #ccc;
-        border-top: 6px solid #0055a5;
-        border-radius: 50%;
-        width: 48px;
-        height: 48px;
-        animation: girar 1s linear infinite;
+        border: 6px solid #ccc; border-top: 6px solid #0055a5;
+        border-radius: 50%; width: 48px; height: 48px; animation: girar 1s linear infinite;
       }
-      .texto-loading {
-        margin-top: 12px;
-        font-family: "Segoe UI", sans-serif;
-        color: #0055a5;
-      }
-      @keyframes girar {
-        0% {
-          transform: rotate(0);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
+      .texto-loading { margin-top: 12px; font-family: "Segoe UI", sans-serif; color: #0055a5; }
+      @keyframes girar { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
     </style>
   </head>
 
@@ -266,105 +184,59 @@
       </div>
 
       <div class="field">
-        <input
-          type="text"
-          id="busca-municipio"
-          placeholder="Município…"
-          list="lista-municipios"
-        />
+        <input type="text" id="busca-municipio" placeholder="Município…" list="lista-municipios" />
         <i class="fa fa-city"></i>
       </div>
       <datalist id="lista-municipios"></datalist>
 
       <div class="field">
-        <input
-          type="text"
-          id="busca-bairro"
-          placeholder="Bairro…"
-          list="lista-bairros"
-        />
+        <input type="text" id="busca-bairro" placeholder="Bairro…" list="lista-bairros" />
         <i class="fa fa-map-marker-alt"></i>
       </div>
       <datalist id="lista-bairros"></datalist>
 
       <div class="field">
-        <input
-          type="text"
-          id="busca-logradouro"
-          placeholder="Logradouro…"
-          list="lista-logradouros"
-        />
+        <input type="text" id="busca-logradouro" placeholder="Logradouro…" list="lista-logradouros" />
         <i class="fa fa-road"></i>
       </div>
       <datalist id="lista-logradouros"></datalist>
 
       <div class="field">
-        <input
-          type="text"
-          id="busca-empresa"
-          placeholder="Empresa…"
-          list="lista-empresas"
-        />
+        <input type="text" id="busca-empresa" placeholder="Empresa…" list="lista-empresas" />
         <i class="fa fa-building"></i>
       </div>
       <datalist id="lista-empresas"></datalist>
 
       <div class="field">
-        <textarea
-          id="ids-multiplos"
-          rows="2"
-          placeholder="Vários IDs…"
-        ></textarea>
+        <textarea id="ids-multiplos" rows="2" placeholder="Vários IDs…"></textarea>
         <i class="fa fa-list"></i>
       </div>
 
       <div class="actions">
         <button onclick="buscarID()"><i class="fa fa-search"></i>Buscar</button>
-        <button onclick="buscarCoordenada()">
-          <i class="fa fa-map-marker-alt"></i>Coordenada
-        </button>
-        <button onclick="filtrarLocal()">
-          <i class="fa fa-filter"></i>Filtrar
-        </button>
-        <button onclick="consultarIDsEmMassa()">
-          <i class="fa fa-chart-line"></i>Verificar
-        </button>
-        <button onclick="resetarMapa()">
-          <i class="fa fa-undo"></i>Resetar
-        </button>
-        <button onclick="gerarPDFComMapa()">
-          <i class="fa fa-file-pdf"></i>PDF
-        </button>
-        <button id="btnGerarExcel">
-          <i class="fa fa-file-excel"></i>Excel
-        </button>
+        <button onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
+        <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
+        <button onclick="consultarIDsEmMassa()"><i class="fa fa-chart-line"></i>Verificar</button>
+        <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
+        <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
+        <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
       </div>
     </div>
 
     <!-- Legenda -->
     <div class="legenda">
-      <div class="legenda-item">
-        <div class="bolinha" style="background: yellow"></div>
-        Poste intermediário
-      </div>
-      <div class="legenda-item">
-        <div class="bolinha" style="background: green"></div>
-        Até 5 empresas
-      </div>
-      <div class="legenda-item">
-        <div class="bolinha" style="background: red"></div>
-        Mais de 5 empresas
-      </div>
+      <div class="legenda-item"><div class="bolinha" style="background: yellow"></div>Poste intermediário</div>
+      <div class="legenda-item"><div class="bolinha" style="background: green"></div>Até 5 empresas</div>
+      <div class="legenda-item"><div class="bolinha" style="background: red"></div>Mais de 5 empresas</div>
     </div>
 
     <!-- Mapa -->
     <div id="map"></div>
 
-    <!-- Widget de hora & clima -->
+    <!-- HUD: apenas um posicionador; o cartão único (#tempo) é criado no script.js -->
     <div id="widget-clima">
-      <div id="hora"><i class="fa fa-clock"></i><span>--:--</span></div>
-      <div id="tempo"><img src="" alt="" /><span>Carregando...</span></div>
+      <div id="tempo"></div>
     </div>
 
     <!-- Spinner de carregamento -->
@@ -376,21 +248,21 @@
     <!-- JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-    <!-- Inserido: SheetJS para Excel no cliente -->
+    <!-- SheetJS para Excel no cliente -->
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
+
     <script>
-      // Logout
-      document
-        .getElementById("logoutBtn")
-        .addEventListener("click", async () => {
-          await fetch("/logout", { method: "POST" });
-          window.location.href = "/login.html";
-        });
+      // Logout (garantia)
+      document.getElementById("logoutBtn").addEventListener("click", async () => {
+        await fetch("/logout", { method: "POST" });
+        window.location.href = "/login.html";
+      });
     </script>
-    <!-- Inserido: função de geração de Excel no cliente -->
+
+    <!-- Excel automático após filtragem (mantido) -->
     <script>
       function gerarExcelCliente(filtroIds) {
         const dadosParaExcel = todosPostes
@@ -403,7 +275,6 @@
             Empresas: p.empresas.join(", "),
             Coordenadas: p.coordenadas,
           }));
-
         const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Filtro");
