@@ -202,7 +202,7 @@ if (overlay) overlay.style.display = "flex";
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
-        <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
+        <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0  1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
         <select id="select-base">
           <option value="rua">Rua</option>
           <option value="sat">Satélite</option>
@@ -569,6 +569,101 @@ function streetImageryBlockHTML(lat, lng) {
   map.addControl(new Control());
 })();
 
+/* ====================================================================
+   Mapillary embutido no popup (interativo dentro do seu app)
+   - Carrega SDK via CDN (dinamicamente)
+   - Busca a imagem MAIS PRÓXIMA via API v4 (closeto)
+   - Instancia o viewer no container do popup
+   Docs de CDN/SDK: mapillary-js v4 (CDN). API v4 + 'closeto'. :contentReference[oaicite:1]{index=1}
+   ==================================================================== */
+const MAPILLARY_TOKEN = "COLOQUE_SUA_MAPILLARY_TOKEN_AQUI";
+
+// carrega CSS/JS do Mapillary uma vez
+let _mlyReadyPromise;
+function ensureMapillaryReady() {
+  if (_mlyReadyPromise) return _mlyReadyPromise;
+  _mlyReadyPromise = new Promise((resolve, reject) => {
+    // CSS
+    const cssId = "mly-css";
+    if (!document.getElementById(cssId)) {
+      const link = document.createElement("link");
+      link.id = cssId;
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.css";
+      document.head.appendChild(link);
+    }
+    // JS
+    const jsId = "mly-js";
+    if (window.Mapillary) return resolve();
+    const s = document.createElement("script");
+    s.id = jsId;
+    s.src = "https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Falha ao carregar Mapillary JS"));
+    document.head.appendChild(s);
+  });
+  return _mlyReadyPromise;
+}
+
+// encontra imagem mais próxima (tenta lng,lat e depois lat,lng)
+async function getNearestMapillaryImageId(lat, lng) {
+  if (!MAPILLARY_TOKEN || MAPILLARY_TOKEN.includes("COLOQUE_")) return null;
+  const base = "https://graph.mapillary.com/images?fields=id&limit=1";
+  const tryFetch = async (closeto) => {
+    const url = `${base}&closeto=${closeto}&access_token=${MAPILLARY_TOKEN}`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j && j.data && j.data[0] && j.data[0].id ? j.data[0].id : null;
+  };
+  // API costuma aceitar lng,lat; alguns exemplos usam lat,lon — testamos os dois.
+  return (await tryFetch(`${lng},${lat}`)) || (await tryFetch(`${lat},${lng}`)) || null;
+}
+
+// HTML do container do viewer
+function mapillaryEmbedHTML(containerId, w = 420, h = 250) {
+  return `
+    <div style="margin-top:8px">
+      <div id="${containerId}" class="mly-embed" style="width:${w}px;height:${h}px;border-radius:10px;overflow:hidden;background:#eef1f4"></div>
+      <small style="color:#777">Se não aparecer, pode não haver cobertura do Mapillary nesse ponto.</small>
+    </div>
+  `;
+}
+
+// monta o viewer no container
+async function mountMapillary(containerId, imageId) {
+  try {
+    await ensureMapillaryReady();
+    // eslint-disable-next-line no-undef
+    new Mapillary.Viewer({
+      container: containerId,
+      accessToken: MAPILLARY_TOKEN,
+      imageId: imageId,
+      component: { cover: true },
+    });
+  } catch (e) {
+    console.warn("Mapillary viewer falhou:", e);
+  }
+}
+
+// inicializa o viewer quando o popup abrir
+map.on("popupopen", async (e) => {
+  const root = e?.popup?._contentNode;
+  if (!root) return;
+  const div = root.querySelector(".mly-embed");
+  if (!div || div.dataset.loaded) return;
+  div.dataset.loaded = "1";
+  const lat = Number(div.dataset.lat) || e.popup.getLatLng().lat;
+  const lng = Number(div.dataset.lng) || e.popup.getLatLng().lng;
+  const imageId = await getNearestMapillaryImageId(lat, lng);
+  if (imageId) {
+    await mountMapillary(div.id, imageId);
+  } else {
+    div.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font:12px system-ui;color:#666">Sem cobertura Mapillary aqui</div>`;
+  }
+});
+
 // ---------------------------------------------------------------------
 // Adiciona marker padrão
 // ---------------------------------------------------------------------
@@ -587,6 +682,8 @@ function adicionarMarker(p) {
 // Abre popup
 function abrirPopup(p) {
   const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
+  // cria um id único para o container do Mapillary
+  const mlyId = `mly_${p.id}_${Math.random().toString(36).slice(2)}`;
   const html = `
     <b>ID:</b> ${p.id}<br>
     <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
@@ -594,9 +691,15 @@ function abrirPopup(p) {
     <b>Bairro:</b> ${p.nome_bairro}<br>
     <b>Logradouro:</b> ${p.nome_logradouro}<br>
     <b>Empresas:</b><ul>${list}</ul>
+
+    ${mapillaryEmbedHTML(mlyId, 420, 250)}
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
+
+  // guarda lat/lng no container para o listener usar
+  const div = document.getElementById(mlyId);
+  if (div) { div.dataset.lat = p.lat; div.dataset.lng = p.lon; }
 }
 
 // ---------------------------------------------------------------------
