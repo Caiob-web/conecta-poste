@@ -132,6 +132,81 @@
   document.head.appendChild(style);
 })();
 
+/* ====================================================================
+   Sidebar fixa (dock) na divisória direita + botão de recolher/exibir
+   - Não altera a estrutura do HTML: apenas reestiliza e move o botão.
+   - Mapa recebe invalidateSize após a transição.
+==================================================================== */
+(function injectDockSidebarStyles(){
+  const css = `
+    :root{ --dock-w: 340px; }
+
+    /* torna o painel uma sidebar fixa ocupando a altura toda */
+    .painel-busca{
+      position: fixed !important;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      width: var(--dock-w);
+      overflow: auto;
+      border-left: 2px solid var(--ui-border, #19d68f);
+      border-radius: 0 0 0 0 !important;
+      padding-bottom: 16px;
+      transform: translateX(0%);
+      transition: transform .25s ease;
+      z-index: 1000;
+    }
+    /* estado recolhido (fora da tela) */
+    .painel-busca.collapsed{
+      transform: translateX(100%);
+    }
+
+    /* botão/aba na própria divisória (usa o #togglePainel existente) */
+    #togglePainel{
+      position: fixed !important;
+      top: 50%;
+      right: calc(var(--dock-w) + 6px);
+      transform: translateY(-50%);
+      width: 42px; height: 64px;
+      border-radius: 10px 0 0 10px !important;
+      background: var(--ui-bg, #0f1b2a) !important;
+      border: 1px solid var(--ui-border, #19d68f) !important;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
+      z-index: 1100;
+    }
+    /* quando recolhido, a aba encosta na borda direita da janela */
+    .painel-busca.collapsed + #togglePainel,
+    body.sidebar-collapsed #togglePainel{
+      right: 6px !important;
+    }
+
+    /* demais botões de topo se alinham à divisória */
+    #localizacaoUsuario, #logoutBtn{
+      position: fixed !important;
+      right: calc(var(--dock-w) + 16px);
+      z-index: 1100;
+    }
+    body.sidebar-collapsed #localizacaoUsuario,
+    body.sidebar-collapsed #logoutBtn{
+      right: 16px !important;
+    }
+
+    /* ícone muda de direção */
+    #togglePainel i{ transition: transform .2s ease; }
+    body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
+  `;
+  const style = document.createElement('style');
+  style.id = 'dock-sidebar-styles';
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  // Ajusta o rótulo/ícone inicial
+  window.addEventListener('DOMContentLoaded', () => {
+    const tgl = document.getElementById('togglePainel');
+    if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
+  });
+})();
+
 // ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
@@ -938,10 +1013,19 @@ document.getElementById("btnGerarExcel").addEventListener("click", () => {
   exportarExcel(ids);
 });
 
-// Toggle painel
+// Toggle painel (agora como sidebar recolhível)
 document.getElementById("togglePainel").addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
-  p.style.display = p.style.display === "none" ? "block" : "none";
+  const body = document.body;
+  p.classList.toggle("collapsed");
+  body.classList.toggle("sidebar-collapsed", p.classList.contains("collapsed"));
+
+  // Leaflet precisa recalcular quando o layout muda
+  const onEnd = () => {
+    map.invalidateSize();
+    p.removeEventListener("transitionend", onEnd);
+  };
+  p.addEventListener("transitionend", onEnd);
 });
 
 // Logout
