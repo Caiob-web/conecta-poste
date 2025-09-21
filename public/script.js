@@ -260,25 +260,23 @@ let todosCarregados = false;
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 
-// === Popup fixo (persiste após reset/filtros) ========================
-let popupFixo = null;
-const POPUP_OPTS = { autoClose: true, closeOnClick: false, maxWidth: 360 };
-function reabrirPopupFixo(delay = 60){
-  if (!popupFixo) return;
+/* ====================================================================
+   Popup fixo: instância única, sem piscar
+==================================================================== */
+const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
+let popupPinned = false;                 // true se o usuário não fechou o popup
+let lastPopup = null;                    // {lat, lon, html}
+
+function reabrirPopupFixo(delay = 0){
+  if (!popupPinned || !lastPopup) return;
   const open = () => {
-    L.popup(POPUP_OPTS)
-      .setLatLng([popupFixo.lat, popupFixo.lon])
-      .setContent(popupFixo.html)
-      .openOn(map);
+    mainPopup.setLatLng([lastPopup.lat, lastPopup.lon]).setContent(lastPopup.html);
+    if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
   };
   delay ? setTimeout(open, delay) : open();
 }
-// se o usuário fechar no “X”, não reabrir mais
-map.on('popupclose', () => { popupFixo = null; });
-// qualquer popup aberto (até os bindPopup de marcadores numerados) passa a ser o "fixo"
-map.on('popupopen', (e) => {
-  const ll = e.popup.getLatLng();
-  popupFixo = { lat: ll.lat, lon: ll.lng, html: e.popup.getContent() };
+map.on("popupclose", (e) => {
+  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
 });
 
 // Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
@@ -306,7 +304,7 @@ function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
   if (arr.length) markers.addLayers(arr); // usa chunkedLoading
-  if (popupFixo) scheduleIdle(() => reabrirPopupFixo(60));
+  reabrirPopupFixo(0);
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -320,7 +318,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; scheduleIdle(() => reabrirPopupFixo(60)); }
+    else { todosCarregados = true; reabrirPopupFixo(0); }
   }
   scheduleIdle(addChunk);
 }
@@ -487,7 +485,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) { exibirTodosPostes(); reabrirPopupFixo(60); return; }
+  if (!censoMode) { exibirTodosPostes(); reabrirPopupFixo(0); return; }
 
   if (!censoIds) {
     try {
@@ -497,7 +495,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       censoIds = new Set(arr.map((i) => String(i.poste)));
     } catch {
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false; exibirTodosPostes(); reabrirPopupFixo(60); return;
+      censoMode = false; exibirTodosPostes(); reabrirPopupFixo(0); return;
     }
   }
   todosPostes
@@ -510,7 +508,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       c.posteData = poste;
       markers.addLayer(c);
     });
-  reabrirPopupFixo(60);
+  reabrirPopupFixo(0);
 });
 
 // ---------------------------------------------------------------------
@@ -546,7 +544,7 @@ function filtrarLocal() {
   markers.clearLayers();
 
   filtro.forEach(adicionarMarker);
-  reabrirPopupFixo(60);
+  reabrirPopupFixo(0);
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -577,7 +575,7 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-function resetarMapa() { exibirTodosPostes(); reabrirPopupFixo(60); }
+function resetarMapa() { exibirTodosPostes(); reabrirPopupFixo(0); }
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
@@ -678,7 +676,7 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
-// Abre popup
+// Abre popup (usa a instância única mainPopup)
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
   const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
@@ -691,8 +689,10 @@ function abrirPopup(p) {
     <b>Empresas:</b><ul>${list}</ul>
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
-  L.popup(POPUP_OPTS).setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
-  popupFixo = { id: p.id, lat: p.lat, lon: p.lon, html };
+  lastPopup = { lat: p.lat, lon: p.lon, html };
+  popupPinned = true;
+  mainPopup.setLatLng([p.lat, p.lon]).setContent(html);
+  if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
 }
 
 // ---------------------------------------------------------------------
@@ -823,10 +823,10 @@ function consultarIDsEmMassa() {
     intermediarios: window.intermediarios.length,
   };
 
-  reabrirPopupFixo(60);
+  reabrirPopupFixo(0);
 }
 
-// Adiciona marcador numerado
+// Adiciona marcador numerado (usa o mesmo abrirPopup)
 function adicionarNumerado(p, num) {
   const cor = p.empresas.length >= 5 ? "red" : "green";
   const html = `<div style="
@@ -835,9 +835,7 @@ function adicionarNumerado(p, num) {
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.bindPopup(
-    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${p.nome_municipio}<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
-  );
+  mk.on("click", () => abrirPopup(p));
   mk.posteData = p;
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
