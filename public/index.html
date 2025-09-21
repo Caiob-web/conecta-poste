@@ -3,429 +3,255 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mapa de Postes</title>
+    <title>Login</title>
 
     <!-- Favicon -->
     <link
       rel="icon"
-      href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/ChatGPT%20Image%2019%20de%20jun.%20de%202025%2C%2021_12_44.png?v=1750378383582"
-      type="image/png"
-      sizes="64x64"
+      href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/OIP.webp?v=1750376922471"
+      type="image/webp"
     />
 
-    <!-- Leaflet & MarkerCluster -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
       rel="stylesheet"
-      href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
     />
-    <!-- (ADICIONADO) Tema/estilos default do MarkerCluster -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
-    />
-
-    <!-- FontAwesome para ícones -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-
     <style>
-      /* ======================== VARS (PALETA DO PRINT) ======================== */
-      :root{
-        --ui-bg:#0f1b2a;           /* fundo principal (azul petróleo) */
-        --ui-elev:#132235;         /* cartões/inputs elevados */
-        --ui-text:#e6edf7;         /* texto principal */
-        --ui-muted:#9fb3c8;        /* texto secundário */
-        --ui-border:#19d68f;       /* contorno verde */
-        --ui-border-dim:#0d7b55;   /* verde mais escuro (hover) */
-        --ui-accent:#18c77f;       /* verde botões */
-        --ui-accent-2:#0fb171;     /* hover */
-        --ui-danger:#ef4444;
-        --shadow:0 10px 28px rgba(0,0,0,.28);
-
-        /* largura da sidebar (deve bater com script.js) */
-        --dock-w:340px;
-      }
-
-      /* --- RESET & MAPA --- */
-      html, body { margin:0; padding:0; height:100%; background:#0b1624; }
-      #map { width:100%; height:100%; position:relative; z-index:0; } /* z-fix */
-
-      /* (ADICIONADO) garante que, quando o overlay estiver oculto, não capture cliques */
-      #carregando[style*="display: none"] { pointer-events: none !important; }
-
-      /* ========================= PAINEL DE BUSCA (DARK) ====================== */
-      .painel-busca {
-        position: fixed;
-        top: 0;
-        right: 0;
-        height: 100vh;
-        width: var(--dock-w);
-        overflow: auto;
-
-        background: var(--ui-bg);
-        color: var(--ui-text);
-        border-left: 2px solid var(--ui-border);
-        border-right: none;
-        border-top: none;
-        border-bottom: none;
-        border-radius: 0;
-        padding: 16px 14px 18px;
-        box-shadow: var(--shadow);
-        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-        z-index: 1000;
-
-        transform: translateX(0%);
-        transition: transform .25s ease;
-      }
-      .painel-busca.collapsed{ transform: translateX(100%); }
-
-      .painel-busca h3 {
-        margin: 6px 0 12px;
-        font-weight: 800;
-        color: var(--ui-text);
-        letter-spacing:.3px;
-        font-size: 16px;
-        text-transform: uppercase;
-      }
-      .painel-busca .field { position: relative; margin-bottom: 10px; }
-      .painel-busca .field input,
-      .painel-busca .field textarea {
-        width: 100%;
-        padding: 10px 36px 10px 12px;
-        background: var(--ui-elev);
-        color: var(--ui-text);
-        border: 1px solid var(--ui-border);
-        border-radius: 10px;
-        font-size: 14px;
+      * {
         box-sizing: border-box;
-        transition: border-color .15s ease, box-shadow .15s ease;
+        margin: 0;
+        padding: 0;
       }
-      .painel-busca .field input::placeholder,
-      .painel-busca .field textarea::placeholder { color: #8fb0c7; }
-      .painel-busca .field input:focus,
-      .painel-busca .field textarea:focus {
-        outline: none;
-        border-color: var(--ui-accent);
-        box-shadow: 0 0 0 3px rgba(24,199,127,.22);
-      }
-      .painel-busca .field .fa {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--ui-muted);
-        font-size: 14px;
-        pointer-events:none;
-      }
-
-      /* Ações do painel */
-      .painel-busca .actions {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        margin-top: 6px;
-      }
-      .painel-busca .actions button {
+      body {
+        font-family: "Roboto", sans-serif;
+        height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 10px 0;
-        background: var(--ui-accent);
-        color: #07251a;
-        border: 1px solid var(--ui-border);
-        border-radius: 10px;
-        font-weight: 800;
-        font-size: 13.5px;
-        cursor: pointer;
-        transition: transform .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
-        box-shadow: 0 1px 2px rgba(0,0,0,.18);
+        position: relative;
+        background: url("https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/7668651-alta-voltagem-polo-e-linhas-de-transmissao-ao-por-do-sol-com-ceu-laranja-e-vermelho-e-nuvens-arquitetura-silhueta-eletricidade-piloes-durante-por-do-sol-energia-e-energia-conservacao-de-energia-gratis-f%20(1).jpeg?v=1750365689665")
+          no-repeat center/cover;
       }
-      .painel-busca .actions button:hover {
-        background: var(--ui-accent-2);
-        border-color: var(--ui-accent);
-        transform: translateY(-1px);
-      }
-      .painel-busca .actions button:active { transform: translateY(1px) scale(.98); }
-      .painel-busca .actions button .fa { margin-right: 6px; }
-
-      /* ============================== LEGENDA =============================== */
-      .legenda {
+      body::before {
+        content: "";
         position: absolute;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(15, 27, 42, 0.92);
-        color: var(--ui-text);
-        padding: 12px 14px;
-        border-radius: 12px;
-        border: 1px solid var(--ui-border);
-        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-        font-size: 13px;
-        box-shadow: var(--shadow);
-        z-index: 900;
-      }
-      .legenda-item { display: flex; align-items: center; margin-bottom: 6px; }
-      .legenda-item:last-child{ margin-bottom:0; }
-      .legenda-item .bolinha {
-        width: 12px; height: 12px; border-radius: 50%;
-        margin-right: 8px; border: 1px solid var(--ui-border);
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.25);
+        z-index: 0;
       }
 
-      /* ============================ BOTÕES DE TOPO =========================== */
-      .botao-topo {
-        position: fixed;
-        right: calc(var(--dock-w) + 16px);
-        width: 42px; height: 42px;
-        background: var(--ui-bg);
-        color: var(--ui-text);
-        border: 1px solid var(--ui-border);
-        border-radius: 12px;
-        box-shadow: var(--shadow);
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: background .15s ease, transform .12s ease, box-shadow .15s ease; z-index: 1100;
+      /* Logo EDP no canto superior */
+      .edp-logo-top {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        z-index: 1;
+        width: 120px;
+        opacity: 0.9;
+        transition: opacity 0.3s;
       }
-      .botao-topo:hover { background: #122236; transform: translateY(-1px); }
-      .botao-topo i { color: var(--ui-accent); }
+      .edp-logo-top:hover {
+        opacity: 1;
+      }
 
-      /* Aba vertical para abrir/fechar a sidebar */
-      #togglePainel{
+      .login-box {
+        position: relative;
+        z-index: 1;
+        width: 340px;
+        padding: 40px 32px;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.95);
+      }
+      /* Marca d’água */
+      .login-box::before {
+        content: "";
+        position: absolute;
         top: 50%;
-        transform: translateY(-50%);
-        width: 44px; height: 64px;
-        border-radius: 12px 0 0 12px;
-      }
-      body.sidebar-collapsed #togglePainel{ right: 16px; }
-
-      #localizacaoUsuario { top: 20px; }
-      #logoutBtn { top: 70px; }
-
-      body.sidebar-collapsed #localizacaoUsuario,
-      body.sidebar-collapsed #logoutBtn{
-        right: 16px;
+        left: 50%;
+        width: 200px;
+        height: 200px;
+        background: url("https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/edp%20logo.avif?v=1750365835690")
+          no-repeat center/contain;
+        opacity: 0.1;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
       }
 
-      /* ====================== HUD (POSICIONADOR DO CARTÃO) =================== */
-      #widget-clima{
-        position:absolute;
-        left:20px;
-        bottom:20px;
-        z-index:2000;
-        pointer-events: none;            /* (ADICIONADO) não bloquear o mapa */
+      .login-box h2 {
+        margin-bottom: 24px;
+        font-weight: 300;
+        color: #333;
       }
-      #widget-clima > * { pointer-events: auto; } /* itens dentro continuam clicáveis */
-
-      /* ==================== OVERLAY / SPINNER (DARK) ======================== */
-      .overlay-loading {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(5, 12, 22, 0.70);
-        display: flex; align-items: center; justify-content: center; flex-direction: column;
-        z-index: 3000;
+      .login-box input[type="text"],
+      .login-box input[type="password"] {
+        width: 100%;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        position: relative;
+        z-index: 1;
       }
-      .spinner {
-        border: 6px solid #0e2236; border-top: 6px solid var(--ui-accent);
-        border-radius: 50%; width: 48px; height: 48px; animation: girar 1s linear infinite;
-        box-shadow: inset 0 0 0 1px rgba(25,214,143,.15);
+      .login-box input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 6px rgba(0, 123, 255, 0.3);
+        outline: none;
       }
-      .texto-loading {
+      .login-box label {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 16px;
+        text-align: left;
+        position: relative;
+        z-index: 1;
+      }
+      .login-box label input {
+        margin-right: 8px;
+        transform: scale(1.1);
+      }
+      .login-box a {
+        color: #007bff;
+        text-decoration: none;
+        position: relative;
+        z-index: 1;
+      }
+      .login-box a:hover {
+        text-decoration: underline;
+      }
+      .login-box button {
+        width: 100%;
+        padding: 12px;
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.3s;
+        position: relative;
+        z-index: 1;
+      }
+      .login-box button:disabled {
+        background: #aaa;
+        cursor: not-allowed;
+      }
+      .login-box button:hover:not(:disabled) {
+        background: #0056b3;
+      }
+      #error {
         margin-top: 12px;
-        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-        color: var(--ui-text);
+        font-size: 14px;
+        color: #d9534f;
+        display: none;
+        position: relative;
+        z-index: 1;
       }
-      @keyframes girar { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+      .links {
+        margin-top: 16px;
+        font-size: 14px;
+        position: relative;
+        z-index: 1;
+      }
 
-      /* ==================== ACESSIBILIDADE & RESPONSIVIDADE ================= */
-      .painel-busca .actions button:focus-visible,
-      .botao-topo:focus-visible,
-      .legenda:focus-within{
-        outline: 3px solid rgba(24,199,127,.28);
-        outline-offset: 2px;
-      }
-
-      @media (max-width: 880px){
-        :root{ --dock-w: 300px; }
-        .painel-busca .actions{ grid-template-columns: repeat(2,1fr); }
-      }
-      @media (max-width: 560px){
-        :root{ --dock-w: 86vw; }
-        .painel-busca .actions{ grid-template-columns: 1fr 1fr; gap:10px; }
-        #widget-clima{ left:12px; bottom:12px; }
-      }
-      @media (prefers-reduced-motion: reduce){
-        *{ transition:none !important; animation:none !important; }
+      /* Rodapé fixo com faixa preta */
+      .footer-text {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        text-align: center;
+        padding: 8px 0;
+        font-size: 12px;
+        z-index: 1;
       }
     </style>
   </head>
-
   <body>
-    <!-- Botões de topo -->
-    <div id="togglePainel" class="botao-topo" title="Esconder/Mostrar painel">
-      <i class="fa fa-sliders"></i>
-    </div>
-    <div id="localizacaoUsuario" class="botao-topo" title="Minha localização">
-      <i class="fa fa-location-dot"></i>
-    </div>
-    <div id="logoutBtn" class="botao-topo" title="Logout">
-      <i class="fa fa-sign-out-alt"></i>
-    </div>
+    <img
+      src="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/edp%20logo.avif?v=1750365835690"
+      alt="EDP Logo"
+      class="edp-logo-top"
+    />
 
-    <!-- Painel de busca (sidebar) -->
-    <div class="painel-busca" id="painelBusca">
-      <h3>Buscar Postes</h3>
-
-      <div class="field">
-        <input type="text" id="busca-id" placeholder="ID do Poste…" />
-        <i class="fa fa-hashtag"></i>
-      </div>
-
-      <div class="field">
-        <input type="text" id="busca-coord" placeholder="Lat, Lon…" />
-        <i class="fa fa-map-marker-alt"></i>
-      </div>
-
-      <div class="field">
-        <input type="text" id="busca-municipio" placeholder="Município…" list="lista-municipios" />
-        <i class="fa fa-city"></i>
-      </div>
-      <datalist id="lista-municipios"></datalist>
-
-      <div class="field">
-        <input type="text" id="busca-bairro" placeholder="Bairro…" list="lista-bairros" />
-        <i class="fa fa-map-marker-alt"></i>
-      </div>
-      <datalist id="lista-bairros"></datalist>
-
-      <div class="field">
-        <input type="text" id="busca-logradouro" placeholder="Logradouro…" list="lista-logradouros" />
-        <i class="fa fa-road"></i>
-      </div>
-      <datalist id="lista-logradouros"></datalist>
-
-      <div class="field">
-        <input type="text" id="busca-empresa" placeholder="Empresa…" list="lista-empresas" />
-        <i class="fa fa-building"></i>
-      </div>
-      <datalist id="lista-empresas"></datalist>
-
-      <div class="field">
-        <textarea id="ids-multiplos" rows="2" placeholder="Vários IDs…"></textarea>
-        <i class="fa fa-list"></i>
-      </div>
-
-      <div class="actions">
-        <button onclick="buscarID()"><i class="fa fa-search"></i>Buscar</button>
-        <button onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
-        <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
-        <button onclick="consultarIDsEmMassa()"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
-        <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
-        <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
-        <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
-        <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
+    <div class="login-box">
+      <h2>Entrar</h2>
+      <form id="loginForm">
+        <input
+          name="username"
+          type="text"
+          placeholder="Usuário"
+          required
+          autocomplete="username"
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="Senha"
+          required
+          autocomplete="current-password"
+        />
+        <label>
+          <input type="checkbox" id="lgpdCheck" />
+          Aceito a
+          <a href="/lgpd/privacy.html" target="_blank"
+            >Política de Privacidade</a
+          >
+        </label>
+        <button type="submit" id="btnLogin" disabled>Login</button>
+      </form>
+      <div id="error">Credenciais inválidas</div>
+      <div class="links">
+        Ainda não tem conta? <a href="/register.html">Registre-se</a>
       </div>
     </div>
 
-    <!-- Legenda -->
-    <div class="legenda">
-      <div class="legenda-item"><div class="bolinha" style="background: yellow"></div>Poste intermediário</div>
-      <div class="legenda-item"><div class="bolinha" style="background: green"></div>Até 5 empresas</div>
-      <div class="legenda-item"><div class="bolinha" style="background: red"></div>Mais de 5 empresas</div>
+    <div class="footer-text">
+      Desenvolvido por Caio Henrique Faria Gouveia - Setor Compartilhantes - EDP
+      2025
     </div>
 
-    <!-- Mapa -->
-    <div id="map"></div>
-
-    <!-- HUD -->
-    <div id="widget-clima">
-      <div id="tempo"></div>
-    </div>
-
-    <!-- Spinner de carregamento -->
-    <div id="carregando" class="overlay-loading" style="display: flex">
-      <div class="spinner"></div>
-      <div class="texto-loading">Carregando postes…</div>
-    </div>
-
-    <!-- JS (ordem) -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-    <!-- SheetJS para Excel no cliente -->
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <!-- Seu script principal -->
-    <script src="script.js"></script>
-    <!-- libs usadas sob demanda por botões -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
-
-    <!-- (ADICIONADO) Failsafe: delega clique no cluster para sempre abrir o popup -->
     <script>
-      (function attachClusterClickFailsafe(){
-        // espera o 'markers' existir (definido em script.js)
-        const tryAttach = () => {
-          if (window.markers && typeof abrirPopup === "function") {
-            // Esse handler dispara para qualquer layer simples dentro do cluster
-            markers.on("click", (e) => {
-              const layer = e.layer;
-              // ignora cliques em "clusters" (nós agregadores)
-              if (layer && typeof layer.getAllChildMarkers === "function") return;
-              // abre o popup se o dado estiver no layer (criado no script.js)
-              if (layer && layer.posteData) abrirPopup(layer.posteData);
-            });
-          } else {
-            requestAnimationFrame(tryAttach);
-          }
-        };
-        tryAttach();
-      })();
-    </script>
+      const form = document.getElementById("loginForm");
+      const btnLogin = document.getElementById("btnLogin");
+      const lgpdCheck = document.getElementById("lgpdCheck");
+      const errorDiv = document.getElementById("error");
 
-    <!-- Logout (garantia) -->
-    <script>
-      document.getElementById("logoutBtn").addEventListener("click", async () => {
-        await fetch("/logout", { method: "POST" });
-        window.location.href = "/login.html";
+      lgpdCheck.addEventListener("change", () => {
+        btnLogin.disabled = !lgpdCheck.checked;
       });
-    </script>
 
-    <!-- Excel automático após filtragem (mantido) -->
-    <script>
-      function gerarExcelCliente(filtroIds) {
-        const dadosParaExcel = todosPostes
-          .filter((p) => filtroIds.includes(p.id))
-          .map((p) => ({
-            "ID POSTE": p.id,
-            Município: p.nome_municipio,
-            Bairro: p.nome_bairro,
-            Logradouro: p.nome_logradouro,
-            Empresas: p.empresas.join(", "),
-            Coordenadas: p.coordenadas,
-          }));
-        const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Filtro");
-        XLSX.writeFile(wb, "relatorio_filtrado.xlsx");
-      }
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorDiv.style.display = "none";
 
-      const _origFiltrarLocal = filtrarLocal;
-      filtrarLocal = function () {
-        _origFiltrarLocal();
-        const mun = document.getElementById("busca-municipio").value.trim().toLowerCase();
-        const bai = document.getElementById("busca-bairro").value.trim().toLowerCase();
-        const log = document.getElementById("busca-logradouro").value.trim().toLowerCase();
-        const emp = document.getElementById("busca-empresa").value.trim().toLowerCase();
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: form.username.value.trim(),
+            password: form.password.value,
+          }),
+        });
 
-        const filtro = todosPostes.filter((p) =>
-          (!mun || p.nome_municipio.toLowerCase() === mun) &&
-          (!bai || p.nome_bairro.toLowerCase() === bai) &&
-          (!log || p.nome_logradouro.toLowerCase() === log) &&
-          (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
-        );
-
-        if (filtro.length) {
-          const ids = filtro.map((p) => p.id);
-          gerarExcelCliente(ids);
+        if (res.ok) {
+          window.location.href = "/";
+        } else {
+          errorDiv.style.display = "block";
         }
-      };
+      });
     </script>
   </body>
 </html>
