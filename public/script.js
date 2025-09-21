@@ -427,25 +427,22 @@ function resetarMapa() {
 }
 
 /* ====================================================================
-   ÍCONES 42px — poste fotorealista + halo de disponibilidade
+   ÍCONES 48px — poste fotorealista + halo de disponibilidade
    (verde para ≤4 empresas, vermelho para ≥5 empresas)
    ==================================================================== */
-function makePolePhoto42(glowHex) {
+function makePolePhoto48(glowHex) {
   const svg = `
-  <svg width="42" height="42" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+  <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <!-- halo suave ao redor -->
       <radialGradient id="gHalo" cx="21" cy="24" r="18" gradientUnits="userSpaceOnUse">
         <stop offset="0" stop-color="${glowHex}" stop-opacity=".26"/>
         <stop offset="1" stop-color="${glowHex}" stop-opacity="0"/>
       </radialGradient>
-      <!-- madeira com leve veios -->
       <linearGradient id="gWood" x1="0" x2="0" y1="0" y2="1">
         <stop offset="0" stop-color="#8a6139"/>
         <stop offset=".5" stop-color="#9b6e41"/>
         <stop offset="1" stop-color="#6f4f31"/>
       </linearGradient>
-      <!-- metal da cruzeta/isoladores -->
       <linearGradient id="gSteel" x1="0" x2="1" y1="0" y2="0">
         <stop offset="0" stop-color="#9aa3ad"/>
         <stop offset=".55" stop-color="#e7ebef"/>
@@ -461,22 +458,15 @@ function makePolePhoto42(glowHex) {
 
     <!-- poste -->
     <g filter="url(#shadow)">
-      <!-- tronco com leve brilho lateral -->
       <rect x="19.2" y="6" width="3.6" height="25" rx="1.6" fill="url(#gWood)"/>
       <rect x="21.2" y="6" width="0.7" height="25" fill="rgba(255,255,255,.18)"/>
-      <!-- base de terra -->
       <ellipse cx="21" cy="31.5" rx="6.5" ry="2.2" fill="rgba(0,0,0,.20)" opacity=".45"/>
-      <!-- cruzeta -->
       <rect x="11" y="11.2" width="20" height="2.6" rx="1.3" fill="url(#gSteel)"/>
-      <!-- estais -->
       <path d="M14.4 13.5 L21 19 M27.6 13.5 L21 19" stroke="#3b4046" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
-      <!-- isoladores -->
       <circle cx="15.2" cy="12.6" r="1.2" fill="#cfd6dd"/>
       <circle cx="21"   cy="12.6" r="1.2" fill="#cfd6dd"/>
       <circle cx="26.8" cy="12.6" r="1.2" fill="#cfd6dd"/>
-      <!-- fio leve -->
       <path d="M11.2 10.6 C 16.5 14.2, 25.5 14.2, 30.8 10.6" fill="none" stroke="#6f757c" stroke-width="1" opacity=".6"/>
-      <!-- transformador (leve) -->
       <rect x="23.8" y="17" width="6" height="7.2" rx="1.2" fill="#d9e1e8" stroke="#2f343a" stroke-width="1"/>
       <rect x="12.2" y="17.6" width="5.2" height="6.4" rx="1.1" fill="#dfe7ee" stroke="#2f343a" stroke-width="1" opacity=".85"/>
     </g>
@@ -484,27 +474,24 @@ function makePolePhoto42(glowHex) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-const ICON_GREEN_42 = L.icon({
-  iconUrl: makePolePhoto42("#24a148"), // verde
-  iconSize: [42, 42],
-  iconAnchor: [21, 30],   // “pé” do poste
-  popupAnchor: [0, -20],
-  tooltipAnchor: [0, -20]
+const ICON_GREEN_48 = L.icon({
+  iconUrl: makePolePhoto48("#24a148"),
+  iconSize: [48, 48],
+  iconAnchor: [24, 34],
+  popupAnchor: [0, -22],
+  tooltipAnchor: [0, -22]
 });
-const ICON_RED_42 = L.icon({
-  iconUrl: makePolePhoto42("#d64545"), // vermelho
-  iconSize: [42, 42],
-  iconAnchor: [21, 30],
-  popupAnchor: [0, -20],
-  tooltipAnchor: [0, -20]
+const ICON_RED_48 = L.icon({
+  iconUrl: makePolePhoto48("#d64545"),
+  iconSize: [48, 48],
+  iconAnchor: [24, 34],
+  popupAnchor: [0, -22],
+  tooltipAnchor: [0, -22]
 });
-
 function poleIcon48(color) {
-  // mantém o mesmo nome de função usado pelo resto do código
-  return color === "red" ? ICON_RED_42 : ICON_GREEN_42;
+  return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
 }
 function poleColorByEmpresas(qtd) {
-  // verde para <=4, vermelho para >=5
   return (qtd >= 5) ? "red" : "green";
 }
 
