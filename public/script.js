@@ -263,8 +263,24 @@ function setBase(mode) {
   currentBase.addTo(map);
 }
 
-// -------------------- Clusters (tudo de uma vez) ---------------------
-const MIN_ZOOM_POSTES = 15; // camada de postes visível a partir deste zoom
+// -------------------- UTIL: Loading overlay robusto ------------------
+const overlay = document.getElementById("carregando");
+function setLoading(on, msg){
+  if (!overlay) return;
+  overlay.style.display = on ? "flex" : "none";
+  const t1 = overlay.querySelector(".texto-loading");
+  const t2 = overlay.querySelector(".loading-text");
+  const tgt = t1 || t2;
+  if (tgt && msg) tgt.textContent = msg;
+}
+// garante que nunca fica preso por acidente
+setTimeout(()=>setLoading(false), 30000); // failsafe em 30s
+
+// Exibe loading inicial
+setLoading(true, "Carregando postes…");
+
+// -------------------- Cluster (todos de uma vez, fluído) -------------
+const MIN_ZOOM_POSTES = 15; // camada visível a partir deste zoom
 
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
@@ -272,18 +288,18 @@ const markers = L.markerClusterGroup({
   zoomToBoundsOnClick: false,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
+  removeOutsideVisibleBounds: true,
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50,
   chunkProgress: (processed, total) => {
-    const ov = document.getElementById("carregando");
-    const tx = document.querySelector(".texto-loading");
-    if (ov && tx) {
-      tx.textContent = `Carregando postes… ${processed.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`;
-      if (processed >= total) ov.style.display = "none";
-    }
+    // feedback e encerramento seguro
+    setLoading(true, `Carregando postes… ${processed.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`);
+    if (processed >= total) setLoading(false);
   }
 });
+
+markers.on("clusterclick", (e) => e.layer.spiderfy());
 
 // controla visibilidade da camada conforme zoom
 function toggleLayerByZoom() {
@@ -306,10 +322,6 @@ const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
 
-// Spinner overlay
-const overlay = document.getElementById("carregando");
-if (overlay) overlay.style.display = "flex";
-
 // ---------------------- HUD: estrutura dentro de #tempo --------------
 (function buildHud() {
   const hud = document.getElementById("tempo");
@@ -323,7 +335,7 @@ if (overlay) overlay.style.display = "flex";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
 
-  // Cartão: clima + seletor de mapa (dentro do mesmo card)
+  // Cartão: clima + seletor de mapa
   const card = document.createElement("div");
   card.className = "weather-card";
   card.innerHTML = `
@@ -360,7 +372,7 @@ if (overlay) overlay.style.display = "flex";
 })();
 
 // ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando e constrói TODOS markers
+// Carrega /api/postes, trata 401 e constrói TODOS os markers
 // ---------------------------------------------------------------------
 fetch("/api/postes")
   .then((res) => {
@@ -399,32 +411,32 @@ fetch("/api/postes")
     });
     preencherListas();
 
-    // Constrói TODOS os markers em lotes e adiciona ao cluster (fluído)
+    // Constrói TODOS os markers em lotes e adiciona ao cluster
     buildAllMarkers(postsArray, () => {
       // decide visibilidade inicial da camada
       toggleLayerByZoom();
+      // fecha loading por garantia
+      setLoading(false);
     });
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
-    if (overlay) overlay.style.display = "none";
+    setLoading(false);
     if (err.message !== "Não autorizado")
       alert("Erro ao carregar dados dos postes.");
   });
 
-// Constrói todos markers de forma incremental (suave)
+// Constrói todos markers incrementalmente (suave) e usa o cluster no mapa
 function buildAllMarkers(arr, onDone) {
   const lote = 800; // criação em lotes para não travar a UI
   let i = 0;
   const toAdd = [];
-
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 
   function step() {
     const end = Math.min(i + lote, arr.length);
     for (; i < end; i++) {
       const p = arr[i];
-      // cria marker (reutilizado em filtros/reset)
       const cor = poleColorByEmpresas(p.empresas.length);
       const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
         .bindTooltip(
@@ -432,7 +444,6 @@ function buildAllMarkers(arr, onDone) {
           { direction: "top", sticky: true }
         )
         .on("click", () => abrirPopup(p));
-
       idToMarker.set(p.id, m);
       toAdd.push(m);
     }
@@ -440,13 +451,17 @@ function buildAllMarkers(arr, onDone) {
     if (i < arr.length) {
       idle(step);
     } else {
-      // adiciona todos ao cluster com chunkedLoading ativado
-      markers.addLayers(toAdd);
-      // overlay some via chunkProgress quando terminar de processar
+      // Garante que o chunkedLoading rode: adiciona o cluster ao mapa
+      let wasOnMap = map.hasLayer(markers);
+      if (!wasOnMap) map.addLayer(markers);
+      markers.addLayers(toAdd);      // processa em chunks
+      if (!wasOnMap && map.getZoom() < MIN_ZOOM_POSTES) {
+        // respeita regra de zoom após processar
+        map.removeLayer(markers);
+      }
       if (typeof onDone === "function") onDone();
     }
   }
-
   step();
 }
 
@@ -454,7 +469,11 @@ function buildAllMarkers(arr, onDone) {
 function restoreAllMarkers() {
   markers.clearLayers();
   const all = Array.from(idToMarker.values());
+  // garante processamento mesmo se a camada estiver oculta
+  let wasOnMap = map.hasLayer(markers);
+  if (!wasOnMap) map.addLayer(markers);
   markers.addLayers(all);
+  if (!wasOnMap && map.getZoom() < MIN_ZOOM_POSTES) map.removeLayer(markers);
   toggleLayerByZoom();
 }
 
@@ -910,7 +929,6 @@ function consultarIDsEmMassa() {
     }
   });
 
-  // adiciona cluster ao mapa (respeita o zoom via toggle)
   if (!map.hasLayer(markers)) map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
