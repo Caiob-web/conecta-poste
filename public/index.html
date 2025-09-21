@@ -195,21 +195,7 @@
     <!-- App -->
     <script src="script.js"></script>
 
-    <!-- Reabertura do popup com DEBOUNCE (anti-piscada) -->
-    <script>
-      window.addEventListener("load", () => {
-        if (!window.map || typeof window.reabrirPopupFixo !== "function") return;
-        let _reopenTimer = null;
-        const schedule = (ms = 220) => {
-          clearTimeout(_reopenTimer);
-          _reopenTimer = setTimeout(() => { try { reabrirPopupFixo(); } catch {} }, ms);
-        };
-        // dispara uma única reabertura após grandes alterações
-        map.on("layeradd", () => schedule(260));  // muitos adds -> fica só 1 reabertura
-        map.on("zoomend",  () => schedule(140));
-        map.on("moveend",  () => schedule(140));
-      });
-    </script>
+    <!-- (REMOVIDO) bloco que reabria o popup com debounce, pois causava piscar e impedia fechar -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
@@ -244,7 +230,6 @@
       const _origFiltrarLocal = filtrarLocal;
       filtrarLocal = function () {
         _origFiltrarLocal();
-
         const mun = document.getElementById("busca-municipio").value.trim().toLowerCase();
         const bai = document.getElementById("busca-bairro").value.trim().toLowerCase();
         const log = document.getElementById("busca-logradouro").value.trim().toLowerCase();
@@ -260,11 +245,6 @@
         if (filtro.length) {
           const ids = filtro.map((p) => p.id);
           gerarExcelCliente(ids);
-        }
-
-        // agenda reabrir popup salvo, sem piscar
-        if (typeof window.reabrirPopupFixo === "function") {
-          setTimeout(() => reabrirPopupFixo(), 220);
         }
       };
     </script>
