@@ -263,7 +263,7 @@ function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 // === Popup fixo (persiste após reset/filtros) ========================
 let popupFixo = null;
 const POPUP_OPTS = { autoClose: true, closeOnClick: false, maxWidth: 360 };
-function reabrirPopupFixo(delay = 0){
+function reabrirPopupFixo(delay = 60){
   if (!popupFixo) return;
   const open = () => {
     L.popup(POPUP_OPTS)
@@ -273,6 +273,13 @@ function reabrirPopupFixo(delay = 0){
   };
   delay ? setTimeout(open, delay) : open();
 }
+// se o usuário fechar no “X”, não reabrir mais
+map.on('popupclose', () => { popupFixo = null; });
+// qualquer popup aberto (até os bindPopup de marcadores numerados) passa a ser o "fixo"
+map.on('popupopen', (e) => {
+  const ll = e.popup.getLatLng();
+  popupFixo = { lat: ll.lat, lon: ll.lng, html: e.popup.getContent() };
+});
 
 // Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
 function criarLayerPoste(p){
@@ -299,7 +306,7 @@ function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
   if (arr.length) markers.addLayers(arr); // usa chunkedLoading
-  if (popupFixo) scheduleIdle(() => reabrirPopupFixo(0));
+  if (popupFixo) scheduleIdle(() => reabrirPopupFixo(60));
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -313,7 +320,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; scheduleIdle(() => reabrirPopupFixo(0)); }
+    else { todosCarregados = true; scheduleIdle(() => reabrirPopupFixo(60)); }
   }
   scheduleIdle(addChunk);
 }
