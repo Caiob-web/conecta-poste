@@ -108,6 +108,24 @@
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       color:#111827; cursor:pointer;
     }
+
+    /* ---- Modal Indicadores (BI) injetado por JS ---- */
+    .bi-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:4000;background:rgba(0,0,0,.35);}
+    .bi-card{width:min(960px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);font-family:'Segoe UI',system-ui;}
+    .bi-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
+    .bi-head h3{margin:0;font-weight:700;color:#111827;font-size:16px}
+    .bi-close{border:0;background:#f3f4f6;color:#111827;border-radius:8px;padding:6px 10px;cursor:pointer}
+    .bi-body{padding:12px 16px;display:grid;grid-template-columns:1fr 320px;gap:12px;}
+    .bi-side label{font-size:13px;color:#374151}
+    .bi-input{padding:8px;border:1px solid #ddd;border-radius:8px;width:100%}
+    .bi-chk{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#374151;}
+    .bi-resumo{margin-top:8px;font-size:13px;color:#111827;}
+    .bi-btn{margin-top:8px;border:1px solid #ddd;background:#fff;border-radius:8px;padding:8px;cursor:pointer}
+    .bi-table-wrap{padding:0 16px 16px 16px;}
+    .bi-table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:8px;overflow:auto}
+    .bi-table thead{background:#f9fafb}
+    .bi-table th,.bi-table td{padding:10px;border-bottom:1px solid #eee}
+    .bi-table td.num{text-align:right}
   `;
   const style = document.createElement("style");
   style.textContent = css;
@@ -216,6 +234,9 @@ function renderizarPostesVisiveis() {
   idle(addChunk);
 }
 map.on("moveend zoomend", debounce(renderizarPostesVisiveis, 60));
+
+// ---- Indicadores / BI (refs de gráfico) ----
+let chartMunicipiosRef = null;
 
 // Dados e sets para autocomplete
 const todosPostes = [];
@@ -512,7 +533,7 @@ function makePolePhoto48(glowHex) {
         <stop offset=".55" stop-color="#e7ebef"/>
         <stop offset="1" stop-color="#7b8590"/>
       </linearGradient>
-      <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <filter id="shadow" x="-50%" y="-50%" width="200%">
         <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity=".25"/>
       </filter>
     </defs>
@@ -928,3 +949,212 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   await fetch("/logout", { method: "POST" });
   window.location.href = "/login.html";
 });
+
+/* --------------------------------------------------------------------
+   === Indicadores (BI) — injeção automática de botão + modal ===
+-------------------------------------------------------------------- */
+
+// Agregação por município, com filtros
+function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
+  const empresaNorm = (empresa || "").trim().toLowerCase();
+  const bounds = apenasVisiveis ? map.getBounds() : null;
+
+  const mapa = new Map();
+  let total = 0;
+
+  for (const p of todosPostes) {
+    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
+    if (empresaNorm) {
+      const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
+      if (!hit) continue;
+    }
+    const key = p.nome_municipio || "—";
+    mapa.set(key, (mapa.get(key) || 0) + 1);
+    total++;
+  }
+
+  const rows = Array.from(mapa.entries())
+    .map(([municipio, qtd]) => ({ municipio, qtd }))
+    .sort((a, b) => b.qtd - a.qtd);
+
+  return { rows, total };
+}
+
+// CSV
+function rowsToCSV(rows) {
+  const header = "Municipio,Quantidade\n";
+  const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
+  return header + body + "\n";
+}
+
+// Injeta botão "Indicadores" se não existir
+(function injectBIButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions) return;
+  if (!document.getElementById("btnIndicadores")) {
+    const btn = document.createElement("button");
+    btn.id = "btnIndicadores";
+    btn.innerHTML = '<i class="fa fa-chart-column"></i>Indicadores';
+    btn.addEventListener("click", abrirIndicadores);
+    actions.appendChild(btn);
+  }
+})();
+
+// Injeta modal de BI se não existir
+function ensureBIModal() {
+  if (document.getElementById("modalIndicadores")) return;
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "bi-backdrop";
+  backdrop.id = "modalIndicadores";
+  backdrop.innerHTML = `
+    <div class="bi-card">
+      <div class="bi-head">
+        <h3>Indicadores de Postes</h3>
+        <button id="fecharIndicadores" class="bi-close">Fechar</button>
+      </div>
+      <div class="bi-body">
+        <div>
+          <canvas id="chartMunicipios" height="160"></canvas>
+        </div>
+        <div class="bi-side">
+          <label>Filtrar por empresa (opcional)</label>
+          <input id="filtroEmpresaBI" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
+          <label class="bi-chk">
+            <input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa
+          </label>
+          <div id="resumoBI" class="bi-resumo"></div>
+          <button id="exportarCsvBI" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
+        </div>
+      </div>
+      <div class="bi-table-wrap">
+        <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
+          <table id="tabelaMunicipios" class="bi-table">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Município</th>
+                <th style="text-align:right;">Qtd. de Postes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  // eventos do modal
+  document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
+  document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
+  document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
+
+  // Atualiza ao mover o mapa (se aberto e opção marcada)
+  map.on("moveend zoomend", () => {
+    const modal = document.getElementById("modalIndicadores");
+    const onlyView = document.getElementById("apenasVisiveisBI");
+    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
+      atualizarIndicadores();
+    }
+  });
+}
+
+function abrirIndicadores() {
+  ensureBIModal();
+
+  const modal = document.getElementById("modalIndicadores");
+  if (!modal) return;
+
+  // Carrega Chart.js do CDN se não estiver presente
+  function proceed() {
+    modal.style.display = "flex";
+    atualizarIndicadores();
+  }
+  if (typeof Chart === "undefined") {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+    s.onload = proceed;
+    s.onerror = proceed; // mesmo sem Chart.js, mostra tabela/resumo
+    document.head.appendChild(s);
+  } else {
+    proceed();
+  }
+}
+
+function fecharIndicadores() {
+  const modal = document.getElementById("modalIndicadores");
+  if (!modal) return;
+  modal.style.display = "none";
+}
+
+function atualizarIndicadores() {
+  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
+  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
+
+  const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
+
+  // tabela
+  const tb = document.querySelector("#tabelaMunicipios tbody");
+  if (tb) {
+    tb.innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.municipio}</td>
+        <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+  }
+
+  // resumo
+  const resumo = document.getElementById("resumoBI");
+  if (resumo) {
+    const txtEmp = empresa ? ` para <b>${empresa}</b>` : "";
+    const txtScope = apenasVisiveis ? " (apenas área visível)" : "";
+    resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
+  }
+
+  // gráfico (opcional se Chart.js disponível)
+  const labels = rows.slice(0, 20).map(r => r.municipio); // top 20
+  const data = rows.slice(0, 20).map(r => r.qtd);
+  const ctx = document.getElementById("chartMunicipios");
+
+  if (typeof Chart !== "undefined" && ctx) {
+    if (chartMunicipiosRef) {
+      chartMunicipiosRef.data.labels = labels;
+      chartMunicipiosRef.data.datasets[0].data = data;
+      chartMunicipiosRef.update();
+    } else {
+      chartMunicipiosRef = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{ label: "Postes por município", data }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { autoSkip: true, maxRotation: 0 } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+  }
+
+  // export CSV
+  const btnCsv = document.getElementById("exportarCsvBI");
+  if (btnCsv) {
+    btnCsv.onclick = () => {
+      const csv = rowsToCSV(rows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const sufixo = empresa ? `_${empresa.replace(/\W+/g,'_')}` : "";
+      a.download = `postes_por_municipio${sufixo}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+  }
+}
