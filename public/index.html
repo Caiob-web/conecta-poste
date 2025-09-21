@@ -19,6 +19,11 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
     />
+    <!-- (ADICIONADO) Tema/estilos default do MarkerCluster -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
+    />
 
     <!-- FontAwesome para ícones -->
     <link
@@ -46,10 +51,12 @@
 
       /* --- RESET & MAPA --- */
       html, body { margin:0; padding:0; height:100%; background:#0b1624; }
-      #map { width:100%; height:100%; }
+      #map { width:100%; height:100%; position:relative; z-index:0; } /* z-fix */
+
+      /* (ADICIONADO) garante que, quando o overlay estiver oculto, não capture cliques */
+      #carregando[style*="display: none"] { pointer-events: none !important; }
 
       /* ========================= PAINEL DE BUSCA (DARK) ====================== */
-      /* Agora é uma SIDEBAR dockada à direita, ocupando a altura toda */
       .painel-busca {
         position: fixed;
         top: 0;
@@ -167,7 +174,6 @@
       }
 
       /* ============================ BOTÕES DE TOPO =========================== */
-      /* O toggle vira uma "aba" ao lado do dock, e acompanha o recolhimento */
       .botao-topo {
         position: fixed;
         right: calc(var(--dock-w) + 16px);
@@ -190,13 +196,11 @@
         width: 44px; height: 64px;
         border-radius: 12px 0 0 12px;
       }
-      /* Quando sidebar recolhida, a aba encosta na borda direita da janela */
       body.sidebar-collapsed #togglePainel{ right: 16px; }
 
       #localizacaoUsuario { top: 20px; }
       #logoutBtn { top: 70px; }
 
-      /* Ajusta a posição dos botões quando recolhe */
       body.sidebar-collapsed #localizacaoUsuario,
       body.sidebar-collapsed #logoutBtn{
         right: 16px;
@@ -208,7 +212,9 @@
         left:20px;
         bottom:20px;
         z-index:2000;
+        pointer-events: none;            /* (ADICIONADO) não bloquear o mapa */
       }
+      #widget-clima > * { pointer-events: auto; } /* itens dentro continuam clicáveis */
 
       /* ==================== OVERLAY / SPINNER (DARK) ======================== */
       .overlay-loading {
@@ -238,7 +244,6 @@
       }
 
       @media (max-width: 880px){
-        /* mantém o dock, só reduz a largura para telas menores */
         :root{ --dock-w: 300px; }
         .painel-busca .actions{ grid-template-columns: repeat(2,1fr); }
       }
@@ -330,7 +335,7 @@
     <!-- Mapa -->
     <div id="map"></div>
 
-    <!-- HUD: posicionador; o cartão (#tempo) é criado no script.js -->
+    <!-- HUD -->
     <div id="widget-clima">
       <div id="tempo"></div>
     </div>
@@ -341,17 +346,41 @@
       <div class="texto-loading">Carregando postes…</div>
     </div>
 
-    <!-- JS -->
+    <!-- JS (ordem) -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <!-- SheetJS para Excel no cliente -->
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- Seu script principal -->
     <script src="script.js"></script>
+    <!-- libs usadas sob demanda por botões -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
+    <!-- (ADICIONADO) Failsafe: delega clique no cluster para sempre abrir o popup -->
     <script>
-      // Logout (garantia)
+      (function attachClusterClickFailsafe(){
+        // espera o 'markers' existir (definido em script.js)
+        const tryAttach = () => {
+          if (window.markers && typeof abrirPopup === "function") {
+            // Esse handler dispara para qualquer layer simples dentro do cluster
+            markers.on("click", (e) => {
+              const layer = e.layer;
+              // ignora cliques em "clusters" (nós agregadores)
+              if (layer && typeof layer.getAllChildMarkers === "function") return;
+              // abre o popup se o dado estiver no layer (criado no script.js)
+              if (layer && layer.posteData) abrirPopup(layer.posteData);
+            });
+          } else {
+            requestAnimationFrame(tryAttach);
+          }
+        };
+        tryAttach();
+      })();
+    </script>
+
+    <!-- Logout (garantia) -->
+    <script>
       document.getElementById("logoutBtn").addEventListener("click", async () => {
         await fetch("/logout", { method: "POST" });
         window.location.href = "/login.html";
