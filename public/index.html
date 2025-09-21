@@ -195,13 +195,19 @@
     <!-- App -->
     <script src="script.js"></script>
 
-    <!-- Reforço para manter o popup fixo mesmo após recarregar camadas/zoom -->
+    <!-- Reabertura do popup com DEBOUNCE (anti-piscada) -->
     <script>
       window.addEventListener("load", () => {
-        if (window.map && typeof window.reabrirPopupFixo === "function") {
-          map.on("layeradd", () => reabrirPopupFixo(60));
-          map.on("zoomend",   () => reabrirPopupFixo(60));
-        }
+        if (!window.map || typeof window.reabrirPopupFixo !== "function") return;
+        let _reopenTimer = null;
+        const schedule = (ms = 220) => {
+          clearTimeout(_reopenTimer);
+          _reopenTimer = setTimeout(() => { try { reabrirPopupFixo(); } catch {} }, ms);
+        };
+        // dispara uma única reabertura após grandes alterações
+        map.on("layeradd", () => schedule(260));  // muitos adds -> fica só 1 reabertura
+        map.on("zoomend",  () => schedule(140));
+        map.on("moveend",  () => schedule(140));
       });
     </script>
 
@@ -256,9 +262,9 @@
           gerarExcelCliente(ids);
         }
 
-        // >>> garante reabrir o popup salvo após o filtro <<<
+        // agenda reabrir popup salvo, sem piscar
         if (typeof window.reabrirPopupFixo === "function") {
-          reabrirPopupFixo(60);
+          setTimeout(() => reabrirPopupFixo(), 220);
         }
       };
     </script>
