@@ -192,7 +192,8 @@ const esriSat = L.tileLayer(
 );
 // Rótulos por cima do satélite
 const labelsPane = map.createPane("labels");
-labelsPane.style.zIndex = 650;
+// FIX: manter rótulos **abaixo** dos tooltips (tooltipPane=650). Antes era 650 e podia cobrir o tooltip.
+labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
 const cartoLabels = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
@@ -212,7 +213,10 @@ function dotStyle(qtdEmpresas){
     weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
     fillOpacity: 0.95,
-    renderer: DOT_RENDERER
+    renderer: DOT_RENDERER,
+    // FIX: garantir interatividade do path em Canvas e evitar “propagação” fechar/consumir cliques
+    interactive: true,
+    bubblingMouseEvents: false
   };
 }
 
@@ -247,9 +251,15 @@ const markers = L.markerClusterGroup({
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 // failsafe: qualquer layer simples dentro do cluster abre popup
 markers.on("click", (e) => {
+  // FIX: se vier DOM event, não deixa “subir”
+  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
   const l = e.layer;
   if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
-  if (l && l.posteData) abrirPopup(l.posteData);
+  if (l && l.posteData) {
+    // tenta também abrir tooltip, se existir
+    try { l.openTooltip?.(); } catch {}
+    abrirPopup(l.posteData);
+  }
 });
 map.addLayer(markers);
 
@@ -287,7 +297,12 @@ function criarLayerPoste(p){
       `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
       { direction: "top", sticky: true }
     )
-    .on("click", () => abrirPopup(p));
+    .on("click", (e) => {
+      // FIX: impedir que o clique “suba” e garantir abertura
+      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      try { e.target.openTooltip?.(); } catch {}
+      abrirPopup(p);
+    });
   layer.posteData = p; // usado pelo failsafe do cluster
   idToMarker.set(p.id, layer);
   return layer;
@@ -502,9 +517,11 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER
+        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
+        // FIX: garantir clique no Canvas e não deixar subir
+        interactive: true, bubblingMouseEvents: false
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("click", () => abrirPopup(poste));
+      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{c.openTooltip?.();}catch{} abrirPopup(poste); });
       c.posteData = poste;
       markers.addLayer(c);
     });
@@ -797,9 +814,11 @@ function consultarIDsEmMassa() {
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
+            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
+            // FIX: interativo e sem bubbling
+            interactive: true, bubblingMouseEvents: false
           }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
-            .on("click", () => abrirPopup(p))
+            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{m.openTooltip?.();}catch{} abrirPopup(p); })
             .addTo(map);
           m.posteData = p;
           window.intermediarios.push(m);
@@ -835,7 +854,7 @@ function adicionarNumerado(p, num) {
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("click", () => abrirPopup(p));
+  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
