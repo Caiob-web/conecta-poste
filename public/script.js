@@ -114,7 +114,12 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
+const map = L.map("map", {
+  preferCanvas: true,
+  zoomAnimation: true,
+  updateWhenZooming: false, // suaviza zoom
+  updateWhenIdle: true      // redesenha ao final do zoom/pan
+}).setView([-23.2, -45.9], 12);
 
 // Rua (OSM)
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -157,7 +162,8 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50
+  chunkInterval: 50,
+  removeOutsideVisibleBounds: true, // <-- pruning fora da viewport
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
@@ -247,31 +253,46 @@ fetch("/api/postes")
       empresas: [...p.empresas],
     }));
 
-    // Render em batches (addLayers + requestIdleCallback para UI fluída)
-    const BATCH = 700; // tamanho de lote (ajuste se desejar)
-    function runLater(fn) {
-      if (window.requestIdleCallback) return requestIdleCallback(() => fn(), { timeout: 120 });
-      return setTimeout(fn, 0);
-    }
-    function addBatch(i = 0) {
-      const slice = postsArray.slice(i, i + BATCH);
-      const novoLote = [];
-      slice.forEach((poste) => {
+    // --------- Render em batches + addLayers (mais leve) --------------
+    function addBatch(i = 0, batchSize = 800) {
+      const slice = postsArray.slice(i, i + batchSize);
+
+      // cria os markers do lote em memória
+      const loteMarkers = [];
+      for (const poste of slice) {
         todosPostes.push(poste);
-        novoLote.push(adicionarMarker(poste)); // cria marker (não adiciona)
         municipiosSet.add(poste.nome_municipio);
         bairrosSet.add(poste.nome_bairro);
         logradourosSet.add(poste.nome_logradouro);
         poste.empresas.forEach(
           (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
         );
-      });
-      if (novoLote.length) markers.addLayers(novoLote);
 
-      if (i + BATCH < postsArray.length) {
-        runLater(() => addBatch(i + BATCH));
+        const cor = poleColorByEmpresas(poste.empresas.length);
+        const m = L.marker([poste.lat, poste.lon], {
+          icon: poleIcon48(cor),
+        })
+          .bindTooltip(
+            `ID: ${poste.id} — ${poste.empresas.length} ${
+              poste.empresas.length === 1 ? "empresa" : "empresas"
+            }`,
+            { direction: "top", sticky: true }
+          )
+          .on("click", () => abrirPopup(poste));
+
+        loteMarkers.push(m);
+      }
+
+      // adiciona o lote de uma vez só (bem mais barato)
+      if (loteMarkers.length) markers.addLayers(loteMarkers);
+
+      const schedule = (cb) =>
+        (window.requestIdleCallback || window.requestAnimationFrame)(cb);
+
+      if (i + batchSize < postsArray.length) {
+        schedule(() => addBatch(i + batchSize, batchSize));
       } else {
-        preencherListas();
+        schedule(() => preencherListas());
       }
     }
     addBatch();
@@ -337,12 +358,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) {
-    // volta tudo (em batch)
-    const arr = todosPostes.map(adicionarMarker);
-    markers.addLayers(arr);
-    return;
-  }
+  if (!censoMode) return todosPostes.forEach(adicionarMarker);
 
   if (!censoIds) {
     try {
@@ -353,12 +369,9 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      const arr = todosPostes.map(adicionarMarker);
-      markers.addLayers(arr);
-      return;
+      return todosPostes.forEach(adicionarMarker);
     }
   }
-  const modoArr = [];
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
@@ -370,9 +383,8 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
         fillOpacity: 0.8,
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
-      modoArr.push(c);
+      markers.addLayer(c);
     });
-  if (modoArr.length) markers.addLayers(modoArr);
 });
 
 // ---------------------------------------------------------------------
@@ -406,8 +418,7 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
-  const arr = filtro.map(adicionarMarker);
-  markers.addLayers(arr);
+  filtro.forEach(adicionarMarker);
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -443,71 +454,74 @@ function filtrarLocal() {
 
 function resetarMapa() {
   markers.clearLayers();
-  const arr = todosPostes.map(adicionarMarker);
-  markers.addLayers(arr);
+  todosPostes.forEach(adicionarMarker);
 }
 
-/* ====================================================================
-   ÍCONES 48px — poste fotorealista + halo de disponibilidade
-   (verde para ≤4 empresas, vermelho para ≥5 empresas)
-   ==================================================================== */
-function makePolePhoto48(glowHex) {
+// ===== ÍCONES 36px em SVG inline (poste realista, 2 travessas) =====
+function makePoleDataUri(hex) {
   const svg = `
-  <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+  <svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <radialGradient id="gHalo" cx="21" cy="24" r="18" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="${glowHex}" stop-opacity=".26"/>
-        <stop offset="1" stop-color="${glowHex}" stop-opacity="0"/>
+      <linearGradient id="woodGrad" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%"  stop-color="#7a5c34"/>
+        <stop offset="55%" stop-color="#8b673d"/>
+        <stop offset="100%" stop-color="#6a4e2c"/>
+      </linearGradient>
+      <linearGradient id="steelGrad" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0%" stop-color="#8e8e8e"/>
+        <stop offset="45%" stop-color="#d9d9d9"/>
+        <stop offset="100%" stop-color="#7a7a7a"/>
+      </linearGradient>
+      <radialGradient id="haloGrad" cx="12" cy="13" r="10" gradientUnits="userSpaceOnUse">
+        <stop offset="0%"   stop-color="${hex}" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
       </radialGradient>
-      <linearGradient id="gWood" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0" stop-color="#8a6139"/>
-        <stop offset=".5" stop-color="#9b6e41"/>
-        <stop offset="1" stop-color="#6f4f31"/>
-      </linearGradient>
-      <linearGradient id="gSteel" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0" stop-color="#9aa3ad"/>
-        <stop offset=".55" stop-color="#e7ebef"/>
-        <stop offset="1" stop-color="#7b8590"/>
-      </linearGradient>
-      <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-        <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity=".25"/>
-      </filter>
     </defs>
 
-    <!-- HALO -->
-    <circle cx="21" cy="24" r="18" fill="url(#gHalo)"/>
+    <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
 
-    <!-- poste -->
-    <g filter="url(#shadow)">
-      <rect x="19.2" y="6" width="3.6" height="25" rx="1.6" fill="url(#gWood)"/>
-      <rect x="21.2" y="6" width="0.7" height="25" fill="rgba(255,255,255,.18)"/>
-      <ellipse cx="21" cy="31.5" rx="6.5" ry="2.2" fill="rgba(0,0,0,.20)" opacity=".45"/>
-      <rect x="11" y="11.2" width="20" height="2.6" rx="1.3" fill="url(#gSteel)"/>
-      <path d="M14.4 13.5 L21 19 M27.6 13.5 L21 19" stroke="#3b4046" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
-      <circle cx="15.2" cy="12.6" r="1.2" fill="#cfd6dd"/>
-      <circle cx="21"   cy="12.6" r="1.2" fill="#cfd6dd"/>
-      <circle cx="26.8" cy="12.6" r="1.2" fill="#cfd6dd"/>
-      <path d="M11.2 10.6 C 16.5 14.2, 25.5 14.2, 30.8 10.6" fill="none" stroke="#6f757c" stroke-width="1" opacity=".6"/>
-      <rect x="23.8" y="17" width="6" height="7.2" rx="1.2" fill="#d9e1e8" stroke="#2f343a" stroke-width="1"/>
-      <rect x="12.2" y="17.6" width="5.2" height="6.4" rx="1.1" fill="#dfe7ee" stroke="#2f343a" stroke-width="1" opacity=".85"/>
+    <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
+             C11.1 20.1 11.7 20.6 12.0 20.6
+             C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
+             C12.8 4.4 12.5 4.2 12.0 4.2 Z"
+          fill="url(#woodGrad)"/>
+    <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
+
+    <g transform="rotate(-2 12 7.2)">
+      <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
+      <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
+      <circle cx="12.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
+      <circle cx="17.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
+      <path d="M5.0 6.9 C 7.8 8.0, 16.2 8.0, 19.0 6.9" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round"/>
+      <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
     </g>
+
+    <g transform="rotate(1 12 10.2)">
+      <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
+      <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
+      <circle cx="12.0" cy="10.2" r="0.65" fill="#c7c7c7"/>
+      <circle cx="16.2" cy="10.2" r="0.65" fill="#c7c7c7"/>
+      <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
+    </g>
+
+    <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 const ICON_GREEN_48 = L.icon({
-  iconUrl: makePolePhoto48("#24a148"),
-  iconSize: [48, 48],
-  iconAnchor: [24, 34],
-  popupAnchor: [0, -22],
-  tooltipAnchor: [0, -22]
+  iconUrl: makePoleDataUri("#2E7D32"),
+  iconSize: [36, 36],
+  iconAnchor: [18, 21],
+  popupAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 const ICON_RED_48 = L.icon({
-  iconUrl: makePolePhoto48("#d64545"),
-  iconSize: [48, 48],
-  iconAnchor: [24, 34],
-  popupAnchor: [0, -22],
-  tooltipAnchor: [0, -22]
+  iconUrl: makePoleDataUri("#D32F2F"),
+  iconSize: [36, 36],
+  iconAnchor: [18, 21],
+  popupAnchor: [0, -16],
+  tooltipAnchor: [0, -16]
 });
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
@@ -517,7 +531,7 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão (RETORNA o marker — não adiciona aqui)
+// Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
@@ -528,7 +542,7 @@ function adicionarMarker(p) {
     { direction: "top", sticky: true }
   );
   m.on("click", () => abrirPopup(p));
-  return m;
+  markers.addLayer(m);
 }
 
 // Abre popup
