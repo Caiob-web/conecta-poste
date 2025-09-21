@@ -5,11 +5,12 @@
 // ------------------------- Estilos do HUD (um único pop-up) ----------
 (function injectHudStyles() {
   const css = `
-    /* Pop-up único */
+    /* === POP-UP ÚNICO (#tempo) === */
     #tempo{
+      position: relative;
       display:flex;
       flex-direction:column;
-      gap:10px;
+      gap:12px;
       padding:14px 16px;
       border-radius:16px;
       background:rgba(255,255,255,0.95);
@@ -17,11 +18,18 @@
       backdrop-filter:saturate(1.1) blur(2px);
       max-width:320px;
     }
+    /* neutraliza QUALQUER fundo/sombra filho para evitar "segundo card" */
+    #tempo > *{
+      background:transparent !important;
+      box-shadow:none !important;
+      border:0 !important;
+      margin:0 !important;
+    }
 
     /* Hora */
     #tempo .hora-row{
       display:flex; align-items:center; gap:10px;
-      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      font: 14px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial;
       color:#0f172a; font-weight:700;
     }
     #tempo .hora-row .dot{
@@ -29,6 +37,10 @@
       background:linear-gradient(180deg,#1e3a8a,#2563eb);
       box-shadow:0 0 0 2px #e5e7eb inset;
       display:inline-block;
+      flex:0 0 10px;
+    }
+    #tempo .hora-row .hora{
+      min-width:44px; /* evita “chacoalhar” ao atualizar */
     }
 
     /* Clima */
@@ -37,40 +49,45 @@
       min-height:40px;
     }
     #tempo .weather-row img{ width:32px; height:32px; object-fit:contain; }
-    #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; }
-    #tempo .tempo-text b{ font: 14px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; }
-    #tempo .tempo-text span{ font: 13px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937;}
+    #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+    #tempo .tempo-text b{ font: 14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Arial; color:#111827; }
+    #tempo .tempo-text span{ font: 13px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Arial; color:#1f2937;}
     #tempo .tempo-text small{ color:#6b7280; }
 
     /* divisor fino */
     #tempo .divider{
       height:1px; background:linear-gradient(90deg, rgba(0,0,0,.06), rgba(0,0,0,.04) 50%, rgba(0,0,0,.06));
-      margin:4px 0;
+      margin:2px 0 0 0;
     }
 
-    /* Seletor de mapa na MESMA caixa */
+    /* Linha do seletor de mapa — DENTRO do mesmo card */
     #tempo .map-row{
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      width:100%;
+      display:flex; align-items:center; gap:10px;
     }
     #tempo .map-row .lbl{
-      font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      flex:0 0 auto;
+      font: 12px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
       letter-spacing:.2px; color:#475569; font-weight:700;
     }
     #tempo .select-wrap{
+      flex:1 1 auto;
       position:relative; display:inline-flex; align-items:center; gap:8px;
       padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
       background:#ffffff; transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+      min-width: 0;
     }
     #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
-    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; }
+    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; flex:0 0 16px; }
     #tempo .select-wrap .ico-caret{
       position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none;
     }
     #tempo select{
       appearance:none; -webkit-appearance:none; -moz-appearance:none;
       border:0; outline:none; background:transparent; padding:0; margin:0;
-      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer;
+      font: 13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial; color:#111827; cursor:pointer;
+      min-width: 0; width: 100%;
     }
   `;
   const style = document.createElement("style");
@@ -141,6 +158,10 @@ if (overlay) overlay.style.display = "flex";
 (function buildHud() {
   const hud = document.getElementById("tempo");
   if (!hud) return;
+
+  // Garante que NÃO tenha classes antigas que criem um segundo card
+  hud.className = "";
+  hud.replaceChildren();
 
   hud.innerHTML = `
     <div class="hora-row">
@@ -450,9 +471,7 @@ const ICON_RED_48 = L.icon({
   popupAnchor: [0, -16],
   tooltipAnchor: [0, -16]
 });
-function poleIcon48(color) {
-  return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
-}
+function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
 function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
