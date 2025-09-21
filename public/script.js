@@ -428,69 +428,80 @@ function resetarMapa() {
 
 // ===== ÍCONES 36px em SVG inline (poste realista, 2 travessas) =====
 function makePoleDataUri(hex) {
+  // Atualizado para ícone REALISTA 42px (mantendo o mesmo nome da função)
   const svg = `
-  <svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <svg width="42" height="42" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="woodGrad" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%"  stop-color="#7a5c34"/>
-        <stop offset="55%" stop-color="#8b673d"/>
-        <stop offset="100%" stop-color="#6a4e2c"/>
+      <linearGradient id="wood" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%"  stop-color="#785A35"/>
+        <stop offset="55%" stop-color="#8B6A3E"/>
+        <stop offset="100%" stop-color="#5F4528"/>
       </linearGradient>
-      <linearGradient id="steelGrad" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0%" stop-color="#8e8e8e"/>
-        <stop offset="45%" stop-color="#d9d9d9"/>
+      <linearGradient id="steel" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0%" stop-color="#8d8d8d"/>
+        <stop offset="50%" stop-color="#d8d8d8"/>
         <stop offset="100%" stop-color="#7a7a7a"/>
       </linearGradient>
-      <radialGradient id="haloGrad" cx="12" cy="13" r="10" gradientUnits="userSpaceOnUse">
+      <radialGradient id="halo" cx="14" cy="16" r="11" gradientUnits="userSpaceOnUse">
         <stop offset="0%"   stop-color="${hex}" stop-opacity="0.18"/>
         <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
       </radialGradient>
     </defs>
 
-    <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
+    <!-- halo -->
+    <circle cx="14" cy="16" r="11" fill="url(#halo)"/>
 
-    <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
-             C11.1 20.1 11.7 20.6 12.0 20.6
-             C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
-             C12.8 4.4 12.5 4.2 12.0 4.2 Z"
-          fill="url(#woodGrad)"/>
-    <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
+    <!-- fios sutis -->
+    <path d="M4 9.6 C 10 12.2, 18 12.2, 24 9.6" fill="none" stroke="#6e6e6e" stroke-width="0.7" stroke-linecap="round" opacity="0.55"/>
+    <path d="M4 10.6 C 10.5 13.0, 17.5 13.0, 24 10.6" fill="none" stroke="#6e6e6e" stroke-width="0.65" stroke-linecap="round" opacity="0.40"/>
 
-    <g transform="rotate(-2 12 7.2)">
-      <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
-      <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
-      <circle cx="12.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
-      <circle cx="17.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
-      <path d="M5.0 6.9 C 7.8 8.0, 16.2 8.0, 19.0 6.9" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round"/>
-      <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
+    <!-- travessa superior -->
+    <g transform="rotate(-2 14 11)">
+      <rect x="6" y="10.2" width="16" height="1.8" rx="0.9" fill="url(#steel)"/>
+      <circle cx="8.2"  cy="11.1" r="0.8" fill="#cfcfcf"/>
+      <circle cx="14.0" cy="11.1" r="0.8" fill="#cfcfcf"/>
+      <circle cx="19.8" cy="11.1" r="0.8" fill="#cfcfcf"/>
     </g>
 
-    <g transform="rotate(1 12 10.2)">
-      <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
-      <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
-      <circle cx="12.0" cy="10.2" r="0.65" fill="#c7c7c7"/>
-      <circle cx="16.2" cy="10.2" r="0.65" fill="#c7c7c7"/>
-      <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
+    <!-- travessa inferior (menor) -->
+    <g transform="rotate(1 14 14)">
+      <rect x="7.4" y="13.3" width="13.2" height="1.6" rx="0.8" fill="url(#steel)"/>
+      <circle cx="9.0"  cy="14.1" r="0.7" fill="#d6d6d6"/>
+      <circle cx="14.0" cy="14.1" r="0.7" fill="#d6d6d6"/>
+      <circle cx="19.0" cy="14.1" r="0.7" fill="#d6d6d6"/>
     </g>
 
-    <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
+    <!-- poste (leve afunilado) -->
+    <path d="M14 6.0
+             C13.5 6.0 13.2 6.3 13.1 6.9
+             L13.1 23.5
+             C13.1 24.3 13.7 24.9 14.0 24.9
+             C14.3 24.9 14.9 24.3 14.9 23.5
+             L14.9 6.9
+             C14.8 6.3 14.5 6.0 14.0 6.0 Z"
+          fill="url(#wood)"/>
+    <!-- brilho lateral -->
+    <path d="M14.7 7.0 L14.7 23.2" stroke="rgba(255,255,255,0.20)" stroke-width="0.45"/>
+
+    <!-- sombra da base -->
+    <ellipse cx="14" cy="25.2" rx="1.6" ry="0.5" fill="rgba(0,0,0,0.18)"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 const ICON_GREEN_48 = L.icon({
   iconUrl: makePoleDataUri("#2E7D32"),
-  iconSize: [36, 36],
-  iconAnchor: [18, 21],
-  popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16]
+  iconSize: [42, 42],
+  iconAnchor: [21, 24],
+  popupAnchor: [0, -18],
+  tooltipAnchor: [0, -18]
 });
 const ICON_RED_48 = L.icon({
   iconUrl: makePoleDataUri("#D32F2F"),
-  iconSize: [36, 36],
-  iconAnchor: [18, 21],
-  popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16]
+  iconSize: [42, 42],
+  iconAnchor: [21, 24],
+  popupAnchor: [0, -18],
+  tooltipAnchor: [0, -18]
 });
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
