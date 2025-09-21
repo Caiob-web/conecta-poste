@@ -85,7 +85,7 @@
       gap:8px;
       padding:8px 36px 8px 12px;
       border:1px solid #e5e7eb;
-      border-radius:999px;           /* pill */
+      border-radius:999px;
       background:#ffffff;
       transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
@@ -182,9 +182,9 @@ markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
 
 // -------------------- Virtualização / LOD (mantendo seus ícones) ----
-const MIN_ZOOM_POSTES = 15;     // só mostra postes a partir deste zoom
-const VIEWPORT_PADDING = 0.20;  // padding no bbox para evitar "piscar"
-const idToMarker = new Map();   // cache: id -> L.Marker
+const MIN_ZOOM_POSTES = 15;
+const VIEWPORT_PADDING = 0.20;
+const idToMarker = new Map();
 let lastRenderBounds = null;
 
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
@@ -198,7 +198,6 @@ function renderizarPostesVisiveis() {
   }
   const b = map.getBounds().pad(VIEWPORT_PADDING);
 
-  // Se já cobrimos este bbox ampliado, não refaz
   if (lastRenderBounds && lastRenderBounds.contains && lastRenderBounds.contains(b)) return;
   lastRenderBounds = b;
 
@@ -209,14 +208,12 @@ function renderizarPostesVisiveis() {
     (b.contains([p.lat, p.lon]) ? dentro : fora).push(p);
   }
 
-  // remove os que estão fora (se estiverem no layer)
   fora.forEach((p) => {
     const mk = idToMarker.get(p.id);
     if (mk && markers.hasLayer(mk)) markers.removeLayer(mk);
   });
 
-  // adiciona os que estão dentro, em lotes
-  const lote = 800; // ajuste conforme necessidade
+  const lote = 800;
   let i = 0;
   function addChunk() {
     const slice = dentro.slice(i, i + lote);
@@ -225,7 +222,7 @@ function renderizarPostesVisiveis() {
       if (mk) {
         if (!markers.hasLayer(mk)) markers.addLayer(mk);
       } else {
-        adicionarMarker(p); // cria e adiciona com seu ícone fotorealista
+        adicionarMarker(p);
       }
     });
     i += lote;
@@ -237,6 +234,11 @@ map.on("moveend zoomend", debounce(renderizarPostesVisiveis, 60));
 
 // ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
+
+// ---- Índices para BI (rápidos) ----
+const biMunTotal = new Map();   // municipio -> total
+const biEmpPorMun = new Map();  // empresa(lower) -> Map(municipio -> total)
+const BI_DEBOUNCE_MS = 60;      // debounce curto no input do BI
 
 // Dados e sets para autocomplete
 const todosPostes = [];
@@ -263,7 +265,7 @@ if (overlay) overlay.style.display = "flex";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
 
-  // Cartão: clima + seletor de mapa (dentro do mesmo card)
+  // Cartão: clima + seletor de mapa
   const card = document.createElement("div");
   card.className = "weather-card";
   card.innerHTML = `
@@ -278,7 +280,6 @@ if (overlay) overlay.style.display = "flex";
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
-        <!-- Ícone globo (sem comandos de arco 'A') -->
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
@@ -328,7 +329,7 @@ fetch("/api/postes")
       empresas: [...p.empresas],
     }));
 
-    // Popular estruturas (sem criar markers de todos de uma vez)
+    // Popular estruturas + ÍNDICES RÁPIDOS PARA BI
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
@@ -337,6 +338,24 @@ fetch("/api/postes")
       poste.empresas.forEach(
         (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
       );
+
+      // total por município
+      biMunTotal.set(
+        poste.nome_municipio,
+        (biMunTotal.get(poste.nome_municipio) || 0) + 1
+      );
+
+      // empresa x município
+      poste.empresas.forEach((e) => {
+        const key = (e || "").toLowerCase();
+        if (!key) return;
+        let mapMun = biEmpPorMun.get(key);
+        if (!mapMun) { mapMun = new Map(); biEmpPorMun.set(key, mapMun); }
+        mapMun.set(
+          poste.nome_municipio,
+          (mapMun.get(poste.nome_municipio) || 0) + 1
+        );
+      });
     });
     preencherListas();
 
@@ -405,7 +424,6 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
   if (!censoMode) {
-    // volta para o render padrão (visíveis)
     renderizarPostesVisiveis();
     return;
   }
@@ -469,8 +487,6 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
-
-  // para filtro, mantém o comportamento atual (adiciona todos do filtro)
   filtro.forEach(adicionarMarker);
 
   fetch("/api/postes/report", {
@@ -507,13 +523,11 @@ function filtrarLocal() {
 
 function resetarMapa() {
   markers.clearLayers();
-  // volta para o modo virtualizado (apenas visíveis)
   renderizarPostesVisiveis();
 }
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
-   (verde para ≤4 empresas, vermelho para ≥5 empresas)
    ==================================================================== */
 function makePolePhoto48(glowHex) {
   const svg = `
@@ -537,11 +551,7 @@ function makePolePhoto48(glowHex) {
         <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity=".25"/>
       </filter>
     </defs>
-
-    <!-- HALO -->
     <circle cx="21" cy="24" r="18" fill="url(#gHalo)"/>
-
-    <!-- poste -->
     <g filter="url(#shadow)">
       <rect x="19.2" y="6" width="3.6" height="25" rx="1.6" fill="url(#gWood)"/>
       <rect x="21.2" y="6" width="0.7" height="25" fill="rgba(255,255,255,.18)"/>
@@ -698,7 +708,7 @@ setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
 // ---------------------------------------------------------------------
-// Clima via OpenWeatherMap (com fallback se geo falhar)
+// Clima via OpenWeatherMap
 // ---------------------------------------------------------------------
 function preencherClimaUI(data) {
   const card = document.querySelector("#tempo .weather-card");
@@ -729,7 +739,7 @@ function obterPrevisaoDoTempo(lat, lon) {
 
 // tenta pegar geo; se falhar, usa SP
 (function initWeather() {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
   if (!navigator.geolocation) return fallback();
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
@@ -765,7 +775,6 @@ function consultarIDsEmMassa() {
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
-  // intermediários e traçado
   window.intermediarios = [];
   encontrados.slice(0, -1).forEach((a, i) => {
     const b = encontrados[i + 1];
@@ -954,29 +963,47 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
    === Indicadores (BI) — injeção automática de botão + modal ===
 -------------------------------------------------------------------- */
 
-// Agregação por município, com filtros
+// Agregação por município, com filtros — usando índices quando possível
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
-  const bounds = apenasVisiveis ? map.getBounds() : null;
 
-  const mapa = new Map();
-  let total = 0;
+  // Se for por área visível, conta no bbox (poucos pontos -> rápido)
+  if (apenasVisiveis) {
+    const bounds = map.getBounds();
+    const mapa = new Map();
+    let total = 0;
 
-  for (const p of todosPostes) {
-    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
-    if (empresaNorm) {
-      const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
-      if (!hit) continue;
+    for (const p of todosPostes) {
+      if (!bounds.contains([p.lat, p.lon])) continue;
+      if (empresaNorm) {
+        const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
+        if (!hit) continue;
+      }
+      const key = p.nome_municipio || "—";
+      mapa.set(key, (mapa.get(key) || 0) + 1);
+      total++;
     }
-    const key = p.nome_municipio || "—";
-    mapa.set(key, (mapa.get(key) || 0) + 1);
-    total++;
+
+    const rows = Array.from(mapa.entries())
+      .map(([municipio, qtd]) => ({ municipio, qtd }))
+      .sort((a, b) => b.qtd - a.qtd);
+
+    return { rows, total };
   }
 
-  const rows = Array.from(mapa.entries())
+  // Caso geral (sem bbox): usar índices rápidos
+  let mapaFonte;
+  if (!empresaNorm) {
+    mapaFonte = biMunTotal; // todos os postes
+  } else {
+    mapaFonte = biEmpPorMun.get(empresaNorm) || new Map();
+  }
+
+  const rows = Array.from(mapaFonte.entries())
     .map(([municipio, qtd]) => ({ municipio, qtd }))
     .sort((a, b) => b.qtd - a.qtd);
 
+  const total = rows.reduce((s, r) => s + r.qtd, 0);
   return { rows, total };
 }
 
@@ -987,7 +1014,7 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-// Injeta botão "Indicadores" se não existir
+// Injeta botão "Indicadores"
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -1045,7 +1072,11 @@ function ensureBIModal() {
 
   // eventos do modal
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
-  document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
+
+  // Debounce curto no input de empresa (mais responsivo)
+  const debouncedUpdate = debounce(atualizarIndicadores, BI_DEBOUNCE_MS);
+  document.getElementById("filtroEmpresaBI")?.addEventListener("input", debouncedUpdate);
+
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
 
   // Atualiza ao mover o mapa (se aberto e opção marcada)
@@ -1064,7 +1095,6 @@ function abrirIndicadores() {
   const modal = document.getElementById("modalIndicadores");
   if (!modal) return;
 
-  // Carrega Chart.js do CDN se não estiver presente
   function proceed() {
     modal.style.display = "flex";
     atualizarIndicadores();
@@ -1073,7 +1103,7 @@ function abrirIndicadores() {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
     s.onload = proceed;
-    s.onerror = proceed; // mesmo sem Chart.js, mostra tabela/resumo
+    s.onerror = proceed;
     document.head.appendChild(s);
   } else {
     proceed();
@@ -1111,8 +1141,8 @@ function atualizarIndicadores() {
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
 
-  // gráfico (opcional se Chart.js disponível)
-  const labels = rows.slice(0, 20).map(r => r.municipio); // top 20
+  // gráfico
+  const labels = rows.slice(0, 20).map(r => r.municipio);
   const data = rows.slice(0, 20).map(r => r.qtd);
   const ctx = document.getElementById("chartMunicipios");
 
