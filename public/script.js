@@ -5,24 +5,18 @@
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
 (function injectHudStyles() {
   const css = `
-    /* HUD raiz */
+    /* HUD raiz (caixa externa) */
     #tempo{
       display:flex;
-      align-items:stretch;
-      gap:18px;
+      flex-direction:column;
+      gap:10px;
       padding:12px 14px;
       border-radius:14px;
       background:rgba(255,255,255,0.92);
       box-shadow:0 8px 24px rgba(0,0,0,.12);
       backdrop-filter:saturate(1.15) blur(2px);
     }
-    /* Colunas */
-    #tempo .hud-left{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      min-width:220px;
-    }
+    /* Hora */
     #tempo .hora-row{
       display:flex;
       align-items:center;
@@ -38,18 +32,24 @@
       display:inline-block;
     }
 
-    /* Cartão do clima */
+    /* Cartão do clima + seletor */
     #tempo .weather-card{
       display:flex;
-      align-items:center;
+      flex-direction:column;
       gap:10px;
       padding:12px 14px;
       border-radius:12px;
       background:rgba(255,255,255,0.95);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
-      min-height:44px;
+      min-width:260px;
     }
-    #tempo .weather-card img{
+    #tempo .weather-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:40px;
+    }
+    #tempo .weather-row img{
       width:28px; height:28px; object-fit:contain;
     }
     #tempo .tempo-text{
@@ -61,15 +61,17 @@
     #tempo .tempo-text b{ font-weight:700; }
     #tempo .tempo-text small{ color:#6b7280; }
 
-    /* Coluna direita: seletor de mapa dentro do HUD */
-    #tempo .hud-right{
+    /* Linha do seletor de mapa dentro do cartão */
+    #tempo .map-row{
+      margin-top:6px;
+      padding-top:8px;
+      border-top:1px dashed rgba(0,0,0,.10);
       display:flex;
       align-items:center;
+      justify-content:space-between;
       gap:10px;
-      padding-left:16px;
-      border-left:1px solid rgba(0,0,0,.08);
     }
-    #tempo .hud-right .lbl{
+    #tempo .map-row .lbl{
       font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       letter-spacing:.2px;
       color:#475569;
@@ -104,12 +106,6 @@
       padding:0; margin:0;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       color:#111827; cursor:pointer;
-    }
-
-    /* Responsivo: empilha em telas estreitas */
-    @media (max-width: 560px){
-      #tempo{ flex-direction:column; gap:12px; }
-      #tempo .hud-right{ border-left:0; padding-left:0; }
     }
   `;
   const style = document.createElement("style");
@@ -183,51 +179,43 @@ if (overlay) overlay.style.display = "flex";
   const hud = document.getElementById("tempo");
   if (!hud) return;
 
-  // limpa e reconstrói
   hud.innerHTML = "";
 
-  // esquerda (hora + clima)
-  const left = document.createElement("div");
-  left.className = "hud-left";
-
+  // Hora
   const horaRow = document.createElement("div");
   horaRow.className = "hora-row";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
-  left.appendChild(horaRow);
+  hud.appendChild(horaRow);
 
+  // Cartão: clima + seletor de mapa (dentro do mesmo card)
   const card = document.createElement("div");
   card.className = "weather-card";
   card.innerHTML = `
+    <div class="weather-row">
       <img alt="Clima" src="" />
       <div class="tempo-text">
         <b>Carregando…</b>
         <span> </span>
         <small> </small>
       </div>
+    </div>
+    <div class="map-row">
+      <span class="lbl">Mapa</span>
+      <span class="select-wrap">
+        <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
+        <select id="select-base">
+          <option value="rua">Rua</option>
+          <option value="sat">Satélite</option>
+          <option value="satlabels">Satélite + rótulos</option>
+        </select>
+        <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
   `;
-  left.appendChild(card);
-
-  // direita (seletor de mapa)
-  const right = document.createElement("div");
-  right.className = "hud-right";
-  right.innerHTML = `
-    <span class="lbl">Mapa</span>
-    <span class="select-wrap">
-      <svg class="ico-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2Zm0 2c1.38 0 2.64.35 3.75.96-.78.68-1.6 1.91-2.16 3.54H10.4C9.84 6.87 9.02 5.64 8.25 4.96A7.96 7.96 0 0 1 12 4Zm-6.32 4h2.62c.23.98.37 2.07.39 3.2H4.4A8.05 8.05 0 0 1 5.68 8Zm-1.28 6h4.29c-.02 1.13-.16 2.22-.39 3.2H5.68A8.05 8.05 0 0 1 4.4 14Zm2.85 4h.01c.77-.68 1.59-1.91 2.14-3.54h3.19c.56 1.63 1.38 2.86 2.15 3.54A7.96 7.96 0 0 1 12 20c-1.38 0-2.64-.35-3.75-.96ZM19.6 14a8.05 8.05 0 0 1-1.28 3.2h-2.62c-.23-.98-.37-2.07-.39-3.2h4.29Zm-4.29-2c.02-1.13.16-2.22.39-3.2h2.62A8.05 8.05 0 0 1 19.6 12h-4.29ZM9.7 12c.02-1.13-.12-2.22-.36-3.2h5.32c-.24.98-.38 2.07-.36 3.2H9.7Zm.36 2h4.88c-.24 1.13-.6 2.22-1.06 3.2H11.1c-.46-.98-.82-2.07-1.06-3.2Z" fill="#111827"/></svg>
-      <select id="select-base">
-        <option value="rua">Rua</option>
-        <option value="sat">Satélite</option>
-        <option value="satlabels">Satélite + rótulos</option>
-      </select>
-      <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </span>
-  `;
-
-  hud.appendChild(left);
-  hud.appendChild(right);
+  hud.appendChild(card);
 
   // wire do seletor
-  const selectBase = right.querySelector("#select-base");
+  const selectBase = card.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
@@ -577,7 +565,7 @@ mostrarHoraLocal();
 function preencherClimaUI(data) {
   const card = document.querySelector("#tempo .weather-card");
   if (!card) return;
-  const img = card.querySelector("img");
+  const img = card.querySelector(".weather-row img");
   const t = card.querySelector(".tempo-text");
   try {
     const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
