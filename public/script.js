@@ -1312,17 +1312,17 @@ function atualizarIndicadores() {
     outline:none;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
-  .painel-busca input::placeholder,
+  .painel-busca input::placeholder、
   .painel-busca textarea::placeholder{ color:#89a2b7; }
-  .painel-busca input:focus,
-  .painel-busca select:focus,
+  .painel-busca input:focus、
+  .painel-busca select:focus、
   .painel-busca textarea:focus{
     border-color:var(--ui-accent);
     box-shadow:0 0 0 3px rgba(24,199,127,.25);
   }
 
   /* Botões */
-  .painel-busca button,
+  .painel-busca button、
   .painel-busca .actions button{
     background:var(--ui-accent);
     color:#031d12;
