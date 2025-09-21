@@ -85,7 +85,7 @@
       gap:8px;
       padding:8px 36px 8px 12px;
       border:1px solid #e5e7eb;
-      border-radius:999px;
+      border-radius:999px;           /* pill */
       background:#ffffff;
       transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
@@ -107,6 +107,49 @@
       padding:0; margin:0;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       color:#111827; cursor:pointer;
+    }
+
+    /* Botão do Street View no HUD */
+    #tempo .hud-actions{ display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+    #tempo .hud-btn{
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      color:#0f172a;
+      border-radius:10px;
+      padding:8px 10px;
+      cursor:pointer;
+      font: 12px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    #tempo .hud-btn:hover{
+      transform: translateY(-1px);
+      border-color:#cbd5e1;
+      box-shadow:0 8px 18px rgba(0,0,0,.10);
+    }
+
+    /* ---- Painel principal: botões profissionais e fluidos ---- */
+    .painel-busca .actions{
+      display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+    }
+    .painel-busca .actions button{
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      color:#0f172a;
+      border-radius:10px;
+      padding:10px 12px;
+      cursor:pointer;
+      font: 13px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .painel-busca .actions button:hover{
+      transform: translateY(-1px);
+      border-color:#cbd5e1;
+      background:#fafafa;
+      box-shadow:0 10px 24px rgba(0,0,0,.10);
     }
 
     /* ---- Modal Indicadores (BI) injetado por JS ---- */
@@ -182,9 +225,9 @@ markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
 
 // -------------------- Virtualização / LOD (mantendo seus ícones) ----
-const MIN_ZOOM_POSTES = 15;
-const VIEWPORT_PADDING = 0.20;
-const idToMarker = new Map();
+const MIN_ZOOM_POSTES = 15;     // só mostra postes a partir deste zoom
+const VIEWPORT_PADDING = 0.20;  // padding no bbox para evitar "piscar"
+const idToMarker = new Map();   // cache: id -> L.Marker
 let lastRenderBounds = null;
 
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
@@ -198,6 +241,7 @@ function renderizarPostesVisiveis() {
   }
   const b = map.getBounds().pad(VIEWPORT_PADDING);
 
+  // Se já cobrimos este bbox ampliado, não refaz
   if (lastRenderBounds && lastRenderBounds.contains && lastRenderBounds.contains(b)) return;
   lastRenderBounds = b;
 
@@ -208,12 +252,14 @@ function renderizarPostesVisiveis() {
     (b.contains([p.lat, p.lon]) ? dentro : fora).push(p);
   }
 
+  // remove os que estão fora (se estiverem no layer)
   fora.forEach((p) => {
     const mk = idToMarker.get(p.id);
     if (mk && markers.hasLayer(mk)) markers.removeLayer(mk);
   });
 
-  const lote = 800;
+  // adiciona os que estão dentro, em lotes
+  const lote = 800; // ajuste conforme necessidade
   let i = 0;
   function addChunk() {
     const slice = dentro.slice(i, i + lote);
@@ -222,7 +268,7 @@ function renderizarPostesVisiveis() {
       if (mk) {
         if (!markers.hasLayer(mk)) markers.addLayer(mk);
       } else {
-        adicionarMarker(p);
+        adicionarMarker(p); // cria e adiciona com seu ícone fotorealista
       }
     });
     i += lote;
@@ -234,11 +280,6 @@ map.on("moveend zoomend", debounce(renderizarPostesVisiveis, 60));
 
 // ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
-
-// ---- Índices para BI (rápidos) ----
-const biMunTotal = new Map();   // municipio -> total
-const biEmpPorMun = new Map();  // empresa(lower) -> Map(municipio -> total)
-const BI_DEBOUNCE_MS = 60;      // debounce curto no input do BI
 
 // Dados e sets para autocomplete
 const todosPostes = [];
@@ -265,7 +306,7 @@ if (overlay) overlay.style.display = "flex";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
 
-  // Cartão: clima + seletor de mapa
+  // Cartão: clima + seletor de mapa (dentro do mesmo card) + Street View
   const card = document.createElement("div");
   card.className = "weather-card";
   card.innerHTML = `
@@ -280,6 +321,7 @@ if (overlay) overlay.style.display = "flex";
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
+        <!-- Ícone globo (sem comandos de arco 'A') -->
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
@@ -294,11 +336,24 @@ if (overlay) overlay.style.display = "flex";
         <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
     </div>
+    <div class="hud-actions">
+      <button id="btnStreetHud" class="hud-btn" title="Abrir Google Street View no centro do mapa">
+        <!-- ícone simples tipo 'avatar' -->
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm-7 16c0-3.3 4.7-5 7-5s7 1.7 7 5v2H5v-2Z" fill="#0f172a"/></svg>
+        Abrir Street View
+      </button>
+    </div>
   `;
   hud.appendChild(card);
 
   const selectBase = card.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
+
+  // botão Street View dentro do HUD (centro do mapa)
+  card.querySelector("#btnStreetHud").addEventListener("click", () => {
+    const c = map.getCenter();
+    window.open(buildGoogleMapsPanoURL(c.lat, c.lng), "_blank", "noopener");
+  });
 })();
 
 // ---------------------------------------------------------------------
@@ -329,7 +384,7 @@ fetch("/api/postes")
       empresas: [...p.empresas],
     }));
 
-    // Popular estruturas + ÍNDICES RÁPIDOS PARA BI
+    // Popular estruturas (sem criar markers de todos de uma vez)
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
@@ -338,24 +393,6 @@ fetch("/api/postes")
       poste.empresas.forEach(
         (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
       );
-
-      // total por município
-      biMunTotal.set(
-        poste.nome_municipio,
-        (biMunTotal.get(poste.nome_municipio) || 0) + 1
-      );
-
-      // empresa x município
-      poste.empresas.forEach((e) => {
-        const key = (e || "").toLowerCase();
-        if (!key) return;
-        let mapMun = biEmpPorMun.get(key);
-        if (!mapMun) { mapMun = new Map(); biEmpPorMun.set(key, mapMun); }
-        mapMun.set(
-          poste.nome_municipio,
-          (mapMun.get(poste.nome_municipio) || 0) + 1
-        );
-      });
     });
     preencherListas();
 
@@ -424,6 +461,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
   if (!censoMode) {
+    // volta para o render padrão (visíveis)
     renderizarPostesVisiveis();
     return;
   }
@@ -487,6 +525,8 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
+
+  // para filtro, mantém o comportamento atual (adiciona todos do filtro)
   filtro.forEach(adicionarMarker);
 
   fetch("/api/postes/report", {
@@ -523,11 +563,13 @@ function filtrarLocal() {
 
 function resetarMapa() {
   markers.clearLayers();
+  // volta para o modo virtualizado (apenas visíveis)
   renderizarPostesVisiveis();
 }
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
+   (verde para ≤4 empresas, vermelho para ≥5 empresas)
    ==================================================================== */
 function makePolePhoto48(glowHex) {
   const svg = `
@@ -551,7 +593,11 @@ function makePolePhoto48(glowHex) {
         <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity=".25"/>
       </filter>
     </defs>
+
+    <!-- HALO -->
     <circle cx="21" cy="24" r="18" fill="url(#gHalo)"/>
+
+    <!-- poste -->
     <g filter="url(#shadow)">
       <rect x="19.2" y="6" width="3.6" height="25" rx="1.6" fill="url(#gWood)"/>
       <rect x="21.2" y="6" width="0.7" height="25" fill="rgba(255,255,255,.18)"/>
@@ -613,31 +659,9 @@ function streetImageryBlockHTML(lat, lng) {
   `.trim();
 }
 
-// Controle no mapa (linka o centro atual para o Street View)
-(function addStreetViewControl() {
-  if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
-  const Control = L.Control.extend({
-    options: { position: "topleft" },
-    onAdd: function () {
-      const div = L.DomUtil.create("div", "leaflet-bar");
-      const btn = L.DomUtil.create("a", "", div);
-      btn.href = "#";
-      btn.title = "Abrir Google Street View no centro do mapa";
-      btn.innerHTML = "StreetView";
-      btn.style.padding = "6px 8px";
-      btn.style.textDecoration = "none";
-      L.DomEvent.on(btn, "click", (e) => {
-        L.DomEvent.stop(e);
-        const c = map.getCenter();
-        window.open(buildGoogleMapsPanoURL(c.lat, c.lng), "_blank", "noopener");
-      });
-      L.DomEvent.disableClickPropagation(div);
-      L.DomEvent.disableScrollPropagation(div);
-      return div;
-    },
-  });
-  map.addControl(new Control());
-})();
+/*  >>> REMOVIDO o controle flutuante antigo de Street View <<<
+    Agora o acesso ao Street View está dentro do HUD (#tempo) e
+    também dentro do popup do poste (abrirPopup). */
 
 // ---------------------------------------------------------------------
 // Adiciona marker padrão (agora com cache por ID)
@@ -708,7 +732,7 @@ setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
 // ---------------------------------------------------------------------
-// Clima via OpenWeatherMap
+// Clima via OpenWeatherMap (com fallback se geo falhar)
 // ---------------------------------------------------------------------
 function preencherClimaUI(data) {
   const card = document.querySelector("#tempo .weather-card");
@@ -739,7 +763,7 @@ function obterPrevisaoDoTempo(lat, lon) {
 
 // tenta pegar geo; se falhar, usa SP
 (function initWeather() {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
   if (!navigator.geolocation) return fallback();
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
@@ -775,6 +799,7 @@ function consultarIDsEmMassa() {
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
+  // intermediários e traçado
   window.intermediarios = [];
   encontrados.slice(0, -1).forEach((a, i) => {
     const b = encontrados[i + 1];
@@ -963,47 +988,29 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
    === Indicadores (BI) — injeção automática de botão + modal ===
 -------------------------------------------------------------------- */
 
-// Agregação por município, com filtros — usando índices quando possível
+// Agregação por município, com filtros
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
+  const bounds = apenasVisiveis ? map.getBounds() : null;
 
-  // Se for por área visível, conta no bbox (poucos pontos -> rápido)
-  if (apenasVisiveis) {
-    const bounds = map.getBounds();
-    const mapa = new Map();
-    let total = 0;
+  const mapa = new Map();
+  let total = 0;
 
-    for (const p of todosPostes) {
-      if (!bounds.contains([p.lat, p.lon])) continue;
-      if (empresaNorm) {
-        const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
-        if (!hit) continue;
-      }
-      const key = p.nome_municipio || "—";
-      mapa.set(key, (mapa.get(key) || 0) + 1);
-      total++;
+  for (const p of todosPostes) {
+    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
+    if (empresaNorm) {
+      const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
+      if (!hit) continue;
     }
-
-    const rows = Array.from(mapa.entries())
-      .map(([municipio, qtd]) => ({ municipio, qtd }))
-      .sort((a, b) => b.qtd - a.qtd);
-
-    return { rows, total };
+    const key = p.nome_municipio || "—";
+    mapa.set(key, (mapa.get(key) || 0) + 1);
+    total++;
   }
 
-  // Caso geral (sem bbox): usar índices rápidos
-  let mapaFonte;
-  if (!empresaNorm) {
-    mapaFonte = biMunTotal; // todos os postes
-  } else {
-    mapaFonte = biEmpPorMun.get(empresaNorm) || new Map();
-  }
-
-  const rows = Array.from(mapaFonte.entries())
+  const rows = Array.from(mapa.entries())
     .map(([municipio, qtd]) => ({ municipio, qtd }))
     .sort((a, b) => b.qtd - a.qtd);
 
-  const total = rows.reduce((s, r) => s + r.qtd, 0);
   return { rows, total };
 }
 
@@ -1014,7 +1021,7 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-// Injeta botão "Indicadores"
+// Injeta botão "Indicadores" se não existir
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -1072,11 +1079,7 @@ function ensureBIModal() {
 
   // eventos do modal
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
-
-  // Debounce curto no input de empresa (mais responsivo)
-  const debouncedUpdate = debounce(atualizarIndicadores, BI_DEBOUNCE_MS);
-  document.getElementById("filtroEmpresaBI")?.addEventListener("input", debouncedUpdate);
-
+  document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
 
   // Atualiza ao mover o mapa (se aberto e opção marcada)
@@ -1095,6 +1098,7 @@ function abrirIndicadores() {
   const modal = document.getElementById("modalIndicadores");
   if (!modal) return;
 
+  // Carrega Chart.js do CDN se não estiver presente
   function proceed() {
     modal.style.display = "flex";
     atualizarIndicadores();
@@ -1103,7 +1107,7 @@ function abrirIndicadores() {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
     s.onload = proceed;
-    s.onerror = proceed;
+    s.onerror = proceed; // mesmo sem Chart.js, mostra tabela/resumo
     document.head.appendChild(s);
   } else {
     proceed();
@@ -1141,8 +1145,8 @@ function atualizarIndicadores() {
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
 
-  // gráfico
-  const labels = rows.slice(0, 20).map(r => r.municipio);
+  // gráfico (opcional se Chart.js disponível)
+  const labels = rows.slice(0, 20).map(r => r.municipio); // top 20
   const data = rows.slice(0, 20).map(r => r.qtd);
   const ctx = document.getElementById("chartMunicipios");
 
