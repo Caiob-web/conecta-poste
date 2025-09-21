@@ -201,7 +201,6 @@
       z-index: 1100;
       display:flex;align-items:center;justify-content:center;
     }
-    /* quando recolhido, a aba encosta na borda direita da janela */
     body.sidebar-collapsed #togglePainel{ right: 6px !important; }
 
     /* demais botões de topo se alinham à divisória */
@@ -264,7 +263,9 @@ function setBase(mode) {
   currentBase.addTo(map);
 }
 
-// -------------------- Clusters com chunked loading -------------------
+// -------------------- Clusters (tudo de uma vez) ---------------------
+const MIN_ZOOM_POSTES = 15; // camada de postes visível a partir deste zoom
+
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -273,69 +274,31 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50
+  chunkInterval: 50,
+  chunkProgress: (processed, total) => {
+    const ov = document.getElementById("carregando");
+    const tx = document.querySelector(".texto-loading");
+    if (ov && tx) {
+      tx.textContent = `Carregando postes… ${processed.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`;
+      if (processed >= total) ov.style.display = "none";
+    }
+  }
 });
-markers.on("clusterclick", (e) => e.layer.spiderfy());
-map.addLayer(markers);
 
-// -------------------- Virtualização / LOD (mantendo seus ícones) ----
-const MIN_ZOOM_POSTES = 15;     // só mostra postes a partir deste zoom
-const VIEWPORT_PADDING = 0.20;  // padding no bbox para evitar "piscar"
-const idToMarker = new Map();   // cache: id -> L.Marker
-let lastRenderBounds = null;
-
-const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
-function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a), ms); }; }
-
-function renderizarPostesVisiveis() {
-  if (map.getZoom() < MIN_ZOOM_POSTES) {
-    markers.clearLayers();
-    lastRenderBounds = null;
-    return;
+// controla visibilidade da camada conforme zoom
+function toggleLayerByZoom() {
+  if (map.getZoom() >= MIN_ZOOM_POSTES) {
+    if (!map.hasLayer(markers)) map.addLayer(markers);
+  } else {
+    if (map.hasLayer(markers)) map.removeLayer(markers);
   }
-  const b = map.getBounds().pad(VIEWPORT_PADDING);
-
-  // Se já cobrimos este bbox ampliado, não refaz
-  if (lastRenderBounds && lastRenderBounds.contains && lastRenderBounds.contains(b)) return;
-  lastRenderBounds = b;
-
-  const dentro = [];
-  const fora = [];
-
-  for (const p of todosPostes) {
-    (b.contains([p.lat, p.lon]) ? dentro : fora).push(p);
-  }
-
-  // remove os que estão fora (se estiverem no layer)
-  fora.forEach((p) => {
-    const mk = idToMarker.get(p.id);
-    if (mk && markers.hasLayer(mk)) markers.removeLayer(mk);
-  });
-
-  // adiciona os que estão dentro, em lotes
-  const lote = 800; // ajuste conforme necessidade
-  let i = 0;
-  function addChunk() {
-    const slice = dentro.slice(i, i + lote);
-    slice.forEach((p) => {
-      const mk = idToMarker.get(p.id);
-      if (mk) {
-        if (!markers.hasLayer(mk)) markers.addLayer(mk);
-      } else {
-        adicionarMarker(p); // cria e adiciona com seu ícone fotorealista
-      }
-    });
-    i += lote;
-    if (i < dentro.length) idle(addChunk);
-  }
-  idle(addChunk);
 }
-map.on("moveend zoomend", debounce(renderizarPostesVisiveis, 60));
+map.on("zoomend", toggleLayerByZoom);
 
-// ---- Indicadores / BI (refs de gráfico) ----
+// -------------------- Cache de markers / dados -----------------------
+const idToMarker = new Map();
 let chartMunicipiosRef = null;
 
-// Dados e sets para autocomplete
 const todosPostes = [];
 const empresasContagem = {};
 const municipiosSet = new Set();
@@ -397,7 +360,7 @@ if (overlay) overlay.style.display = "flex";
 })();
 
 // ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
+// Carrega /api/postes, trata 401 redirecionando e constrói TODOS markers
 // ---------------------------------------------------------------------
 fetch("/api/postes")
   .then((res) => {
@@ -409,7 +372,6 @@ fetch("/api/postes")
     return res.json();
   })
   .then((data) => {
-    if (overlay) overlay.style.display = "none";
     const agrupado = {};
     data.forEach((p) => {
       if (!p.coordenadas) return;
@@ -419,12 +381,13 @@ fetch("/api/postes")
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
+
     const postsArray = Object.values(agrupado).map((p) => ({
       ...p,
       empresas: [...p.empresas],
     }));
 
-    // Popular estruturas (sem criar markers de todos de uma vez)
+    // Popular estruturas auxiliares
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
@@ -436,8 +399,11 @@ fetch("/api/postes")
     });
     preencherListas();
 
-    // Desenha apenas os visíveis no viewport (LOD)
-    renderizarPostesVisiveis();
+    // Constrói TODOS os markers em lotes e adiciona ao cluster (fluído)
+    buildAllMarkers(postsArray, () => {
+      // decide visibilidade inicial da camada
+      toggleLayerByZoom();
+    });
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
@@ -445,6 +411,52 @@ fetch("/api/postes")
     if (err.message !== "Não autorizado")
       alert("Erro ao carregar dados dos postes.");
   });
+
+// Constrói todos markers de forma incremental (suave)
+function buildAllMarkers(arr, onDone) {
+  const lote = 800; // criação em lotes para não travar a UI
+  let i = 0;
+  const toAdd = [];
+
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
+
+  function step() {
+    const end = Math.min(i + lote, arr.length);
+    for (; i < end; i++) {
+      const p = arr[i];
+      // cria marker (reutilizado em filtros/reset)
+      const cor = poleColorByEmpresas(p.empresas.length);
+      const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
+        .bindTooltip(
+          `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+          { direction: "top", sticky: true }
+        )
+        .on("click", () => abrirPopup(p));
+
+      idToMarker.set(p.id, m);
+      toAdd.push(m);
+    }
+
+    if (i < arr.length) {
+      idle(step);
+    } else {
+      // adiciona todos ao cluster com chunkedLoading ativado
+      markers.addLayers(toAdd);
+      // overlay some via chunkProgress quando terminar de processar
+      if (typeof onDone === "function") onDone();
+    }
+  }
+
+  step();
+}
+
+// Restaura todos os markers já construídos para o cluster
+function restoreAllMarkers() {
+  markers.clearLayers();
+  const all = Array.from(idToMarker.values());
+  markers.addLayers(all);
+  toggleLayerByZoom();
+}
 
 // ---------------------------------------------------------------------
 // Preenche datalists de autocomplete
@@ -501,8 +513,8 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
   if (!censoMode) {
-    // volta para o render padrão (visíveis)
-    renderizarPostesVisiveis();
+    // volta aos postes completos
+    restoreAllMarkers();
     return;
   }
 
@@ -515,7 +527,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      renderizarPostesVisiveis();
+      restoreAllMarkers();
       return;
     }
   }
@@ -532,6 +544,9 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       c.on("click", () => abrirPopup(poste));
       markers.addLayer(c);
     });
+
+  // garante visibilidade (se o zoom estiver suficiente)
+  toggleLayerByZoom();
 });
 
 // ---------------------------------------------------------------------
@@ -566,8 +581,8 @@ function filtrarLocal() {
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
 
-  // para filtro, mantém o comportamento atual (adiciona todos do filtro)
-  filtro.forEach(adicionarMarker);
+  // adiciona apenas os filtrados (reaproveitando os markers já criados)
+  filtro.forEach((p) => adicionarMarker(p));
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -599,12 +614,14 @@ function filtrarLocal() {
     });
 
   gerarExcelCliente(filtro.map((p) => p.id));
+
+  // força mostrar a camada (se o zoom já estiver suficiente)
+  toggleLayerByZoom();
 }
 
 function resetarMapa() {
-  markers.clearLayers();
-  // volta para o modo virtualizado (apenas visíveis)
-  renderizarPostesVisiveis();
+  // restaura a camada completa e respeita o zoom
+  restoreAllMarkers();
 }
 
 /* ====================================================================
@@ -726,7 +743,7 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão (agora com cache por ID)
+// Adiciona marker (reaproveita cache por ID)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   if (idToMarker.has(p.id)) {
@@ -892,7 +909,9 @@ function consultarIDsEmMassa() {
         });
     }
   });
-  map.addLayer(markers);
+
+  // adiciona cluster ao mapa (respeita o zoom via toggle)
+  if (!map.hasLayer(markers)) map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, {
@@ -1312,17 +1331,17 @@ function atualizarIndicadores() {
     outline:none;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
-  .painel-busca input::placeholder、
+  .painel-busca input::placeholder,
   .painel-busca textarea::placeholder{ color:#89a2b7; }
-  .painel-busca input:focus、
-  .painel-busca select:focus、
+  .painel-busca input:focus,
+  .painel-busca select:focus,
   .painel-busca textarea:focus{
     border-color:var(--ui-accent);
     box-shadow:0 0 0 3px rgba(24,199,127,.25);
   }
 
   /* Botões */
-  .painel-busca button、
+  .painel-busca button,
   .painel-busca .actions button{
     background:var(--ui-accent);
     color:#031d12;
