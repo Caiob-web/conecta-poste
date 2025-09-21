@@ -263,64 +263,102 @@ function setBase(mode) {
   currentBase.addTo(map);
 }
 
-// -------------------- UTIL: Loading overlay robusto ------------------
-const overlay = document.getElementById("carregando");
-function setLoading(on, msg){
-  if (!overlay) return;
-  overlay.style.display = on ? "flex" : "none";
-  const t1 = overlay.querySelector(".texto-loading");
-  const t2 = overlay.querySelector(".loading-text");
-  const tgt = t1 || t2;
-  if (tgt && msg) tgt.textContent = msg;
-}
-// garante que nunca fica preso por acidente
-setTimeout(()=>setLoading(false), 30000); // failsafe em 30s
-
-// Exibe loading inicial
-setLoading(true, "Carregando postes…");
-
-// -------------------- Cluster (todos de uma vez, fluído) -------------
-const MIN_ZOOM_POSTES = 15; // camada visível a partir deste zoom
-
+// -------------------- Cluster global (sempre adicionado) -------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
   zoomToBoundsOnClick: false,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
-  removeOutsideVisibleBounds: true,
+  // chunking para adicionar em lotes
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50,
-  chunkProgress: (processed, total) => {
-    // feedback e encerramento seguro
-    setLoading(true, `Carregando postes… ${processed.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`);
-    if (processed >= total) setLoading(false);
-  }
+  chunkInterval: 50
 });
-
 markers.on("clusterclick", (e) => e.layer.spiderfy());
+map.addLayer(markers); // 🔒 nunca removemos do mapa
 
-// controla visibilidade da camada conforme zoom
-function toggleLayerByZoom() {
-  if (map.getZoom() >= MIN_ZOOM_POSTES) {
-    if (!map.hasLayer(markers)) map.addLayer(markers);
+// -------------------- Visibilidade por zoom + adição em chunks -------
+const MIN_ZOOM_POSTES = 15;      // aparece a partir desse zoom
+const CHUNK_SIZE = 1200;         // quantos marcadores por rodada
+const idToMarker = new Map();    // cache: id -> L.Marker
+let todosPostes = [];            // preenchido após fetch
+let carregouTodosNoCluster = false; // evita reprocessar
+let emCenso = false;
+
+// util — adicionar uma lista de postes ao cluster em chunks
+function addMarkersInChunks(postes, onDone) {
+  let i = 0;
+  function step() {
+    const limit = Math.min(i + CHUNK_SIZE, postes.length);
+    for (; i < limit; i++) {
+      const p = postes[i];
+      let mk = idToMarker.get(p.id);
+      if (!mk) {
+        const cor = poleColorByEmpresas(p.empresas.length);
+        mk = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
+          .bindTooltip(
+            `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+            { direction: "top", sticky: true }
+          );
+        mk.on("click", () => abrirPopup(p));
+        idToMarker.set(p.id, mk);
+      }
+      if (!markers.hasLayer(mk)) markers.addLayer(mk);
+    }
+    if (i < postes.length) {
+      // rende o thread
+      requestAnimationFrame(step);
+    } else {
+      onDone && onDone();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// controla quando mostrar os postes (zoom gate)
+function atualizarVisibilidadePorZoom() {
+  if (emCenso) return; // modo censo controla sozinho
+
+  const z = map.getZoom();
+  if (z >= MIN_ZOOM_POSTES) {
+    // carrega todos (uma única vez)
+    if (!carregouTodosNoCluster && todosPostes.length) {
+      showOverlay("Carregando postes...");
+      markers.clearLayers(); // grupo continua no mapa
+      addMarkersInChunks(todosPostes, () => {
+        carregouTodosNoCluster = true;
+        hideOverlay();
+      });
+    }
+    // se já carregou, não faz nada — ficam visíveis
   } else {
-    if (map.hasLayer(markers)) map.removeLayer(markers);
+    // abaixo do zoom mínimo, mantemos o cluster vazio (sem remover o layer)
+    markers.clearLayers();
   }
 }
-map.on("zoomend", toggleLayerByZoom);
+map.on("zoomend", atualizarVisibilidadePorZoom);
 
-// -------------------- Cache de markers / dados -----------------------
-const idToMarker = new Map();
+// ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
 
-const todosPostes = [];
+// Dados auxiliares para autocomplete
 const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
-let censoMode = false, censoIds = null;
+let censoIds = null;
+
+// ---------------- Overlay helper ----------------
+const overlay = document.getElementById("carregando");
+function showOverlay(txt){
+  if (!overlay) return;
+  overlay.style.display = "flex";
+  const span = overlay.querySelector(".texto") || overlay.querySelector("span");
+  if (span) span.textContent = txt || "Carregando…";
+}
+function hideOverlay(){ if (overlay) overlay.style.display = "none"; }
+showOverlay("Carregando dados…");
 
 // ---------------------- HUD: estrutura dentro de #tempo --------------
 (function buildHud() {
@@ -335,7 +373,7 @@ let censoMode = false, censoIds = null;
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
 
-  // Cartão: clima + seletor de mapa
+  // Cartão: clima + seletor de mapa (dentro do mesmo card)
   const card = document.createElement("div");
   card.className = "weather-card";
   card.innerHTML = `
@@ -372,7 +410,7 @@ let censoMode = false, censoIds = null;
 })();
 
 // ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 e constrói TODOS os markers
+// Carrega /api/postes, trata 401 redirecionando
 // ---------------------------------------------------------------------
 fetch("/api/postes")
   .then((res) => {
@@ -393,15 +431,13 @@ fetch("/api/postes")
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
-
-    const postsArray = Object.values(agrupado).map((p) => ({
+    todosPostes = Object.values(agrupado).map((p) => ({
       ...p,
       empresas: [...p.empresas],
     }));
 
-    // Popular estruturas auxiliares
-    postsArray.forEach((poste) => {
-      todosPostes.push(poste);
+    // Popular estruturas de autocomplete
+    todosPostes.forEach((poste) => {
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
       logradourosSet.add(poste.nome_logradouro);
@@ -411,71 +447,16 @@ fetch("/api/postes")
     });
     preencherListas();
 
-    // Constrói TODOS os markers em lotes e adiciona ao cluster
-    buildAllMarkers(postsArray, () => {
-      // decide visibilidade inicial da camada
-      toggleLayerByZoom();
-      // fecha loading por garantia
-      setLoading(false);
-    });
+    // Decide visibilidade inicial (se já estiver com zoom alto)
+    atualizarVisibilidadePorZoom();
+    hideOverlay();
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
-    setLoading(false);
+    hideOverlay();
     if (err.message !== "Não autorizado")
       alert("Erro ao carregar dados dos postes.");
   });
-
-// Constrói todos markers incrementalmente (suave) e usa o cluster no mapa
-function buildAllMarkers(arr, onDone) {
-  const lote = 800; // criação em lotes para não travar a UI
-  let i = 0;
-  const toAdd = [];
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
-
-  function step() {
-    const end = Math.min(i + lote, arr.length);
-    for (; i < end; i++) {
-      const p = arr[i];
-      const cor = poleColorByEmpresas(p.empresas.length);
-      const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
-        .bindTooltip(
-          `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-          { direction: "top", sticky: true }
-        )
-        .on("click", () => abrirPopup(p));
-      idToMarker.set(p.id, m);
-      toAdd.push(m);
-    }
-
-    if (i < arr.length) {
-      idle(step);
-    } else {
-      // Garante que o chunkedLoading rode: adiciona o cluster ao mapa
-      let wasOnMap = map.hasLayer(markers);
-      if (!wasOnMap) map.addLayer(markers);
-      markers.addLayers(toAdd);      // processa em chunks
-      if (!wasOnMap && map.getZoom() < MIN_ZOOM_POSTES) {
-        // respeita regra de zoom após processar
-        map.removeLayer(markers);
-      }
-      if (typeof onDone === "function") onDone();
-    }
-  }
-  step();
-}
-
-// Restaura todos os markers já construídos para o cluster
-function restoreAllMarkers() {
-  markers.clearLayers();
-  const all = Array.from(idToMarker.values());
-  // garante processamento mesmo se a camada estiver oculta
-  let wasOnMap = map.hasLayer(markers);
-  if (!wasOnMap) map.addLayer(markers);
-  markers.addLayers(all);
-  if (!wasOnMap && map.getZoom() < MIN_ZOOM_POSTES) map.removeLayer(markers);
-  toggleLayerByZoom();
-}
 
 // ---------------------------------------------------------------------
 // Preenche datalists de autocomplete
@@ -483,6 +464,8 @@ function restoreAllMarkers() {
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = "";
     Array.from(set)
       .sort()
       .forEach((v) => {
@@ -495,14 +478,17 @@ function preencherListas() {
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem)
-    .sort()
-    .forEach((e) => {
-      const o = document.createElement("option");
-      o.value = e;
-      o.label = `${e} (${empresasContagem[e]} postes)`;
-      dlEmp.appendChild(o);
-    });
+  if (dlEmp) {
+    dlEmp.innerHTML = "";
+    Object.keys(empresasContagem)
+      .sort()
+      .forEach((e) => {
+        const o = document.createElement("option");
+        o.value = e;
+        o.label = `${e} (${empresasContagem[e]} postes)`;
+        dlEmp.appendChild(o);
+      });
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -529,27 +515,32 @@ function gerarExcelCliente(filtroIds) {
 // Modo Censo
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso").addEventListener("click", async () => {
-  censoMode = !censoMode;
-  markers.clearLayers();
-  if (!censoMode) {
-    // volta aos postes completos
-    restoreAllMarkers();
+  emCenso = !emCenso;
+  markers.clearLayers(); // não removemos o layer do mapa
+
+  if (!emCenso) {
+    carregouTodosNoCluster = false; // força reexibir todos quando voltar
+    atualizarVisibilidadePorZoom();
     return;
   }
 
+  showOverlay("Carregando Censo…");
   if (!censoIds) {
     try {
       const res = await fetch("/api/censo");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const arr = await res.json();
       censoIds = new Set(arr.map((i) => String(i.poste)));
-    } catch {
+    } catch (e) {
+      hideOverlay();
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false;
-      restoreAllMarkers();
+      emCenso = false;
+      atualizarVisibilidadePorZoom();
       return;
     }
   }
+
+  // adiciona marcadores do censo
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
@@ -563,9 +554,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       c.on("click", () => abrirPopup(poste));
       markers.addLayer(c);
     });
-
-  // garante visibilidade (se o zoom estiver suficiente)
-  toggleLayerByZoom();
+  hideOverlay();
 });
 
 // ---------------------------------------------------------------------
@@ -575,7 +564,17 @@ function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
   const p = todosPostes.find((x) => x.id === id);
   if (!p) return alert("Poste não encontrado.");
-  map.setView([p.lat, p.lon], 18);
+  map.setView([p.lat, p.lon], Math.max(18, MIN_ZOOM_POSTES));
+  // garante que ele esteja no cluster
+  let mk = idToMarker.get(p.id);
+  if (!mk) {
+    const cor = poleColorByEmpresas(p.empresas.length);
+    mk = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
+      .bindTooltip(`ID: ${p.id}`, { direction: "top", sticky: true });
+    mk.on("click", () => abrirPopup(p));
+    idToMarker.set(p.id, mk);
+  }
+  if (!markers.hasLayer(mk)) markers.addLayer(mk);
   abrirPopup(p);
 }
 
@@ -583,64 +582,69 @@ function buscarCoordenada() {
   const inpt = document.getElementById("busca-coord").value.trim();
   const [lat, lon] = inpt.split(/,\s*/).map(Number);
   if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
-  map.setView([lat, lon], 18);
+  map.setView([lat, lon], Math.max(18, MIN_ZOOM_POSTES));
   L.popup().setLatLng([lat, lon]).setContent(`<b>Coordenada:</b> ${lat}, ${lon}`).openOn(map);
 }
 
 function filtrarLocal() {
-  const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
+  const getVal = (id) => (document.getElementById(id)?.value || "").trim().toLowerCase();
   const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
+
   const filtro = todosPostes.filter(
     (p) =>
-      (!mun || p.nome_municipio.toLowerCase() === mun) &&
-      (!bai || p.nome_bairro.toLowerCase() === bai) &&
-      (!log || p.nome_logradouro.toLowerCase() === log) &&
+      (!mun || (p.nome_municipio||"").toLowerCase() === mun) &&
+      (!bai || (p.nome_bairro||"").toLowerCase() === bai) &&
+      (!log || (p.nome_logradouro||"").toLowerCase() === log) &&
       (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
+
+  // exibe somente o filtro
+  emCenso = false;
+  carregouTodosNoCluster = false;
   markers.clearLayers();
-
-  // adiciona apenas os filtrados (reaproveitando os markers já criados)
-  filtro.forEach((p) => adicionarMarker(p));
-
-  fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
-  })
-    .then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = "/login.html";
-        throw new Error("Não autorizado");
-      }
-      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
-      return res.blob();
+  showOverlay("Aplicando filtro…");
+  addMarkersInChunks(filtro, () => {
+    hideOverlay();
+    // export backend + cliente
+    fetch("/api/postes/report", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
     })
-    .then((b) => {
-      const u = URL.createObjectURL(b);
-      const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes_filtro_backend.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(u);
-    })
-    .catch((e) => {
-      console.error("Erro exportar filtro:", e);
-      alert("Falha ao gerar Excel backend:\n" + e.message);
-    });
+      .then(async (res) => {
+        if (res.status === 401) {
+          window.location.href = "/login.html";
+          throw new Error("Não autorizado");
+        }
+        if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+        return res.blob();
+      })
+      .then((b) => {
+        const u = URL.createObjectURL(b);
+        const a = document.createElement("a");
+        a.href = u;
+        a.download = "relatorio_postes_filtro_backend.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(u);
+      })
+      .catch((e) => {
+        console.error("Erro exportar filtro:", e);
+        alert("Falha ao gerar Excel backend:\n" + e.message);
+      });
 
-  gerarExcelCliente(filtro.map((p) => p.id));
-
-  // força mostrar a camada (se o zoom já estiver suficiente)
-  toggleLayerByZoom();
+    gerarExcelCliente(filtro.map((p) => p.id));
+  });
 }
 
 function resetarMapa() {
-  // restaura a camada completa e respeita o zoom
-  restoreAllMarkers();
+  emCenso = false;
+  markers.clearLayers();
+  carregouTodosNoCluster = false;
+  atualizarVisibilidadePorZoom();
 }
 
 /* ====================================================================
@@ -762,24 +766,21 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
-// Adiciona marker (reaproveita cache por ID)
+// Adiciona marker isolado (usa cache) — ainda usado por alguns fluxos
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
-  if (idToMarker.has(p.id)) {
-    const mk = idToMarker.get(p.id);
-    if (!markers.hasLayer(mk)) markers.addLayer(mk);
-    return;
+  let mk = idToMarker.get(p.id);
+  if (!mk) {
+    const cor = poleColorByEmpresas(p.empresas.length);
+    mk = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
+      .bindTooltip(
+        `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+        { direction: "top", sticky: true }
+      );
+    mk.on("click", () => abrirPopup(p));
+    idToMarker.set(p.id, mk);
   }
-  const cor = poleColorByEmpresas(p.empresas.length);
-  const m = L.marker([p.lat, p.lon], {
-    icon: poleIcon48(cor),
-  }).bindTooltip(
-    `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-    { direction: "top", sticky: true }
-  );
-  m.on("click", () => abrirPopup(p));
-  idToMarker.set(p.id, m);
-  markers.addLayer(m);
+  if (!markers.hasLayer(mk)) markers.addLayer(mk);
 }
 
 // Abre popup
@@ -807,7 +808,7 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
     ({ coords }) => {
       const latlng = [coords.latitude, coords.longitude];
       L.marker(latlng).addTo(map).bindPopup("📍 Você está aqui!").openPopup();
-      map.setView(latlng, 17);
+      map.setView(latlng, Math.max(17, MIN_ZOOM_POSTES));
       obterPrevisaoDoTempo(coords.latitude, coords.longitude);
     },
     () => alert("Erro ao obter localização."),
@@ -928,8 +929,7 @@ function consultarIDsEmMassa() {
         });
     }
   });
-
-  if (!map.hasLayer(markers)) map.addLayer(markers);
+  map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, {
@@ -1024,7 +1024,7 @@ function limparTudo() {
   }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
-    .forEach((id) => { document.getElementById(id).value = ""; });
+    .forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
   resetarMapa();
 }
 
