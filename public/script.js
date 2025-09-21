@@ -1,5 +1,6 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
+//  (Street View via link público do Google — sem API, sem custo)
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
@@ -202,7 +203,7 @@ if (overlay) overlay.style.display = "flex";
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
-        <!-- Ícone globo (corrigido, sem comandos de arco 'A') -->
+        <!-- Ícone globo (sem comandos de arco 'A') -->
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
@@ -220,7 +221,6 @@ if (overlay) overlay.style.display = "flex";
   `;
   hud.appendChild(card);
 
-  // wire do seletor
   const selectBase = card.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
@@ -502,23 +502,12 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// === Street Imagery (sem Google) — Helpers + Botões + Controle =======
-// ---------------------------------------------------------------------
-function buildBingStreetsideURL(lat, lng, zoom = 19) {
-  return `https://www.bing.com/maps?cp=${lat}~${lng}&lvl=${zoom}&style=x`;
+// === Street View gratuito (link público) =============================
+function buildGoogleMapsPanoURL(lat, lng) {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
-function buildMapillaryURL(lat, lng, zoom = 17) {
-  return `https://www.mapillary.com/app/?lat=${lat}&lng=${lng}&z=${zoom}&focus=map`;
-}
-function bingStreetsideButtonHTML(lat, lng, label = "Abrir Bing Streetside") {
-  const url = buildBingStreetsideURL(lat, lng);
-  return `<button onclick="window.open('${url}','_blank','noopener')"
-    style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
-    ${label}
-  </button>`;
-}
-function mapillaryButtonHTML(lat, lng, label = "Abrir Mapillary") {
-  const url = buildMapillaryURL(lat, lng);
+function googleButtonHTML(lat, lng, label = "Abrir no Google Street View") {
+  const url = buildGoogleMapsPanoURL(lat, lng);
   return `<button onclick="window.open('${url}','_blank','noopener')"
     style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
     ${label}
@@ -527,45 +516,31 @@ function mapillaryButtonHTML(lat, lng, label = "Abrir Mapillary") {
 function streetImageryBlockHTML(lat, lng) {
   return `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      ${bingStreetsideButtonHTML(lat, lng)}
-      ${mapillaryButtonHTML(lat, lng)}
+      ${googleButtonHTML(lat, lng)}
     </div>
     <small style="color:#777;display:block;margin-top:4px">
-      *Se não houver cobertura no ponto, o serviço volta para o mapa.
+      *Se não houver cobertura exata no ponto, o Google aproxima para a vista mais próxima.
     </small>
   `.trim();
 }
-// Controle opcional no mapa (abre na coordenada do centro)
-(function addStreetImageryControl() {
+
+// Controle no mapa (linka o centro atual para o Street View)
+(function addStreetViewControl() {
   if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
   const Control = L.Control.extend({
     options: { position: "topleft" },
     onAdd: function () {
       const div = L.DomUtil.create("div", "leaflet-bar");
-      div.style.display = "flex";
-      div.style.flexDirection = "column";
-      const btn1 = L.DomUtil.create("a", "", div);
-      btn1.href = "#";
-      btn1.title = "Abrir Bing Streetside no centro do mapa";
-      btn1.innerHTML = "Streetside";
-      btn1.style.padding = "6px 8px";
-      btn1.style.textDecoration = "none";
-      const btn2 = L.DomUtil.create("a", "", div);
-      btn2.href = "#";
-      btn2.title = "Abrir Mapillary no centro do mapa";
-      btn2.innerHTML = "Mapillary";
-      btn2.style.padding = "6px 8px";
-      btn2.style.textDecoration = "none";
-      btn2.style.borderTop = "1px solid #ccc";
-      L.DomEvent.on(btn1, "click", (e) => {
+      const btn = L.DomUtil.create("a", "", div);
+      btn.href = "#";
+      btn.title = "Abrir Google Street View no centro do mapa";
+      btn.innerHTML = "StreetView";
+      btn.style.padding = "6px 8px";
+      btn.style.textDecoration = "none";
+      L.DomEvent.on(btn, "click", (e) => {
         L.DomEvent.stop(e);
         const c = map.getCenter();
-        window.open(buildBingStreetsideURL(c.lat, c.lng), "_blank", "noopener");
-      });
-      L.DomEvent.on(btn2, "click", (e) => {
-        L.DomEvent.stop(e);
-        const c = map.getCenter();
-        window.open(buildMapillaryURL(c.lat, c.lng), "_blank", "noopener");
+        window.open(buildGoogleMapsPanoURL(c.lat, c.lng), "_blank", "noopener");
       });
       L.DomEvent.disableClickPropagation(div);
       L.DomEvent.disableScrollPropagation(div);
@@ -574,99 +549,6 @@ function streetImageryBlockHTML(lat, lng) {
   });
   map.addControl(new Control());
 })();
-
-/* ====================================================================
-   Mapillary embutido no popup (interativo dentro do seu app)
-   - Carrega SDK via CDN (dinamicamente)
-   - Busca a imagem MAIS PRÓXIMA via API v4 (closeto)
-   - Instancia o viewer no container do popup
-   ==================================================================== */
-const MAPILLARY_TOKEN = "COLOQUE_SUA_MAPILLARY_TOKEN_AQUI";
-
-// carrega CSS/JS do Mapillary uma vez
-let _mlyReadyPromise;
-function ensureMapillaryReady() {
-  if (_mlyReadyPromise) return _mlyReadyPromise;
-  _mlyReadyPromise = new Promise((resolve, reject) => {
-    // CSS
-    const cssId = "mly-css";
-    if (!document.getElementById(cssId)) {
-      const link = document.createElement("link");
-      link.id = cssId;
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.css";
-      document.head.appendChild(link);
-    }
-    // JS
-    const jsId = "mly-js";
-    if (window.Mapillary) return resolve();
-    const s = document.createElement("script");
-    s.id = jsId;
-    s.src = "https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js";
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Falha ao carregar Mapillary JS"));
-    document.head.appendChild(s);
-  });
-  return _mlyReadyPromise;
-}
-
-// encontra imagem mais próxima (tenta lng,lat e depois lat,lng)
-async function getNearestMapillaryImageId(lat, lng) {
-  if (!MAPILLARY_TOKEN || MAPILLARY_TOKEN.includes("COLOQUE_")) return null;
-  const base = "https://graph.mapillary.com/images?fields=id&limit=1";
-  const tryFetch = async (closeto) => {
-    const url = `${base}&closeto=${closeto}&access_token=${MAPILLARY_TOKEN}`;
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j && j.data && j.data[0] && j.data[0].id ? j.data[0].id : null;
-  };
-  return (await tryFetch(`${lng},${lat}`)) || (await tryFetch(`${lat},${lng}`)) || null;
-}
-
-// HTML do container do viewer
-function mapillaryEmbedHTML(containerId, w = 420, h = 250) {
-  return `
-    <div style="margin-top:8px">
-      <div id="${containerId}" class="mly-embed" style="width:${w}px;height:${h}px;border-radius:10px;overflow:hidden;background:#eef1f4"></div>
-      <small style="color:#777">Se não aparecer, pode não haver cobertura do Mapillary nesse ponto.</small>
-    </div>
-  `;
-}
-
-// monta o viewer no container
-async function mountMapillary(containerId, imageId) {
-  try {
-    await ensureMapillaryReady();
-    // eslint-disable-next-line no-undef
-    new Mapillary.Viewer({
-      container: containerId,
-      accessToken: MAPILLARY_TOKEN,
-      imageId: imageId,
-      component: { cover: true },
-    });
-  } catch (e) {
-    console.warn("Mapillary viewer falhou:", e);
-  }
-}
-
-// inicializa o viewer quando o popup abrir
-map.on("popupopen", async (e) => {
-  const root = e?.popup?._contentNode;
-  if (!root) return;
-  const div = root.querySelector(".mly-embed");
-  if (!div || div.dataset.loaded) return;
-  div.dataset.loaded = "1";
-  const lat = Number(div.dataset.lat) || e.popup.getLatLng().lat;
-  const lng = Number(div.dataset.lng) || e.popup.getLatLng().lng;
-  const imageId = await getNearestMapillaryImageId(lat, lng);
-  if (imageId) {
-    await mountMapillary(div.id, imageId);
-  } else {
-    div.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font:12px system-ui;color:#666">Sem cobertura Mapillary aqui</div>`;
-  }
-});
 
 // ---------------------------------------------------------------------
 // Adiciona marker padrão
@@ -686,8 +568,6 @@ function adicionarMarker(p) {
 // Abre popup
 function abrirPopup(p) {
   const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
-  // cria um id único para o container do Mapillary
-  const mlyId = `mly_${p.id}_${Math.random().toString(36).slice(2)}`;
   const html = `
     <b>ID:</b> ${p.id}<br>
     <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
@@ -696,14 +576,9 @@ function abrirPopup(p) {
     <b>Logradouro:</b> ${p.nome_logradouro}<br>
     <b>Empresas:</b><ul>${list}</ul>
 
-    ${mapillaryEmbedHTML(mlyId, 420, 250)}
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
-
-  // guarda lat/lng no container para o listener usar
-  const div = document.getElementById(mlyId);
-  if (div) { div.dataset.lat = p.lat; div.dataset.lng = p.lon; }
 }
 
 // ---------------------------------------------------------------------
@@ -920,7 +795,7 @@ function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(Math.sqrt(a*a)) , Math.sqrt(1 - a)); // (mantém compat.)
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Limpa campos e layers auxiliares
