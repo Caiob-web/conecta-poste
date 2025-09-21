@@ -84,7 +84,7 @@
       gap:8px;
       padding:8px 36px 8px 12px;
       border:1px solid #e5e7eb;
-      border-radius:999px;           /* pill */
+      border-radius:999px;
       background:#ffffff;
       transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
@@ -153,7 +153,10 @@ function setBase(mode) {
   currentBase.addTo(map);
 }
 
-// -------------------- Clusters com chunked loading -------------------
+// ---------------------- LOD: camadas rápidas x detalhadas ------------
+const fastRenderer = L.canvas({ padding: 0.5 }); // super leve
+const fastLayer = L.layerGroup().addTo(map);     // círculos em canvas
+
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -163,13 +166,49 @@ const markers = L.markerClusterGroup({
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50,
-  removeOutsideVisibleBounds: true, // <-- pruning fora da viewport
+  removeOutsideVisibleBounds: true, // pruning
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
-map.addLayer(markers);
 
-// Dados e sets para autocomplete
-const todosPostes = [];
+let detailedCreated = new Set(); // ids já com ícone detalhado criado
+let allPosts = [];               // todos os postes carregados
+
+// cria/garante marcadores detalhados só dentro da viewport (zoom>=17)
+function ensureDetailedMarkersInView() {
+  if (map.getZoom() < 17) return;
+  const b = map.getBounds().pad(0.2);
+  const lote = [];
+
+  for (const p of allPosts) {
+    if (detailedCreated.has(p.id)) continue;
+    if (!b.contains([p.lat, p.lon])) continue;
+
+    const cor = poleColorByEmpresas(p.empresas.length);
+    const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
+      .bindTooltip(`ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+        { direction: "top", sticky: true })
+      .on("click", () => abrirPopup(p));
+
+    lote.push(m);
+    detailedCreated.add(p.id);
+  }
+  if (lote.length) markers.addLayers(lote);
+}
+
+// alterna automaticamente entre camadas rápidas e detalhadas
+function refreshLOD() {
+  if (map.getZoom() >= 17) {
+    if (!map.hasLayer(markers)) map.addLayer(markers);
+    ensureDetailedMarkersInView();
+  } else {
+    if (map.hasLayer(markers)) map.removeLayer(markers);
+    markers.clearLayers();         // libera DOM
+    detailedCreated.clear();
+  }
+}
+map.on("moveend zoomend", refreshLOD);
+
+// -------------------- Dados/autocomplete/censo -----------------------
 const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
@@ -220,7 +259,6 @@ if (overlay) overlay.style.display = "flex";
   `;
   hud.appendChild(card);
 
-  // wire do seletor
   const selectBase = card.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
@@ -248,19 +286,17 @@ fetch("/api/postes")
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
-    const postsArray = Object.values(agrupado).map((p) => ({
+    allPosts = Object.values(agrupado).map((p) => ({
       ...p,
       empresas: [...p.empresas],
     }));
 
-    // --------- Render em batches + addLayers (mais leve) --------------
-    function addBatch(i = 0, batchSize = 800) {
-      const slice = postsArray.slice(i, i + batchSize);
+    // --------- Render em batches para o fastLayer (Canvas) ------------
+    function addBatch(i = 0, batchSize = 1200) {
+      const slice = allPosts.slice(i, i + batchSize);
 
-      // cria os markers do lote em memória
-      const loteMarkers = [];
       for (const poste of slice) {
-        todosPostes.push(poste);
+        // Autocomplete contagens
         municipiosSet.add(poste.nome_municipio);
         bairrosSet.add(poste.nome_bairro);
         logradourosSet.add(poste.nome_logradouro);
@@ -268,31 +304,35 @@ fetch("/api/postes")
           (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
         );
 
-        const cor = poleColorByEmpresas(poste.empresas.length);
-        const m = L.marker([poste.lat, poste.lon], {
-          icon: poleIcon48(cor),
+        // Marcador leve (canvas) para zooms baixos
+        const isRed = poste.empresas.length >= 5;
+        const cm = L.circleMarker([poste.lat, poste.lon], {
+          renderer: fastRenderer,
+          radius: 4.5,
+          weight: 1.5,
+          color: isRed ? "#B71C1C" : "#1B5E20",
+          fillColor: isRed ? "#F44336" : "#4CAF50",
+          fillOpacity: 0.9
         })
-          .bindTooltip(
-            `ID: ${poste.id} — ${poste.empresas.length} ${
-              poste.empresas.length === 1 ? "empresa" : "empresas"
-            }`,
-            { direction: "top", sticky: true }
-          )
-          .on("click", () => abrirPopup(poste));
+        .on("click", () => {
+          // Em zoom baixo abrimos popup e, se necessário, aproximamos
+          if (map.getZoom() < 17) map.setView([poste.lat, poste.lon], 18, { animate: true });
+          abrirPopup(poste);
+        });
 
-        loteMarkers.push(m);
+        fastLayer.addLayer(cm);
       }
-
-      // adiciona o lote de uma vez só (bem mais barato)
-      if (loteMarkers.length) markers.addLayers(loteMarkers);
 
       const schedule = (cb) =>
         (window.requestIdleCallback || window.requestAnimationFrame)(cb);
 
-      if (i + batchSize < postsArray.length) {
+      if (i + batchSize < allPosts.length) {
         schedule(() => addBatch(i + batchSize, batchSize));
       } else {
-        schedule(() => preencherListas());
+        schedule(() => {
+          preencherListas();
+          refreshLOD(); // garante estado inicial
+        });
       }
     }
     addBatch();
@@ -336,7 +376,7 @@ function preencherListas() {
 // Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
-  const dadosParaExcel = todosPostes
+  const dadosParaExcel = allPosts
     .filter((p) => filtroIds.includes(p.id))
     .map((p) => ({
       "ID POSTE": p.id,
@@ -353,12 +393,47 @@ function gerarExcelCliente(filtroIds) {
 }
 
 // ---------------------------------------------------------------------
-// Modo Censo
+// Modo Censo (mantido)
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
+
+  // limpa camadas
+  fastLayer.clearLayers();
   markers.clearLayers();
-  if (!censoMode) return todosPostes.forEach(adicionarMarker);
+  detailedCreated.clear();
+
+  if (!censoMode) {
+    // volta ao normal (re-render rápido)
+    const tmp = allPosts;
+    allPosts = [];
+    // força re-adicionar em batches
+    (function readd(i = 0, bs = 1200) {
+      const slice = tmp.slice(i, i + bs);
+      for (const p of slice) {
+        const isRed = p.empresas.length >= 5;
+        const cm = L.circleMarker([p.lat, p.lon], {
+          renderer: fastRenderer,
+          radius: 4.5,
+          weight: 1.5,
+          color: isRed ? "#B71C1C" : "#1B5E20",
+          fillColor: isRed ? "#F44336" : "#4CAF50",
+          fillOpacity: 0.9
+        }).on("click", () => {
+          if (map.getZoom() < 17) map.setView([p.lat, p.lon], 18, { animate: true });
+          abrirPopup(p);
+        });
+        fastLayer.addLayer(cm);
+        allPosts.push(p);
+      }
+      if (i + bs < tmp.length) {
+        (window.requestIdleCallback || window.requestAnimationFrame)(() => readd(i + bs, bs));
+      } else {
+        refreshLOD();
+      }
+    })();
+    return;
+  }
 
   if (!censoIds) {
     try {
@@ -369,22 +444,24 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      return todosPostes.forEach(adicionarMarker);
+      refreshLOD();
+      return;
     }
   }
-  todosPostes
-    .filter((p) => censoIds.has(String(p.id)))
-    .forEach((poste) => {
-      const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6,
-        color: "#666",
-        fillColor: "#bbb",
-        weight: 2,
-        fillOpacity: 0.8,
-      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("click", () => abrirPopup(poste));
-      markers.addLayer(c);
-    });
+
+  // exibe apenas censo (círculos)
+  allPosts.filter((p) => censoIds.has(String(p.id))).forEach((poste) => {
+    const c = L.circleMarker([poste.lat, poste.lon], {
+      renderer: fastRenderer,
+      radius: 6,
+      color: "#666",
+      fillColor: "#bbb",
+      weight: 2,
+      fillOpacity: 0.8,
+    }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
+    c.on("click", () => abrirPopup(poste));
+    fastLayer.addLayer(c);
+  });
 });
 
 // ---------------------------------------------------------------------
@@ -392,7 +469,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // ---------------------------------------------------------------------
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
-  const p = todosPostes.find((x) => x.id === id);
+  const p = allPosts.find((x) => x.id === id);
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], 18);
   abrirPopup(p);
@@ -409,7 +486,7 @@ function buscarCoordenada() {
 function filtrarLocal() {
   const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
   const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
-  const filtro = todosPostes.filter(
+  const filtro = allPosts.filter(
     (p) =>
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
       (!bai || p.nome_bairro.toLowerCase() === bai) &&
@@ -417,9 +494,30 @@ function filtrarLocal() {
       (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
-  markers.clearLayers();
-  filtro.forEach(adicionarMarker);
 
+  // reseta camadas (LOD seguro)
+  fastLayer.clearLayers();
+  markers.clearLayers();
+  detailedCreated.clear();
+
+  // coloca resultado no fastLayer (rápido) e deixa LOD religar
+  filtro.forEach((poste) => {
+    const isRed = poste.empresas.length >= 5;
+    const cm = L.circleMarker([poste.lat, poste.lon], {
+      renderer: fastRenderer,
+      radius: 4.5,
+      weight: 1.5,
+      color: isRed ? "#B71C1C" : "#1B5E20",
+      fillColor: isRed ? "#F44336" : "#4CAF50",
+      fillOpacity: 0.9
+    }).on("click", () => {
+      if (map.getZoom() < 17) map.setView([poste.lat, poste.lon], 18, { animate: true });
+      abrirPopup(poste);
+    });
+    fastLayer.addLayer(cm);
+  });
+
+  // Excel backend + cliente como antes
   fetch("/api/postes/report", {
     method: "POST",
     credentials: "same-origin",
@@ -453,8 +551,27 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
+  fastLayer.clearLayers();
   markers.clearLayers();
-  todosPostes.forEach(adicionarMarker);
+  detailedCreated.clear();
+
+  // re-render rápido de todos os pontos
+  allPosts.forEach((p) => {
+    const isRed = p.empresas.length >= 5;
+    const cm = L.circleMarker([p.lat, p.lon], {
+      renderer: fastRenderer,
+      radius: 4.5,
+      weight: 1.5,
+      color: isRed ? "#B71C1C" : "#1B5E20",
+      fillColor: isRed ? "#F44336" : "#4CAF50",
+      fillOpacity: 0.9
+    }).on("click", () => {
+      if (map.getZoom() < 17) map.setView([p.lat, p.lon], 18, { animate: true });
+      abrirPopup(p);
+    });
+    fastLayer.addLayer(cm);
+  });
+  refreshLOD();
 }
 
 // ===== ÍCONES 36px em SVG inline (poste realista, 2 travessas) =====
@@ -531,7 +648,7 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão
+// Adiciona marker detalhado (usado por verificações/popup/zoom alto)
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
@@ -543,6 +660,7 @@ function adicionarMarker(p) {
   );
   m.on("click", () => abrirPopup(p));
   markers.addLayer(m);
+  detailedCreated.add(p.id);
 }
 
 // Abre popup
@@ -648,14 +766,17 @@ function consultarIDsEmMassa() {
     .filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
+  fastLayer.clearLayers();
+  detailedCreated.clear();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
   const encontrados = ids
-    .map((id) => todosPostes.find((p) => p.id === id))
+    .map((id) => allPosts.find((p) => p.id === id))
     .filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
+
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
   // intermediários e traçado
@@ -664,7 +785,7 @@ function consultarIDsEmMassa() {
     const b = encontrados[i + 1];
     const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
     if (d > 50) {
-      todosPostes
+      allPosts
         .filter((p) => !ids.includes(p.id))
         .filter(
           (p) =>
@@ -674,6 +795,7 @@ function consultarIDsEmMassa() {
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
+            renderer: fastRenderer,
             radius: 6,
             color: "gold",
             fillColor: "yellow",
@@ -689,7 +811,7 @@ function consultarIDsEmMassa() {
         });
     }
   });
-  map.addLayer(markers);
+
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, {
@@ -706,9 +828,12 @@ function consultarIDsEmMassa() {
     total: ids.length,
     disponiveis: encontrados.filter((p) => p.empresas.length <= 4).length,
     ocupados: encontrados.filter((p) => p.empresas.length >= 5).length,
-    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
+    naoEncontrados: ids.filter((id) => !allPosts.some((p) => p.id === id)),
     intermediarios: window.intermediarios.length,
   };
+
+  // garante LOD após verificar
+  refreshLOD();
 }
 
 // Adiciona marcador numerado
@@ -727,7 +852,7 @@ function adicionarNumerado(p, num) {
     }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
   );
   mk.addTo(markers);
-  window.numeroMarkers.push(mk);
+  detailedCreated.add(p.id);
 }
 
 function gerarPDFComMapa() {
