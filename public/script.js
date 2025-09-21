@@ -278,12 +278,11 @@ const markers = L.markerClusterGroup({
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers); // 🔒 nunca removemos do mapa
 
-// -------------------- Visibilidade por zoom + adição progressiva ----
-const MIN_ZOOM_POSTES = 15;      // aparece a partir desse zoom
-const CHUNK_SIZE = 1200;         // não é mais o limitador principal; mantido por compat.
+// -------------------- Carregamento progressivo + cache ---------------
+const MIN_ZOOM_POSTES = 15;      // usado apenas para focar no buscar; não gateia carregamento
 const idToMarker = new Map();    // cache: id -> L.Marker
 let todosPostes = [];            // preenchido após fetch
-let carregouTodosNoCluster = false; // evita reprocessar
+let carregouTodosNoCluster = false; // marca fim do carregamento total
 let emCenso = false;
 
 // ---------------- Overlay helper ----------------
@@ -320,7 +319,6 @@ function createMarkerForPoste(p){
 
 // util — adicionar uma lista de postes ao cluster, PROGRESSIVO e leve
 function addMarkersInChunks(postes, onDone, factory) {
-  // requestIdleCallback se disponível, senão rAF
   const hasRIC = typeof window.requestIdleCallback === "function";
   let i = 0;
   let firstShown = false;
@@ -334,14 +332,12 @@ function addMarkersInChunks(postes, onDone, factory) {
       const lyr = factory ? factory(p) : createMarkerForPoste(p);
       if (lyr) batch.push(lyr);
 
-      // orçamento de ~10–12ms por frame (ou timeRemaining do RIC)
       const budgetOK = hasRIC ? (deadline.timeRemaining() > 7) : ((performance.now() - t0) < 10);
-      if (!budgetOK || batch.length >= 500) break;
+      if (!budgetOK || batch.length >= 600) break;
     }
 
     if (batch.length) {
-      // adicionar em lote é MUITO mais rápido do que addLayer 1 a 1
-      markers.addLayers(batch);
+      markers.addLayers(batch);               // lote = mais rápido
       if (!firstShown) { hideOverlay(); firstShown = true; }
       const pct = Math.min(100, Math.round((i / postes.length) * 100));
       setOverlayProgress(pct);
@@ -350,6 +346,7 @@ function addMarkersInChunks(postes, onDone, factory) {
     if (i < postes.length) {
       schedule();
     } else {
+      carregouTodosNoCluster = true;
       onDone && onDone();
     }
   }
@@ -368,27 +365,13 @@ function addMarkersInChunks(postes, onDone, factory) {
   }
 }
 
-// controla quando mostrar os postes (zoom gate)
-function atualizarVisibilidadePorZoom() {
-  if (emCenso) return; // modo censo controla sozinho
-
-  const z = map.getZoom();
-  if (z >= MIN_ZOOM_POSTES) {
-    // carrega todos (uma única vez) de modo progressivo
-    if (!carregouTodosNoCluster && todosPostes.length) {
-      showOverlay("Carregando postes…");
-      markers.clearLayers(); // grupo continua no mapa
-      addMarkersInChunks(todosPostes, () => {
-        carregouTodosNoCluster = true;
-        hideOverlay();
-      });
-    }
-  } else {
-    // abaixo do zoom mínimo, mantemos o cluster vazio (sem remover o layer)
-    markers.clearLayers();
-  }
+// -------------------------------- Início: carregar TODOS -------------
+function exibirTodosPostes() {
+  markers.clearLayers();              // não removemos o grupo, só os itens
+  carregouTodosNoCluster = false;
+  showOverlay("Carregando postes…");
+  addMarkersInChunks(todosPostes, () => hideOverlay());
 }
-map.on("zoomend", atualizarVisibilidadePorZoom);
 
 // ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
@@ -450,7 +433,7 @@ let censoIds = null;
 })();
 
 // ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
+// Carrega /api/postes e JÁ INICIA a renderização progressiva
 // ---------------------------------------------------------------------
 fetch("/api/postes")
   .then((res) => {
@@ -487,9 +470,8 @@ fetch("/api/postes")
     });
     preencherListas();
 
-    // Decide visibilidade inicial (se já estiver com zoom alto)
-    atualizarVisibilidadePorZoom();
-    hideOverlay();
+    // 👉 Carrega TODOS imediatamente (sem depender de zoom)
+    exibirTodosPostes();
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
@@ -559,8 +541,8 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   markers.clearLayers(); // não removemos o layer do mapa
 
   if (!emCenso) {
-    carregouTodosNoCluster = false; // força reexibir todos quando voltar
-    atualizarVisibilidadePorZoom();
+    // voltar a exibir TODOS assim que sair do censo
+    exibirTodosPostes();
     return;
   }
 
@@ -575,7 +557,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       hideOverlay();
       alert("Não foi possível carregar dados do censo.");
       emCenso = false;
-      atualizarVisibilidadePorZoom();
+      exibirTodosPostes();
       return;
     }
   }
@@ -607,7 +589,6 @@ function buscarID() {
   const p = todosPostes.find((x) => x.id === id);
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], Math.max(18, MIN_ZOOM_POSTES));
-  // garante que ele esteja no cluster
   let mk = idToMarker.get(p.id);
   if (!mk) {
     const cor = poleColorByEmpresas(p.empresas.length);
@@ -643,7 +624,6 @@ function filtrarLocal() {
 
   // exibe somente o filtro (progressivo)
   emCenso = false;
-  carregouTodosNoCluster = false;
   markers.clearLayers();
   showOverlay("Aplicando filtro…");
   addMarkersInChunks(filtro, () => {
@@ -684,9 +664,7 @@ function filtrarLocal() {
 
 function resetarMapa() {
   emCenso = false;
-  markers.clearLayers();
-  carregouTodosNoCluster = false;
-  atualizarVisibilidadePorZoom();
+  exibirTodosPostes(); // volta a exibir tudo, sem depender de zoom
 }
 
 /* ====================================================================
