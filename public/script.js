@@ -50,15 +50,8 @@
       gap:10px;
       min-height:40px;
     }
-    #tempo .weather-row img{
-      width:28px; height:28px; object-fit:contain;
-    }
-    #tempo .tempo-text{
-      display:flex; flex-direction:column;
-      gap:2px;
-      font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#1f2937;
-    }
+    #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
+    #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
     #tempo .tempo-text b{ font-weight:700; }
     #tempo .tempo-text small{ color:#6b7280; }
 
@@ -79,37 +72,19 @@
       font-weight:700;
     }
     #tempo .select-wrap{
-      position:relative;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 36px 8px 12px;
-      border:1px solid #e5e7eb;
-      border-radius:999px;           /* pill */
-      background:#ffffff;
-      transition:border-color .15s ease, box-shadow .15s ease;
+      position:relative; display:inline-flex; align-items:center; gap:8px;
+      padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
+      background:#ffffff; transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
-    #tempo .select-wrap:focus-within{
-      border-color:#6366f1;
-      box-shadow:0 0 0 3px rgba(99,102,241,.20);
-    }
-    #tempo .select-wrap .ico-globe{
-      width:16px;height:16px;opacity:.75;
-    }
+    #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
+    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; }
     #tempo .select-wrap .ico-caret{
-      position:absolute; right:10px; width:14px; height:14px; opacity:.6;
-      pointer-events:none;
+      position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none;
     }
-    #tempo select{
-      appearance:none; -webkit-appearance:none; -moz-appearance:none;
-      border:0; outline:none; background:transparent;
-      padding:0; margin:0;
-      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#111827; cursor:pointer;
-    }
+    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
 
-    /* ---- Modal Indicadores (BI) injetado por JS ---- */
+    /* ---- Modal Indicadores (BI) ---- */
     .bi-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:4000;background:rgba(0,0,0,.35);}
     .bi-card{width:min(960px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);font-family:'Segoe UI',system-ui;}
     .bi-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
@@ -133,102 +108,76 @@
 })();
 
 /* ====================================================================
-   Sidebar fixa (dock) na divisória direita + botão de recolher/exibir
-   + grade de botões corrigida para caber na largura do dock
+   Sidebar fixa + botão recolher
 ==================================================================== */
 (function injectDockSidebarStyles(){
   const css = `
     :root{ --dock-w: 340px; }
 
-    /* torna o painel uma sidebar fixa ocupando a altura toda */
     .painel-busca{
       position: fixed !important;
-      top: 0;
-      right: 0;
-      height: 100vh;
-      width: var(--dock-w);
-      overflow: auto;
-      overflow-x: hidden;
+      top: 0; right: 0; height: 100vh; width: var(--dock-w);
+      overflow: auto; overflow-x: hidden;
       border-left: 2px solid var(--ui-border, #19d68f);
       border-radius: 0 !important;
-      padding: 12px;
-      padding-bottom: 16px;
-      transform: translateX(0%);
-      transition: transform .25s ease;
-      z-index: 1000;
-      box-sizing: border-box;
+      padding: 12px 12px 20px;
+      transform: translateX(0%); transition: transform .25s ease;
+      z-index: 1000; box-sizing: border-box;
     }
-
-    /* inputs/áreas para não estourarem a largura */
-    .painel-busca .field,
-    .painel-busca input,
-    .painel-busca textarea,
-    .painel-busca select{
-      min-width: 0;
-      box-sizing: border-box;
-    }
-
-    /* AÇÕES — 2 colunas fixas no dock (sem cortar) */
     .painel-busca .actions{
-      display: grid !important;
-      grid-template-columns: repeat(2, 1fr) !important;
-      gap: 10px !important;
-      margin-top: 6px;
+      display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important; margin-top: 6px;
     }
-    .painel-busca .actions button{
-      width: 100%;
-      min-width: 0;
-      box-sizing: border-box;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* estado recolhido (fora da tela) */
     .painel-busca.collapsed{ transform: translateX(100%); }
 
-    /* botão/aba na divisória (usa o #togglePainel existente) */
     #togglePainel{
-      position: fixed !important;
-      top: 50%;
-      right: calc(var(--dock-w) + 6px);
-      transform: translateY(-50%);
-      width: 42px; height: 64px;
-      border-radius: 10px 0 0 10px !important;
+      position: fixed !important; top: 50%;
+      right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
+      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important;
       background: var(--ui-bg, #0f1b2a) !important;
       border: 1px solid var(--ui-border, #19d68f) !important;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
-      z-index: 1100;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
       display:flex;align-items:center;justify-content:center;
     }
-    /* quando recolhido, a aba encosta na borda direita da janela */
     body.sidebar-collapsed #togglePainel{ right: 6px !important; }
-
-    /* demais botões de topo se alinham à divisória */
-    #localizacaoUsuario, #logoutBtn{
-      position: fixed !important;
-      right: calc(var(--dock-w) + 16px);
-      z-index: 1100;
-    }
-    body.sidebar-collapsed #localizacaoUsuario,
-    body.sidebar-collapsed #logoutBtn{
-      right: 16px !important;
-    }
-
-    /* ícone muda de direção */
     #togglePainel i{ transition: transform .2s ease; }
     body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
+
+    #localizacaoUsuario, #logoutBtn{
+      position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100;
+    }
+    body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
+
+    /* HUD acoplado na lateral (logo abaixo das ações) */
+    .dock-hud{ margin-top:12px; }
   `;
   const style = document.createElement('style');
   style.id = 'dock-sidebar-styles';
   style.textContent = css;
   document.head.appendChild(style);
 
-  // Ajusta o rótulo/ícone inicial do toggle
   window.addEventListener('DOMContentLoaded', () => {
     const tgl = document.getElementById('togglePainel');
     if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
   });
+})();
+
+/* ====================================================================
+   CLUSTER: mostrar SÓ NÚMEROS (sem bolhas)
+==================================================================== */
+(function injectClusterNumberStyles(){
+  const css = `
+    .cluster-num-only{
+      background:transparent !important; border:none !important; box-shadow:none !important;
+      color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
+      transform: translate(-50%, -50%);           /* centraliza no ponto */
+      user-select:none; pointer-events:auto;
+    }
+  `;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
@@ -263,9 +212,7 @@ function dotStyle(qtdEmpresas){
     weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
     fillOpacity: 0.95,
-    renderer: DOT_RENDERER,
-    interactive: true,            // garante clique sempre ativo
-    bubblingMouseEvents: true
+    renderer: DOT_RENDERER
   };
 }
 
@@ -279,7 +226,7 @@ function setBase(mode) {
   currentBase.addTo(map);
 }
 
-// -------------------- Clusters com chunked loading -------------------
+// -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -288,13 +235,26 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50
+  chunkInterval: 50,
+  iconCreateFunction: function (cluster) {
+    return new L.DivIcon({
+      html: String(cluster.getChildCount()),
+      className: "cluster-num-only",
+      iconSize: null   // deixa o texto no tamanho natural
+    });
+  }
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
+// failsafe: qualquer layer simples dentro do cluster abre popup
+markers.on("click", (e) => {
+  const l = e.layer;
+  if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
+  if (l && l.posteData) abrirPopup(l.posteData);
+});
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
-const idToMarker = new Map();   // cache: id -> L.Layer (CircleMarker/Marker)
+const idToMarker = new Map();   // cache: id -> L.Layer
 let todosCarregados = false;
 
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
@@ -307,10 +267,9 @@ function criarLayerPoste(p){
     .bindTooltip(
       `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
       { direction: "top", sticky: true }
-    );
-  // guarda o dado no layer e amarra o clique de forma resiliente
-  layer.posteData = p;
-  layer.on("click", function(){ abrirPopup(this.posteData); });
+    )
+    .on("click", () => abrirPopup(p));
+  layer.posteData = p; // usado pelo failsafe do cluster
   idToMarker.set(p.id, layer);
   return layer;
 }
@@ -321,21 +280,11 @@ function adicionarMarker(p) {
   if (!markers.hasLayer(layer)) markers.addLayer(layer);
 }
 
-// Exibe TODOS os já criados no cache (com re-montagem segura)
+// Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
-  if (!arr.length) return;
-  const lote = document.hidden ? 3500 : 1200;
-  let i = 0;
-  function addChunk(){
-    const slice = arr.slice(i, i + lote);
-    markers.addLayers(slice);              // usa chunkedLoading internamente
-    i += lote;
-    if (i < arr.length) scheduleIdle(addChunk);
-    else markers.refreshClusters();        // força re-ligação de eventos/ícones
-  }
-  scheduleIdle(addChunk);
+  if (arr.length) markers.addLayers(arr); // usa chunkedLoading
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -349,7 +298,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; markers.refreshClusters(); }
+    else todosCarregados = true;
   }
   scheduleIdle(addChunk);
 }
@@ -369,20 +318,18 @@ let censoMode = false, censoIds = null;
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
 
-// ---------------------- HUD: estrutura dentro de #tempo --------------
+// ---------------------- HUD na lateral --------------------------------
 (function buildHud() {
   const hud = document.getElementById("tempo");
   if (!hud) return;
 
   hud.innerHTML = "";
 
-  // Hora
   const horaRow = document.createElement("div");
   horaRow.className = "hora-row";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
 
-  // Cartão: clima + seletor de mapa (dentro do mesmo card)
   const card = document.createElement("div");
   card.className = "weather-card";
   card.innerHTML = `
@@ -441,24 +388,17 @@ fetch("/api/postes")
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
-    const postsArray = Object.values(agrupado).map((p) => ({
-      ...p,
-      empresas: [...p.empresas],
-    }));
+    const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
 
-    // Popular estruturas e iniciar carregamento gradativo global
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
       logradourosSet.add(poste.nome_logradouro);
-      poste.empresas.forEach(
-        (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
-      );
+      poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
     });
     preencherListas();
 
-    // >>> Carregar gradativamente TODOS os postes e deixá-los no mapa
     carregarTodosPostesGradualmente();
   })
   .catch((err) => {
@@ -474,26 +414,19 @@ fetch("/api/postes")
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
-    Array.from(set)
-      .sort()
-      .forEach((v) => {
-        const o = document.createElement("option");
-        o.value = v;
-        dl.appendChild(o);
-      });
+    Array.from(set).sort().forEach((v) => {
+      const o = document.createElement("option");
+      o.value = v; dl.appendChild(o);
+    });
   };
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem)
-    .sort()
-    .forEach((e) => {
-      const o = document.createElement("option");
-      o.value = e;
-      o.label = `${e} (${empresasContagem[e]} postes)`;
-      dlEmp.appendChild(o);
-    });
+  Object.keys(empresasContagem).sort().forEach((e) => {
+    const o = document.createElement("option");
+    o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -522,11 +455,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) {
-    // volta a exibir TODOS os postes carregados
-    exibirTodosPostes();
-    return;
-  }
+  if (!censoMode) { exibirTodosPostes(); return; }
 
   if (!censoIds) {
     try {
@@ -536,25 +465,17 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       censoIds = new Set(arr.map((i) => String(i.poste)));
     } catch {
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false;
-      exibirTodosPostes();
-      return;
+      censoMode = false; exibirTodosPostes(); return;
     }
   }
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6,
-        color: "#666",
-        fillColor: "#bbb",
-        weight: 2,
-        fillOpacity: 0.8,
-        renderer: DOT_RENDERER,
-        interactive: true,
-        bubblingMouseEvents: true
+        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
+      c.posteData = poste;
       markers.addLayer(c);
     });
 });
@@ -591,7 +512,6 @@ function filtrarLocal() {
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
 
-  // adiciona só os filtrados (os demais continuam no cache, intactos)
   filtro.forEach(adicionarMarker);
 
   fetch("/api/postes/report", {
@@ -611,11 +531,8 @@ function filtrarLocal() {
     .then((b) => {
       const u = URL.createObjectURL(b);
       const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes_filtro_backend.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = u; a.download = "relatorio_postes_filtro_backend.xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
     .catch((e) => {
@@ -626,20 +543,10 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-function resetarMapa() {
-  // remove camadas auxiliares que possam ficar por cima
-  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
-  if (window.intermediarios?.length) { window.intermediarios.forEach((m)=> map.removeLayer(m)); window.intermediarios = []; }
-  if (window.numeroMarkers?.length) { window.numeroMarkers.forEach((m)=> markers.removeLayer(m)); window.numeroMarkers = []; }
-  map.closePopup();
-
-  // volta a mostrar todos os postes carregados (sem apagar cache)
-  exibirTodosPostes();
-}
+function resetarMapa() { exibirTodosPostes(); }
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
-   (verde para ≤4 empresas, vermelho para ≥5 empresas)
 ==================================================================== */
 function makePolePhoto48(glowHex) {
   const svg = `
@@ -663,11 +570,7 @@ function makePolePhoto48(glowHex) {
         <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity=".25"/>
       </filter>
     </defs>
-
-    <!-- HALO -->
     <circle cx="21" cy="24" r="18" fill="url(#gHalo)"/>
-
-    <!-- poste -->
     <g filter="url(#shadow)">
       <rect x="19.2" y="6" width="3.6" height="25" rx="1.6" fill="url(#gWood)"/>
       <rect x="21.2" y="6" width="0.7" height="25" fill="rgba(255,255,255,.18)"/>
@@ -687,24 +590,14 @@ function makePolePhoto48(glowHex) {
 
 const ICON_GREEN_48 = L.icon({
   iconUrl: makePolePhoto48("#24a148"),
-  iconSize: [48, 48],
-  iconAnchor: [24, 34],
-  popupAnchor: [0, -22],
-  tooltipAnchor: [0, -22]
+  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
 });
 const ICON_RED_48 = L.icon({
   iconUrl: makePolePhoto48("#d64545"),
-  iconSize: [48, 48],
-  iconAnchor: [24, 34],
-  popupAnchor: [0, -22],
-  tooltipAnchor: [0, -22]
+  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
 });
-function poleIcon48(color) {
-  return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
-}
-function poleColorByEmpresas(qtd) {
-  return (qtd >= 5) ? "red" : "green";
-}
+function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
+function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
 // === Street View gratuito (link público) =============================
@@ -729,7 +622,6 @@ function streetImageryBlockHTML(lat, lng) {
   `.trim();
 }
 
-// Controle no mapa (linka o centro atual para o Street View)
 (function addStreetViewControl() {
   if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
   const Control = L.Control.extend({
@@ -737,18 +629,14 @@ function streetImageryBlockHTML(lat, lng) {
     onAdd: function () {
       const div = L.DomUtil.create("div", "leaflet-bar");
       const btn = L.DomUtil.create("a", "", div);
-      btn.href = "#";
-      btn.title = "Abrir Google Street View no centro do mapa";
-      btn.innerHTML = "StreetView";
-      btn.style.padding = "6px 8px";
-      btn.style.textDecoration = "none";
+      btn.href = "#"; btn.title = "Abrir Google Street View no centro do mapa";
+      btn.innerHTML = "StreetView"; btn.style.padding = "6px 8px"; btn.style.textDecoration = "none";
       L.DomEvent.on(btn, "click", (e) => {
         L.DomEvent.stop(e);
         const c = map.getCenter();
         window.open(buildGoogleMapsPanoURL(c.lat, c.lng), "_blank", "noopener");
       });
-      L.DomEvent.disableClickPropagation(div);
-      L.DomEvent.disableScrollPropagation(div);
+      L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div);
       return div;
     },
   });
@@ -767,7 +655,6 @@ function abrirPopup(p) {
     <b>Bairro:</b> ${p.nome_bairro}<br>
     <b>Logradouro:</b> ${p.nome_logradouro}<br>
     <b>Empresas:</b><ul>${list}</ul>
-
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
@@ -796,10 +683,7 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
 function mostrarHoraLocal() {
   const s = document.querySelector("#hora span, #tempo .hora-row .hora");
   if (!s) return;
-  s.textContent = new Date().toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  s.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
@@ -823,9 +707,7 @@ function preencherClimaUI(data) {
 
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
-  fetch(
-    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`
-  )
+  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
     .then((r) => r.json())
     .then(preencherClimaUI)
     .catch(() => {
@@ -856,23 +738,17 @@ setInterval(() => {
 // Verificar (Consulta massiva + traçado + intermediários)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
+  const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids
-    .map((id) => todosPostes.find((p) => p.id === id))
-    .filter(Boolean);
+  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
-  // intermediários e traçado
   window.intermediarios = [];
   encontrados.slice(0, -1).forEach((a, i) => {
     const b = encontrados[i + 1];
@@ -880,27 +756,17 @@ function consultarIDsEmMassa() {
     if (d > 50) {
       todosPostes
         .filter((p) => !ids.includes(p.id))
-        .filter(
-          (p) =>
-            getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
-              getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <=
-            d + 20
+        .filter((p) =>
+          getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
+          getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6,
-            color: "gold",
-            fillColor: "yellow",
-            fillOpacity: 0.8,
-            interactive: true,
-            bubblingMouseEvents: true
-          })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, {
-              direction: "top",
-              sticky: true,
-            })
+            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
+          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
             .on("click", () => abrirPopup(p))
             .addTo(map);
+          m.posteData = p;
           window.intermediarios.push(m);
         });
     }
@@ -908,11 +774,7 @@ function consultarIDsEmMassa() {
   map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, {
-      color: "blue",
-      weight: 3,
-      dashArray: "4,6",
-    }).addTo(map);
+    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
     map.fitBounds(L.latLngBounds(coords));
   } else {
     map.setView(coords[0], 18);
@@ -931,52 +793,37 @@ function consultarIDsEmMassa() {
 function adicionarNumerado(p, num) {
   const cor = p.empresas.length >= 5 ? "red" : "green";
   const html = `<div style="
-      background:${cor};color:white;width:22px;height:22px;
-      border-radius:50%;display:flex;align-items:center;
-      justify-content:center;font-size:12px;border:2px solid white
+      background:${cor};color:white;width:22px;height:22px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
   mk.bindPopup(
-    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${
-      p.nome_municipio
-    }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
+    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${p.nome_municipio}<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
   );
+  mk.posteData = p;
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
 }
 
 function gerarPDFComMapa() {
   if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
-
   leafletImage(map, (err, canvas) => {
     if (err) return alert("Erro ao capturar imagem.");
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: "landscape" });
-
     doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
-
-    const resumo = window.ultimoResumoPostes || {
-      disponiveis: 0,
-      ocupados: 0,
-      naoEncontrados: [],
-      intermediarios: 0,
-    };
-
-    let y = 140;
-    doc.setFontSize(12);
+    const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
+    let y = 140; doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-
     doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
     doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
-
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
       doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-
     doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
@@ -994,10 +841,7 @@ function getDistanciaMetros(lat1, lon1, lat2, lon2) {
 
 // Limpa campos e layers auxiliares
 function limparTudo() {
-  if (window.tracadoMassivo) {
-    map.removeLayer(window.tracadoMassivo);
-    window.tracadoMassivo = null;
-  }
+  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
     .forEach((id) => { document.getElementById(id).value = ""; });
@@ -1018,8 +862,7 @@ function exportarExcel(ids) {
         throw new Error("Não autorizado");
       }
       if (!res.ok) {
-        let err;
-        try { err = (await res.json()).error; } catch {}
+        let err; try { err = (await res.json()).error; } catch {}
         throw new Error(err || `HTTP ${res.status}`);
       }
       return res.blob();
@@ -1027,11 +870,8 @@ function exportarExcel(ids) {
     .then((b) => {
       const u = URL.createObjectURL(b);
       const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = u; a.download = "relatorio_postes.xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
     .catch((e) => {
@@ -1047,18 +887,13 @@ document.getElementById("btnGerarExcel").addEventListener("click", () => {
   exportarExcel(ids);
 });
 
-// Toggle painel (agora como sidebar recolhível)
+// Toggle painel
 document.getElementById("togglePainel").addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
   const body = document.body;
   p.classList.toggle("collapsed");
   body.classList.toggle("sidebar-collapsed", p.classList.contains("collapsed"));
-
-  // Leaflet precisa recalcular quando o layout muda
-  const onEnd = () => {
-    map.invalidateSize();
-    p.removeEventListener("transitionend", onEnd);
-  };
+  const onEnd = () => { map.invalidateSize(); p.removeEventListener("transitionend", onEnd); };
   p.addEventListener("transitionend", onEnd);
 });
 
@@ -1105,7 +940,7 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-// Injeta botão "Indicadores" se não existir
+// Injeta botão "Indicadores"
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -1118,7 +953,7 @@ function rowsToCSV(rows) {
   }
 })();
 
-// Injeta modal de BI se não existir
+// Modal de BI
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
 
@@ -1132,9 +967,7 @@ function ensureBIModal() {
         <button id="fecharIndicadores" class="bi-close">Fechar</button>
       </div>
       <div class="bi-body">
-        <div>
-          <canvas id="chartMunicipios" height="160"></canvas>
-        </div>
+        <div><canvas id="chartMunicipios" height="160"></canvas></div>
         <div class="bi-side">
           <label>Filtrar por empresa (opcional)</label>
           <input id="filtroEmpresaBI" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
@@ -1149,10 +982,7 @@ function ensureBIModal() {
         <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
           <table id="tabelaMunicipios" class="bi-table">
             <thead>
-              <tr>
-                <th style="text-align:left;">Município</th>
-                <th style="text-align:right;">Qtd. de Postes</th>
-              </tr>
+              <tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -1161,12 +991,10 @@ function ensureBIModal() {
     </div>`;
   document.body.appendChild(backdrop);
 
-  // eventos do modal
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
   document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
 
-  // Atualiza ao mover o mapa (se aberto e opção marcada)
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
     const onlyView = document.getElementById("apenasVisiveisBI");
@@ -1178,31 +1006,17 @@ function ensureBIModal() {
 
 function abrirIndicadores() {
   ensureBIModal();
-
   const modal = document.getElementById("modalIndicadores");
   if (!modal) return;
-
-  // Carrega Chart.js do CDN se não estiver presente
-  function proceed() {
-    modal.style.display = "flex";
-    atualizarIndicadores();
-  }
+  function proceed() { modal.style.display = "flex"; atualizarIndicadores(); }
   if (typeof Chart === "undefined") {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
-    s.onload = proceed;
-    s.onerror = proceed; // mesmo sem Chart.js, mostra tabela/resumo
+    s.onload = proceed; s.onerror = proceed;
     document.head.appendChild(s);
-  } else {
-    proceed();
-  }
+  } else { proceed(); }
 }
-
-function fecharIndicadores() {
-  const modal = document.getElementById("modalIndicadores");
-  if (!modal) return;
-  modal.style.display = "none";
-}
+function fecharIndicadores() { const m = document.getElementById("modalIndicadores"); if (m) m.style.display = "none"; }
 
 function atualizarIndicadores() {
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
@@ -1210,18 +1024,13 @@ function atualizarIndicadores() {
 
   const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
 
-  // tabela
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
     tb.innerHTML = rows.map(r => `
-      <tr>
-        <td>${r.municipio}</td>
-        <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
-      </tr>
+      <tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>
     `).join("") || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
   }
 
-  // resumo
   const resumo = document.getElementById("resumoBI");
   if (resumo) {
     const txtEmp = empresa ? ` para <b>${empresa}</b>` : "";
@@ -1229,8 +1038,7 @@ function atualizarIndicadores() {
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
 
-  // gráfico (opcional se Chart.js disponível)
-  const labels = rows.slice(0, 20).map(r => r.municipio); // top 20
+  const labels = rows.slice(0, 20).map(r => r.municipio);
   const data = rows.slice(0, 20).map(r => r.qtd);
   const ctx = document.getElementById("chartMunicipios");
 
@@ -1242,23 +1050,16 @@ function atualizarIndicadores() {
     } else {
       chartMunicipiosRef = new Chart(ctx, {
         type: "bar",
-        data: {
-          labels,
-          datasets: [{ label: "Postes por município", data }]
-        },
+        data: { labels, datasets: [{ label: "Postes por município", data }] },
         options: {
           responsive: true,
           plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { autoSkip: true, maxRotation: 0 } },
-            y: { beginAtZero: true }
-          }
+          scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } }
         }
       });
     }
   }
 
-  // export CSV
   const btnCsv = document.getElementById("exportarCsvBI");
   if (btnCsv) {
     btnCsv.onclick = () => {
@@ -1269,124 +1070,54 @@ function atualizarIndicadores() {
       a.href = url;
       const sufixo = empresa ? `_${empresa.replace(/\W+/g,'_')}` : "";
       a.download = `postes_por_municipio${sufixo}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     };
   }
 }
 
 /* ====================================================================
-   TEMA ESCURO – PALETA DO PRINT (apenas estilo, sem alterar lógica)
-   - Aplica na .painel-busca (inputs, selects, botões) e no HUD #tempo
-   - Verdes: contorno/realce
+   TEMA ESCURO – PALETA DO PRINT
 ==================================================================== */
 (function injectDarkPanelStyles(){
   const css = `
   :root{
-    --ui-bg:#0f1b2a;           /* fundo principal (azul petróleo) */
-    --ui-elev:#132235;         /* cartões elevados */
-    --ui-text:#e6edf7;         /* texto principal */
-    --ui-muted:#9fb3c8;        /* texto secundário */
-    --ui-border:#19d68f;       /* verde contorno */
-    --ui-border-dim:#134e37;   /* verde escurecido para hover */
-    --ui-accent:#18c77f;       /* verde botões */
-    --ui-accent-2:#0fb171;     /* hover */
-    --ui-danger:#ef4444;
+    --ui-bg:#0f1b2a; --ui-elev:#132235; --ui-text:#e6edf7; --ui-muted:#9fb3c8;
+    --ui-border:#19d68f; --ui-border-dim:#134e37; --ui-accent:#18c77f; --ui-accent-2:#0fb171; --ui-danger:#ef4444;
   }
-
-  /* Painel */
   .painel-busca{
-    color:var(--ui-text);
-    background:var(--ui-bg);
-    border:1px solid var(--ui-border);
-    border-radius:14px;
-    box-shadow:0 8px 28px rgba(0,0,0,.25);
-    padding:12px;
+    color:var(--ui-text); background:var(--ui-bg); border:1px solid var(--ui-border);
+    border-radius:14px; box-shadow:0 8px 28px rgba(0,0,0,.25); padding:12px;
   }
-  .painel-busca h2, .painel-busca h3{
-    margin:0 0 8px 0;
-    font-weight:800;
-    letter-spacing:.3px;
-    color:var(--ui-text);
+  .painel-busca h2, .painel-busca h3{ margin:0 0 8px 0; font-weight:800; letter-spacing:.3px; color:var(--ui-text); }
+  .painel-busca input, .painel-busca select, .painel-busca textarea{
+    width:100%; background:var(--ui-elev); color:var(--ui-text); border:1px solid var(--ui-border);
+    border-radius:10px; padding:8px 10px; outline:none; transition:border-color .15s ease, box-shadow .15s ease;
   }
-
-  /* Inputs */
-  .painel-busca input,
-  .painel-busca select,
-  .painel-busca textarea{
-    width:100%;
-    background:var(--ui-elev);
-    color:var(--ui-text);
-    border:1px solid var(--ui-border);
-    border-radius:10px;
-    padding:8px 10px;
-    outline:none;
-    transition:border-color .15s ease, box-shadow .15s ease;
+  .painel-busca input::placeholder, .painel-busca textarea::placeholder{ color:#89a2b7; }
+  .painel-busca input:focus, .painel-busca select:focus, .painel-busca textarea:focus{
+    border-color:var(--ui-accent); box-shadow:0 0 0 3px rgba(24,199,127,.25);
   }
-  .painel-busca input::placeholder,
-  .painel-busca textarea::placeholder{ color:#89a2b7; }
-  .painel-busca input:focus,
-  .painel-busca select:focus,
-  .painel-busca textarea:focus{
-    border-color:var(--ui-accent);
-    box-shadow:0 0 0 3px rgba(24,199,127,.25);
-  }
-
-  /* Botões */
-  .painel-busca button,
-  .painel-busca .actions button{
-    background:var(--ui-accent);
-    color:#031d12;
-    font-weight:800;
-    border:1px solid var(--ui-border);
-    border-radius:10px;
-    padding:8px 10px;
-    cursor:pointer;
+  .painel-busca button, .painel-busca .actions button{
+    background:var(--ui-accent); color:#031d12; font-weight:800; border:1px solid var(--ui-border);
+    border-radius:10px; padding:8px 10px; cursor:pointer;
     transition:transform .12s ease, background .15s ease, border-color .15s ease;
   }
   .painel-busca button:hover{ background:var(--ui-accent-2); transform:translateY(-1px); }
   .painel-busca button:disabled{ opacity:.6; cursor:not-allowed; }
 
-  /* Tabelas / cards genéricos nessa área escura */
-  .painel-busca .card, .painel-busca table{
-    background:var(--ui-elev);
-    color:var(--ui-text);
-    border:1px solid var(--ui-border);
-    border-radius:10px;
-  }
-  .painel-busca table th, .painel-busca table td{
-    border-bottom:1px solid rgba(25,214,143,.18);
-  }
-
-  /* HUD (#tempo) no tema escuro */
   #tempo{
-    background:rgba(10,20,32,.9) !important;
-    color:var(--ui-text) !important;
-    border:1px solid var(--ui-border);
+    background:rgba(10,20,32,.9) !important; color:var(--ui-text) !important; border:1px solid var(--ui-border);
   }
   #tempo .hora-row{ color:var(--ui-text) !important; }
-  #tempo .hora-row .dot{
-    background:radial-gradient(circle at 40% 40%, var(--ui-accent), #0b6a45);
-    box-shadow:0 0 0 2px rgba(24,199,127,.25) inset;
-  }
-  #tempo .weather-card{
-    background:rgba(15,27,42,.92) !important;
-    border:1px solid var(--ui-border);
-  }
+  #tempo .hora-row .dot{ background:radial-gradient(circle at 40% 40%, var(--ui-accent), #0b6a45); box-shadow:0 0 0 2px rgba(24,199,127,.25) inset; }
+  #tempo .weather-card{ background:rgba(15,27,42,.92) !important; border:1px solid var(--ui-border); }
   #tempo .tempo-text{ color:var(--ui-text) !important; }
   #tempo .tempo-text small{ color:var(--ui-muted) !important; }
   #tempo .map-row{ border-top:1px dashed rgba(25,214,143,.35) !important; }
-  #tempo .select-wrap{
-    background:#0d1a2b !important; color:var(--ui-text);
-    border-color:var(--ui-border) !important;
-  }
+  #tempo .select-wrap{ background:#0d1a2b !important; color:var(--ui-text); border-color:var(--ui-border) !important; }
   #tempo select{ color:var(--ui-text) !important; }
-  #tempo .select-wrap:focus-within{
-    box-shadow:0 0 0 3px rgba(24,199,127,.22) !important;
-    border-color:var(--ui-accent) !important;
-  }
+  #tempo .select-wrap:focus-within{ box-shadow:0 0 0 3px rgba(24,199,127,.22) !important; border-color:var(--ui-accent) !important; }
   `;
   const style = document.createElement('style');
   style.id = 'dark-poste-theme';
