@@ -496,6 +496,80 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
+// === Street Imagery (sem Google) — Helpers + Botões + Controle =======
+// ---------------------------------------------------------------------
+function buildBingStreetsideURL(lat, lng, zoom = 19) {
+  return `https://www.bing.com/maps?cp=${lat}~${lng}&lvl=${zoom}&style=x`;
+}
+function buildMapillaryURL(lat, lng, zoom = 17) {
+  return `https://www.mapillary.com/app/?lat=${lat}&lng=${lng}&z=${zoom}&focus=map`;
+}
+function bingStreetsideButtonHTML(lat, lng, label = "Abrir Bing Streetside") {
+  const url = buildBingStreetsideURL(lat, lng);
+  return `<button onclick="window.open('${url}','_blank','noopener')"
+    style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
+    ${label}
+  </button>`;
+}
+function mapillaryButtonHTML(lat, lng, label = "Abrir Mapillary") {
+  const url = buildMapillaryURL(lat, lng);
+  return `<button onclick="window.open('${url}','_blank','noopener')"
+    style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
+    ${label}
+  </button>`;
+}
+function streetImageryBlockHTML(lat, lng) {
+  return `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      ${bingStreetsideButtonHTML(lat, lng)}
+      ${mapillaryButtonHTML(lat, lng)}
+    </div>
+    <small style="color:#777;display:block;margin-top:4px">
+      *Se não houver cobertura no ponto, o serviço volta para o mapa.
+    </small>
+  `.trim();
+}
+// Controle opcional no mapa (abre na coordenada do centro)
+(function addStreetImageryControl() {
+  if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
+  const Control = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function () {
+      const div = L.DomUtil.create("div", "leaflet-bar");
+      div.style.display = "flex";
+      div.style.flexDirection = "column";
+      const btn1 = L.DomUtil.create("a", "", div);
+      btn1.href = "#";
+      btn1.title = "Abrir Bing Streetside no centro do mapa";
+      btn1.innerHTML = "Streetside";
+      btn1.style.padding = "6px 8px";
+      btn1.style.textDecoration = "none";
+      const btn2 = L.DomUtil.create("a", "", div);
+      btn2.href = "#";
+      btn2.title = "Abrir Mapillary no centro do mapa";
+      btn2.innerHTML = "Mapillary";
+      btn2.style.padding = "6px 8px";
+      btn2.style.textDecoration = "none";
+      btn2.style.borderTop = "1px solid #ccc";
+      L.DomEvent.on(btn1, "click", (e) => {
+        L.DomEvent.stop(e);
+        const c = map.getCenter();
+        window.open(buildBingStreetsideURL(c.lat, c.lng), "_blank", "noopener");
+      });
+      L.DomEvent.on(btn2, "click", (e) => {
+        L.DomEvent.stop(e);
+        const c = map.getCenter();
+        window.open(buildMapillaryURL(c.lat, c.lng), "_blank", "noopener");
+      });
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+      return div;
+    },
+  });
+  map.addControl(new Control());
+})();
+
+// ---------------------------------------------------------------------
 // Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
@@ -520,6 +594,7 @@ function abrirPopup(p) {
     <b>Bairro:</b> ${p.nome_bairro}<br>
     <b>Logradouro:</b> ${p.nome_logradouro}<br>
     <b>Empresas:</b><ul>${list}</ul>
+    ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
   L.popup().setLatLng([p.lat, p.lon]).setContent(html).openOn(map);
 }
