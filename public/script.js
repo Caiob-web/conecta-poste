@@ -2,28 +2,27 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
+// ------------------------- Estilos do HUD (um único pop-up) ----------
 (function injectHudStyles() {
   const css = `
-    /* HUD raiz (caixa externa) */
+    /* Pop-up único */
     #tempo{
       display:flex;
       flex-direction:column;
       gap:10px;
-      padding:12px 14px;
-      border-radius:14px;
-      background:rgba(255,255,255,0.92);
-      box-shadow:0 8px 24px rgba(0,0,0,.12);
-      backdrop-filter:saturate(1.15) blur(2px);
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,0.95);
+      box-shadow:0 10px 28px rgba(0,0,0,.14);
+      backdrop-filter:saturate(1.1) blur(2px);
+      max-width:320px;
     }
+
     /* Hora */
     #tempo .hora-row{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#0f172a;
-      font-weight:700;
+      display:flex; align-items:center; gap:10px;
+      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#0f172a; font-weight:700;
     }
     #tempo .hora-row .dot{
       width:10px;height:10px;border-radius:50%;
@@ -32,80 +31,46 @@
       display:inline-block;
     }
 
-    /* Cartão do clima + seletor */
-    #tempo .weather-card{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.95);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
-      min-width:260px;
-    }
+    /* Clima */
     #tempo .weather-row{
-      display:flex;
-      align-items:center;
-      gap:10px;
+      display:flex; align-items:center; gap:12px;
       min-height:40px;
     }
-    #tempo .weather-row img{
-      width:28px; height:28px; object-fit:contain;
-    }
-    #tempo .tempo-text{
-      display:flex; flex-direction:column;
-      gap:2px;
-      font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#1f2937;
-    }
-    #tempo .tempo-text b{ font-weight:700; }
+    #tempo .weather-row img{ width:32px; height:32px; object-fit:contain; }
+    #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; }
+    #tempo .tempo-text b{ font: 14px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; }
+    #tempo .tempo-text span{ font: 13px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937;}
     #tempo .tempo-text small{ color:#6b7280; }
 
-    /* Linha do seletor de mapa dentro do cartão */
+    /* divisor fino */
+    #tempo .divider{
+      height:1px; background:linear-gradient(90deg, rgba(0,0,0,.06), rgba(0,0,0,.04) 50%, rgba(0,0,0,.06));
+      margin:4px 0;
+    }
+
+    /* Seletor de mapa na MESMA caixa */
     #tempo .map-row{
-      margin-top:6px;
-      padding-top:8px;
-      border-top:1px dashed rgba(0,0,0,.10);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
     }
     #tempo .map-row .lbl{
       font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      letter-spacing:.2px;
-      color:#475569;
-      font-weight:700;
+      letter-spacing:.2px; color:#475569; font-weight:700;
     }
     #tempo .select-wrap{
-      position:relative;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 36px 8px 12px;
-      border:1px solid #e5e7eb;
-      border-radius:999px;           /* pill */
-      background:#ffffff;
-      transition:border-color .15s ease, box-shadow .15s ease;
+      position:relative; display:inline-flex; align-items:center; gap:8px;
+      padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
+      background:#ffffff; transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
-    #tempo .select-wrap:focus-within{
-      border-color:#6366f1;
-      box-shadow:0 0 0 3px rgba(99,102,241,.20);
-    }
-    #tempo .select-wrap .ico-globe{
-      width:16px;height:16px;opacity:.75;
-    }
+    #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
+    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; }
     #tempo .select-wrap .ico-caret{
-      position:absolute; right:10px; width:14px; height:14px; opacity:.6;
-      pointer-events:none;
+      position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none;
     }
     #tempo select{
       appearance:none; -webkit-appearance:none; -moz-appearance:none;
-      border:0; outline:none; background:transparent;
-      padding:0; margin:0;
-      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#111827; cursor:pointer;
+      border:0; outline:none; background:transparent; padding:0; margin:0;
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer;
     }
   `;
   const style = document.createElement("style");
@@ -117,9 +82,7 @@
 const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
 // Rua (OSM)
-const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-});
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
 // Satélite (Esri)
 const esriSat = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -135,10 +98,10 @@ const cartoLabels = L.tileLayer(
 );
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
-// Começa com Rua (OSM)
+// default: Rua
 osm.addTo(map);
 
-// alternância programática (usada pelo seletor)
+// alternância programática
 let currentBase = osm;
 function setBase(mode) {
   if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
@@ -174,31 +137,27 @@ let censoMode = false, censoIds = null;
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
 
-// ---------------------- HUD: estrutura dentro de #tempo --------------
+// ---------------------- HUD: UM ÚNICO CARD ---------------------------
 (function buildHud() {
   const hud = document.getElementById("tempo");
   if (!hud) return;
 
-  hud.innerHTML = "";
+  hud.innerHTML = `
+    <div class="hora-row">
+      <span class="dot"></span><span class="hora">--:--</span>
+    </div>
 
-  // Hora
-  const horaRow = document.createElement("div");
-  horaRow.className = "hora-row";
-  horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
-  hud.appendChild(horaRow);
-
-  // Cartão: clima + seletor de mapa (dentro do mesmo card)
-  const card = document.createElement("div");
-  card.className = "weather-card";
-  card.innerHTML = `
     <div class="weather-row">
       <img alt="Clima" src="" />
       <div class="tempo-text">
         <b>Carregando…</b>
-        <span> </span>
-        <small> </small>
+        <span></span>
+        <small></small>
       </div>
     </div>
+
+    <div class="divider"></div>
+
     <div class="map-row">
       <span class="lbl">Mapa</span>
       <span class="select-wrap">
@@ -212,10 +171,9 @@ if (overlay) overlay.style.display = "flex";
       </span>
     </div>
   `;
-  hud.appendChild(card);
 
   // wire do seletor
-  const selectBase = card.querySelector("#select-base");
+  const selectBase = hud.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
@@ -495,18 +453,14 @@ const ICON_RED_48 = L.icon({
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
 }
-function poleColorByEmpresas(qtd) {
-  return (qtd >= 5) ? "red" : "green";
-}
+function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
 // Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
-  const m = L.marker([p.lat, p.lon], {
-    icon: poleIcon48(cor),
-  }).bindTooltip(
+  const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) }).bindTooltip(
     `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
     { direction: "top", sticky: true }
   );
@@ -549,12 +503,9 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
 // Hora local
 // ---------------------------------------------------------------------
 function mostrarHoraLocal() {
-  const s = document.querySelector("#hora span, #tempo .hora-row .hora");
+  const s = document.querySelector("#tempo .hora-row .hora");
   if (!s) return;
-  s.textContent = new Date().toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  s.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
@@ -563,7 +514,7 @@ mostrarHoraLocal();
 // Clima via OpenWeatherMap (com fallback se geo falhar)
 // ---------------------------------------------------------------------
 function preencherClimaUI(data) {
-  const card = document.querySelector("#tempo .weather-card");
+  const card = document.getElementById("tempo");
   if (!card) return;
   const img = card.querySelector(".weather-row img");
   const t = card.querySelector(".tempo-text");
@@ -578,9 +529,7 @@ function preencherClimaUI(data) {
 
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
-  fetch(
-    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`
-  )
+  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
     .then((r) => r.json())
     .then(preencherClimaUI)
     .catch(() => {
@@ -611,23 +560,17 @@ setInterval(() => {
 // Verificar (Consulta massiva + traçado + intermediários)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
+  const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids
-    .map((id) => todosPostes.find((p) => p.id === id))
-    .filter(Boolean);
+  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
-  // intermediários e traçado
   window.intermediarios = [];
   encontrados.slice(0, -1).forEach((a, i) => {
     const b = encontrados[i + 1];
@@ -635,23 +578,15 @@ function consultarIDsEmMassa() {
     if (d > 50) {
       todosPostes
         .filter((p) => !ids.includes(p.id))
-        .filter(
-          (p) =>
-            getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
-              getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <=
-            d + 20
+        .filter((p) =>
+          getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
+          getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6,
-            color: "gold",
-            fillColor: "yellow",
-            fillOpacity: 0.8,
+            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
           })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, {
-              direction: "top",
-              sticky: true,
-            })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
             .on("click", () => abrirPopup(p))
             .addTo(map);
           window.intermediarios.push(m);
@@ -661,11 +596,7 @@ function consultarIDsEmMassa() {
   map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, {
-      color: "blue",
-      weight: 3,
-      dashArray: "4,6",
-    }).addTo(map);
+    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
     map.fitBounds(L.latLngBounds(coords));
   } else {
     map.setView(coords[0], 18);
@@ -691,9 +622,7 @@ function adicionarNumerado(p, num) {
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
   mk.bindPopup(
-    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${
-      p.nome_municipio
-    }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
+    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${p.nome_municipio}<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
   );
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
@@ -701,35 +630,24 @@ function adicionarNumerado(p, num) {
 
 function gerarPDFComMapa() {
   if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
-
   leafletImage(map, (err, canvas) => {
     if (err) return alert("Erro ao capturar imagem.");
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: "landscape" });
-
     doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
 
-    const resumo = window.ultimoResumoPostes || {
-      disponiveis: 0,
-      ocupados: 0,
-      naoEncontrados: [],
-      intermediarios: 0,
-    };
-
+    const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
     let y = 140;
     doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-
     doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
     doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
-
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
       doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-
     doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
@@ -739,18 +657,13 @@ function gerarPDFComMapa() {
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Limpa campos e layers auxiliares
 function limparTudo() {
-  if (window.tracadoMassivo) {
-    map.removeLayer(window.tracadoMassivo);
-    window.tracadoMassivo = null;
-  }
+  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
     .forEach((id) => { document.getElementById(id).value = ""; });
@@ -760,19 +673,14 @@ function limparTudo() {
 // Exporta Excel genérico
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "same-origin",
+    method: "POST", credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
     .then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = "/login.html";
-        throw new Error("Não autorizado");
-      }
+      if (res.status === 401) { window.location.href = "/login.html"; throw new Error("Não autorizado"); }
       if (!res.ok) {
-        let err;
-        try { err = (await res.json()).error; } catch {}
+        let err; try { err = (await res.json()).error; } catch {}
         throw new Error(err || `HTTP ${res.status}`);
       }
       return res.blob();
@@ -780,17 +688,11 @@ function exportarExcel(ids) {
     .then((b) => {
       const u = URL.createObjectURL(b);
       const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = u; a.download = "relatorio_postes.xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => {
-      console.error("Erro Excel:", e);
-      alert("Falha ao gerar Excel:\n" + e.message);
-    });
+    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
 // Botão Excel
