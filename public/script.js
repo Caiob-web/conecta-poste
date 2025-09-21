@@ -84,7 +84,7 @@
       gap:8px;
       padding:8px 36px 8px 12px;
       border:1px solid #e5e7eb;
-      border-radius:999px;
+      border-radius:999px;           /* pill */
       background:#ffffff;
       transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
@@ -114,12 +114,7 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map", {
-  preferCanvas: true,
-  zoomAnimation: true,
-  updateWhenZooming: false, // suaviza zoom
-  updateWhenIdle: true      // redesenha ao final do zoom/pan
-}).setView([-23.2, -45.9], 12);
+const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
 // Rua (OSM)
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -153,10 +148,7 @@ function setBase(mode) {
   currentBase.addTo(map);
 }
 
-// ---------------------- LOD: camadas rápidas x detalhadas ------------
-const fastRenderer = L.canvas({ padding: 0.5 }); // super leve
-const fastLayer = L.layerGroup().addTo(map);     // círculos em canvas
-
+// -------------------- Clusters com chunked loading -------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -165,50 +157,13 @@ const markers = L.markerClusterGroup({
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
-  chunkInterval: 50,
-  removeOutsideVisibleBounds: true, // pruning
+  chunkInterval: 50
 });
 markers.on("clusterclick", (e) => e.layer.spiderfy());
+map.addLayer(markers);
 
-let detailedCreated = new Set(); // ids já com ícone detalhado criado
-let allPosts = [];               // todos os postes carregados
-
-// cria/garante marcadores detalhados só dentro da viewport (zoom>=17)
-function ensureDetailedMarkersInView() {
-  if (map.getZoom() < 17) return;
-  const b = map.getBounds().pad(0.2);
-  const lote = [];
-
-  for (const p of allPosts) {
-    if (detailedCreated.has(p.id)) continue;
-    if (!b.contains([p.lat, p.lon])) continue;
-
-    const cor = poleColorByEmpresas(p.empresas.length);
-    const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) })
-      .bindTooltip(`ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-        { direction: "top", sticky: true })
-      .on("click", () => abrirPopup(p));
-
-    lote.push(m);
-    detailedCreated.add(p.id);
-  }
-  if (lote.length) markers.addLayers(lote);
-}
-
-// alterna automaticamente entre camadas rápidas e detalhadas
-function refreshLOD() {
-  if (map.getZoom() >= 17) {
-    if (!map.hasLayer(markers)) map.addLayer(markers);
-    ensureDetailedMarkersInView();
-  } else {
-    if (map.hasLayer(markers)) map.removeLayer(markers);
-    markers.clearLayers();         // libera DOM
-    detailedCreated.clear();
-  }
-}
-map.on("moveend zoomend", refreshLOD);
-
-// -------------------- Dados/autocomplete/censo -----------------------
+// Dados e sets para autocomplete
+const todosPostes = [];
 const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
@@ -259,6 +214,7 @@ if (overlay) overlay.style.display = "flex";
   `;
   hud.appendChild(card);
 
+  // wire do seletor
   const selectBase = card.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
@@ -286,54 +242,27 @@ fetch("/api/postes")
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
-    allPosts = Object.values(agrupado).map((p) => ({
+    const postsArray = Object.values(agrupado).map((p) => ({
       ...p,
       empresas: [...p.empresas],
     }));
 
-    // --------- Render em batches para o fastLayer (Canvas) ------------
-    function addBatch(i = 0, batchSize = 1200) {
-      const slice = allPosts.slice(i, i + batchSize);
-
-      for (const poste of slice) {
-        // Autocomplete contagens
+    // Render em batches
+    function addBatch(i = 0, batchSize = 500) {
+      const slice = postsArray.slice(i, i + batchSize);
+      slice.forEach((poste) => {
+        todosPostes.push(poste);
+        adicionarMarker(poste);
         municipiosSet.add(poste.nome_municipio);
         bairrosSet.add(poste.nome_bairro);
         logradourosSet.add(poste.nome_logradouro);
         poste.empresas.forEach(
           (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
         );
-
-        // Marcador leve (canvas) para zooms baixos
-        const isRed = poste.empresas.length >= 5;
-        const cm = L.circleMarker([poste.lat, poste.lon], {
-          renderer: fastRenderer,
-          radius: 4.5,
-          weight: 1.5,
-          color: isRed ? "#B71C1C" : "#1B5E20",
-          fillColor: isRed ? "#F44336" : "#4CAF50",
-          fillOpacity: 0.9
-        })
-        .on("click", () => {
-          // Em zoom baixo abrimos popup e, se necessário, aproximamos
-          if (map.getZoom() < 17) map.setView([poste.lat, poste.lon], 18, { animate: true });
-          abrirPopup(poste);
-        });
-
-        fastLayer.addLayer(cm);
-      }
-
-      const schedule = (cb) =>
-        (window.requestIdleCallback || window.requestAnimationFrame)(cb);
-
-      if (i + batchSize < allPosts.length) {
-        schedule(() => addBatch(i + batchSize, batchSize));
-      } else {
-        schedule(() => {
-          preencherListas();
-          refreshLOD(); // garante estado inicial
-        });
-      }
+      });
+      if (i + batchSize < postsArray.length)
+        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
+      else preencherListas();
     }
     addBatch();
   })
@@ -376,7 +305,7 @@ function preencherListas() {
 // Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
-  const dadosParaExcel = allPosts
+  const dadosParaExcel = todosPostes
     .filter((p) => filtroIds.includes(p.id))
     .map((p) => ({
       "ID POSTE": p.id,
@@ -393,47 +322,12 @@ function gerarExcelCliente(filtroIds) {
 }
 
 // ---------------------------------------------------------------------
-// Modo Censo (mantido)
+// Modo Censo
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
-
-  // limpa camadas
-  fastLayer.clearLayers();
   markers.clearLayers();
-  detailedCreated.clear();
-
-  if (!censoMode) {
-    // volta ao normal (re-render rápido)
-    const tmp = allPosts;
-    allPosts = [];
-    // força re-adicionar em batches
-    (function readd(i = 0, bs = 1200) {
-      const slice = tmp.slice(i, i + bs);
-      for (const p of slice) {
-        const isRed = p.empresas.length >= 5;
-        const cm = L.circleMarker([p.lat, p.lon], {
-          renderer: fastRenderer,
-          radius: 4.5,
-          weight: 1.5,
-          color: isRed ? "#B71C1C" : "#1B5E20",
-          fillColor: isRed ? "#F44336" : "#4CAF50",
-          fillOpacity: 0.9
-        }).on("click", () => {
-          if (map.getZoom() < 17) map.setView([p.lat, p.lon], 18, { animate: true });
-          abrirPopup(p);
-        });
-        fastLayer.addLayer(cm);
-        allPosts.push(p);
-      }
-      if (i + bs < tmp.length) {
-        (window.requestIdleCallback || window.requestAnimationFrame)(() => readd(i + bs, bs));
-      } else {
-        refreshLOD();
-      }
-    })();
-    return;
-  }
+  if (!censoMode) return todosPostes.forEach(adicionarMarker);
 
   if (!censoIds) {
     try {
@@ -444,24 +338,22 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      refreshLOD();
-      return;
+      return todosPostes.forEach(adicionarMarker);
     }
   }
-
-  // exibe apenas censo (círculos)
-  allPosts.filter((p) => censoIds.has(String(p.id))).forEach((poste) => {
-    const c = L.circleMarker([poste.lat, poste.lon], {
-      renderer: fastRenderer,
-      radius: 6,
-      color: "#666",
-      fillColor: "#bbb",
-      weight: 2,
-      fillOpacity: 0.8,
-    }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-    c.on("click", () => abrirPopup(poste));
-    fastLayer.addLayer(c);
-  });
+  todosPostes
+    .filter((p) => censoIds.has(String(p.id)))
+    .forEach((poste) => {
+      const c = L.circleMarker([poste.lat, poste.lon], {
+        radius: 6,
+        color: "#666",
+        fillColor: "#bbb",
+        weight: 2,
+        fillOpacity: 0.8,
+      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
+      c.on("click", () => abrirPopup(poste));
+      markers.addLayer(c);
+    });
 });
 
 // ---------------------------------------------------------------------
@@ -469,7 +361,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // ---------------------------------------------------------------------
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
-  const p = allPosts.find((x) => x.id === id);
+  const p = todosPostes.find((x) => x.id === id);
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], 18);
   abrirPopup(p);
@@ -486,7 +378,7 @@ function buscarCoordenada() {
 function filtrarLocal() {
   const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
   const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
-  const filtro = allPosts.filter(
+  const filtro = todosPostes.filter(
     (p) =>
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
       (!bai || p.nome_bairro.toLowerCase() === bai) &&
@@ -494,30 +386,9 @@ function filtrarLocal() {
       (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
-
-  // reseta camadas (LOD seguro)
-  fastLayer.clearLayers();
   markers.clearLayers();
-  detailedCreated.clear();
+  filtro.forEach(adicionarMarker);
 
-  // coloca resultado no fastLayer (rápido) e deixa LOD religar
-  filtro.forEach((poste) => {
-    const isRed = poste.empresas.length >= 5;
-    const cm = L.circleMarker([poste.lat, poste.lon], {
-      renderer: fastRenderer,
-      radius: 4.5,
-      weight: 1.5,
-      color: isRed ? "#B71C1C" : "#1B5E20",
-      fillColor: isRed ? "#F44336" : "#4CAF50",
-      fillOpacity: 0.9
-    }).on("click", () => {
-      if (map.getZoom() < 17) map.setView([poste.lat, poste.lon], 18, { animate: true });
-      abrirPopup(poste);
-    });
-    fastLayer.addLayer(cm);
-  });
-
-  // Excel backend + cliente como antes
   fetch("/api/postes/report", {
     method: "POST",
     credentials: "same-origin",
@@ -551,94 +422,71 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
-  fastLayer.clearLayers();
   markers.clearLayers();
-  detailedCreated.clear();
-
-  // re-render rápido de todos os pontos
-  allPosts.forEach((p) => {
-    const isRed = p.empresas.length >= 5;
-    const cm = L.circleMarker([p.lat, p.lon], {
-      renderer: fastRenderer,
-      radius: 4.5,
-      weight: 1.5,
-      color: isRed ? "#B71C1C" : "#1B5E20",
-      fillColor: isRed ? "#F44336" : "#4CAF50",
-      fillOpacity: 0.9
-    }).on("click", () => {
-      if (map.getZoom() < 17) map.setView([p.lat, p.lon], 18, { animate: true });
-      abrirPopup(p);
-    });
-    fastLayer.addLayer(cm);
-  });
-  refreshLOD();
+  todosPostes.forEach(adicionarMarker);
 }
 
-// ===== ÍCONES 36px em SVG inline (poste realista, 2 travessas) =====
-function makePoleDataUri(hex) {
+/* ====================================================================
+   ÍCONES 48px — poste fotorealista + halo de disponibilidade
+   (verde para ≤4 empresas, vermelho para ≥5 empresas)
+   ==================================================================== */
+function makePolePhoto48(glowHex) {
   const svg = `
-  <svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="woodGrad" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%"  stop-color="#7a5c34"/>
-        <stop offset="55%" stop-color="#8b673d"/>
-        <stop offset="100%" stop-color="#6a4e2c"/>
-      </linearGradient>
-      <linearGradient id="steelGrad" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0%" stop-color="#8e8e8e"/>
-        <stop offset="45%" stop-color="#d9d9d9"/>
-        <stop offset="100%" stop-color="#7a7a7a"/>
-      </linearGradient>
-      <radialGradient id="haloGrad" cx="12" cy="13" r="10" gradientUnits="userSpaceOnUse">
-        <stop offset="0%"   stop-color="${hex}" stop-opacity="0.18"/>
-        <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
+      <radialGradient id="gHalo" cx="21" cy="24" r="18" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="${glowHex}" stop-opacity=".26"/>
+        <stop offset="1" stop-color="${glowHex}" stop-opacity="0"/>
       </radialGradient>
+      <linearGradient id="gWood" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#8a6139"/>
+        <stop offset=".5" stop-color="#9b6e41"/>
+        <stop offset="1" stop-color="#6f4f31"/>
+      </linearGradient>
+      <linearGradient id="gSteel" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#9aa3ad"/>
+        <stop offset=".55" stop-color="#e7ebef"/>
+        <stop offset="1" stop-color="#7b8590"/>
+      </linearGradient>
+      <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity=".25"/>
+      </filter>
     </defs>
 
-    <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
+    <!-- HALO -->
+    <circle cx="21" cy="24" r="18" fill="url(#gHalo)"/>
 
-    <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
-             C11.1 20.1 11.7 20.6 12.0 20.6
-             C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
-             C12.8 4.4 12.5 4.2 12.0 4.2 Z"
-          fill="url(#woodGrad)"/>
-    <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
-
-    <g transform="rotate(-2 12 7.2)">
-      <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
-      <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
-      <circle cx="12.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
-      <circle cx="17.0" cy="7.3" r="0.7" fill="#bfbfbf"/>
-      <path d="M5.0 6.9 C 7.8 8.0, 16.2 8.0, 19.0 6.9" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round"/>
-      <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
+    <!-- poste -->
+    <g filter="url(#shadow)">
+      <rect x="19.2" y="6" width="3.6" height="25" rx="1.6" fill="url(#gWood)"/>
+      <rect x="21.2" y="6" width="0.7" height="25" fill="rgba(255,255,255,.18)"/>
+      <ellipse cx="21" cy="31.5" rx="6.5" ry="2.2" fill="rgba(0,0,0,.20)" opacity=".45"/>
+      <rect x="11" y="11.2" width="20" height="2.6" rx="1.3" fill="url(#gSteel)"/>
+      <path d="M14.4 13.5 L21 19 M27.6 13.5 L21 19" stroke="#3b4046" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+      <circle cx="15.2" cy="12.6" r="1.2" fill="#cfd6dd"/>
+      <circle cx="21"   cy="12.6" r="1.2" fill="#cfd6dd"/>
+      <circle cx="26.8" cy="12.6" r="1.2" fill="#cfd6dd"/>
+      <path d="M11.2 10.6 C 16.5 14.2, 25.5 14.2, 30.8 10.6" fill="none" stroke="#6f757c" stroke-width="1" opacity=".6"/>
+      <rect x="23.8" y="17" width="6" height="7.2" rx="1.2" fill="#d9e1e8" stroke="#2f343a" stroke-width="1"/>
+      <rect x="12.2" y="17.6" width="5.2" height="6.4" rx="1.1" fill="#dfe7ee" stroke="#2f343a" stroke-width="1" opacity=".85"/>
     </g>
-
-    <g transform="rotate(1 12 10.2)">
-      <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
-      <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
-      <circle cx="12.0" cy="10.2" r="0.65" fill="#c7c7c7"/>
-      <circle cx="16.2" cy="10.2" r="0.65" fill="#c7c7c7"/>
-      <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
-    </g>
-
-    <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 const ICON_GREEN_48 = L.icon({
-  iconUrl: makePoleDataUri("#2E7D32"),
-  iconSize: [36, 36],
-  iconAnchor: [18, 21],
-  popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16]
+  iconUrl: makePolePhoto48("#24a148"),
+  iconSize: [48, 48],
+  iconAnchor: [24, 34],
+  popupAnchor: [0, -22],
+  tooltipAnchor: [0, -22]
 });
 const ICON_RED_48 = L.icon({
-  iconUrl: makePoleDataUri("#D32F2F"),
-  iconSize: [36, 36],
-  iconAnchor: [18, 21],
-  popupAnchor: [0, -16],
-  tooltipAnchor: [0, -16]
+  iconUrl: makePolePhoto48("#d64545"),
+  iconSize: [48, 48],
+  iconAnchor: [24, 34],
+  popupAnchor: [0, -22],
+  tooltipAnchor: [0, -22]
 });
 function poleIcon48(color) {
   return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
@@ -648,7 +496,7 @@ function poleColorByEmpresas(qtd) {
 }
 
 // ---------------------------------------------------------------------
-// Adiciona marker detalhado (usado por verificações/popup/zoom alto)
+// Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
@@ -660,7 +508,6 @@ function adicionarMarker(p) {
   );
   m.on("click", () => abrirPopup(p));
   markers.addLayer(m);
-  detailedCreated.add(p.id);
 }
 
 // Abre popup
@@ -766,17 +613,14 @@ function consultarIDsEmMassa() {
     .filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
-  fastLayer.clearLayers();
-  detailedCreated.clear();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
   const encontrados = ids
-    .map((id) => allPosts.find((p) => p.id === id))
+    .map((id) => todosPostes.find((p) => p.id === id))
     .filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
-
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
   // intermediários e traçado
@@ -785,7 +629,7 @@ function consultarIDsEmMassa() {
     const b = encontrados[i + 1];
     const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
     if (d > 50) {
-      allPosts
+      todosPostes
         .filter((p) => !ids.includes(p.id))
         .filter(
           (p) =>
@@ -795,7 +639,6 @@ function consultarIDsEmMassa() {
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
-            renderer: fastRenderer,
             radius: 6,
             color: "gold",
             fillColor: "yellow",
@@ -811,7 +654,7 @@ function consultarIDsEmMassa() {
         });
     }
   });
-
+  map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, {
@@ -828,12 +671,9 @@ function consultarIDsEmMassa() {
     total: ids.length,
     disponiveis: encontrados.filter((p) => p.empresas.length <= 4).length,
     ocupados: encontrados.filter((p) => p.empresas.length >= 5).length,
-    naoEncontrados: ids.filter((id) => !allPosts.some((p) => p.id === id)),
+    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
     intermediarios: window.intermediarios.length,
   };
-
-  // garante LOD após verificar
-  refreshLOD();
 }
 
 // Adiciona marcador numerado
@@ -852,7 +692,7 @@ function adicionarNumerado(p, num) {
     }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
   );
   mk.addTo(markers);
-  detailedCreated.add(p.id);
+  window.numeroMarkers.push(mk);
 }
 
 function gerarPDFComMapa() {
