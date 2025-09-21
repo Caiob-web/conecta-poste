@@ -291,64 +291,55 @@ const markers = L.markerClusterGroup({
 markers.on("clusterclick", (e) => e.layer.spiderfy());
 map.addLayer(markers);
 
-// -------------------- Virtualização / LOD (mantendo seus ícones) ----
-const MIN_ZOOM_POSTES = 15;     // só mostra postes a partir deste zoom
-const VIEWPORT_PADDING = 0.20;  // padding no bbox para evitar "piscar"
-const idToMarker = new Map();   // cache: id -> L.Marker
-let lastRenderBounds = null;
+// -------------------- Carregamento GRADATIVO GLOBAL ------------------
+const idToMarker = new Map();   // cache: id -> L.Layer (CircleMarker/Marker)
+let todosCarregados = false;
 
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
-// requestIdleCallback é limitado em aba oculta: turbo em background.
-function scheduleIdle(fn){
-  if (document.hidden) setTimeout(fn, 0);
-  else idle(fn);
+function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
+
+// Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
+function criarLayerPoste(p){
+  if (idToMarker.has(p.id)) return idToMarker.get(p.id);
+  const layer = L.circleMarker([p.lat, p.lon], dotStyle(p.empresas.length))
+    .bindTooltip(
+      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+      { direction: "top", sticky: true }
+    )
+    .on("click", () => abrirPopup(p));
+  idToMarker.set(p.id, layer);
+  return layer;
 }
-function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a), ms); }; }
 
-function renderizarPostesVisiveis() {
-  if (map.getZoom() < MIN_ZOOM_POSTES) {
-    markers.clearLayers();
-    lastRenderBounds = null;
-    return;
-  }
-  const b = map.getBounds().pad(VIEWPORT_PADDING);
+// Adiciona 1 poste (usado em filtros, etc.)
+function adicionarMarker(p) {
+  const layer = criarLayerPoste(p);
+  if (!markers.hasLayer(layer)) markers.addLayer(layer);
+}
 
-  // Se já cobrimos este bbox ampliado, não refaz
-  if (lastRenderBounds && lastRenderBounds.contains && lastRenderBounds.contains(b)) return;
-  lastRenderBounds = b;
+// Exibe TODOS os já criados no cache
+function exibirTodosPostes() {
+  const arr = Array.from(idToMarker.values());
+  markers.clearLayers();
+  if (arr.length) markers.addLayers(arr); // usa chunkedLoading do cluster
+}
 
-  const dentro = [];
-  const fora = [];
-
-  for (const p of todosPostes) {
-    (b.contains([p.lat, p.lon]) ? dentro : fora).push(p);
-  }
-
-  // remove os que estão fora (se estiverem no layer)
-  fora.forEach((p) => {
-    const mk = idToMarker.get(p.id);
-    if (mk && markers.hasLayer(mk)) markers.removeLayer(mk);
-  });
-
-  // adiciona os que estão dentro, em lotes
-  const lote = document.hidden ? 3500 : 1200; // turbo fora da guia
+// Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
+function carregarTodosPostesGradualmente() {
+  if (todosCarregados) { exibirTodosPostes(); return; }
+  const lote = document.hidden ? 3500 : 1200;
   let i = 0;
   function addChunk() {
-    const slice = dentro.slice(i, i + lote);
-    slice.forEach((p) => {
-      const mk = idToMarker.get(p.id);
-      if (mk) {
-        if (!markers.hasLayer(mk)) markers.addLayer(mk);
-      } else {
-        adicionarMarker(p); // cria e adiciona o marcador
-      }
-    });
+    const slice = todosPostes.slice(i, i + lote);
+    // cria (cache) e adiciona em lote
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) markers.addLayers(layers);
     i += lote;
-    if (i < dentro.length) scheduleIdle(addChunk);
+    if (i < todosPostes.length) scheduleIdle(addChunk);
+    else todosCarregados = true;
   }
   scheduleIdle(addChunk);
 }
-map.on("moveend zoomend", debounce(renderizarPostesVisiveis, 60));
 
 // ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
@@ -442,7 +433,7 @@ fetch("/api/postes")
       empresas: [...p.empresas],
     }));
 
-    // Popular estruturas (sem criar markers de todos de uma vez)
+    // Popular estruturas e iniciar carregamento gradativo global
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
@@ -454,8 +445,8 @@ fetch("/api/postes")
     });
     preencherListas();
 
-    // Desenha apenas os visíveis no viewport (LOD)
-    renderizarPostesVisiveis();
+    // >>> Carregar gradativamente TODOS os postes e deixá-los no mapa
+    carregarTodosPostesGradualmente();
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
@@ -519,8 +510,8 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
   if (!censoMode) {
-    // volta para o render padrão (visíveis)
-    renderizarPostesVisiveis();
+    // volta a exibir TODOS os postes carregados
+    exibirTodosPostes();
     return;
   }
 
@@ -533,7 +524,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      renderizarPostesVisiveis();
+      exibirTodosPostes();
       return;
     }
   }
@@ -585,7 +576,7 @@ function filtrarLocal() {
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
 
-  // para filtro, mantém o comportamento atual (adiciona todos do filtro)
+  // adiciona só os filtrados (os demais continuam no cache, intactos)
   filtro.forEach(adicionarMarker);
 
   fetch("/api/postes/report", {
@@ -621,9 +612,8 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
-  markers.clearLayers();
-  // volta para o modo virtualizado (apenas visíveis)
-  renderizarPostesVisiveis();
+  // volta a mostrar todos os postes carregados (sem apagar cache)
+  exibirTodosPostes();
 }
 
 /* ====================================================================
@@ -745,26 +735,8 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
-// Adiciona marker padrão (agora com cache por ID)
-// ---------------------------------------------------------------------
-function adicionarMarker(p) {
-  if (idToMarker.has(p.id)) {
-    const mk = idToMarker.get(p.id);
-    if (!markers.hasLayer(mk)) markers.addLayer(mk);
-    return;
-  }
-  // bolinha leve em Canvas (verde/verm)
-  const m = L.circleMarker([p.lat, p.lon], dotStyle(p.empresas.length))
-    .bindTooltip(
-      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-      { direction: "top", sticky: true }
-    );
-  m.on("click", () => abrirPopup(p));
-  idToMarker.set(p.id, m);
-  markers.addLayer(m);
-}
-
 // Abre popup
+// ---------------------------------------------------------------------
 function abrirPopup(p) {
   const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
   const html = `
