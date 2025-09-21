@@ -2,16 +2,19 @@
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 // =====================================================================
 
-// ==================== BASE LAYERS (rua / satélite + rótulos) ====================
+// ==================== MAPA + PANES ====================
+const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
+// Pane para rótulos acima do tile base
+map.createPane("labels");
+map.getPane("labels").style.zIndex = 650;
+map.getPane("labels").style.pointerEvents = "none";
+
+// ==================== BASE LAYERS (rua / satélite + rótulos) ====================
 // Rua (OSM)
 const osmStreets = L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {
-    maxZoom: 19,
-    minZoom: 2,
-    attribution: "&copy; OpenStreetMap contributors",
-  }
+  { maxZoom: 19, minZoom: 2, attribution: "&copy; OpenStreetMap contributors" }
 );
 
 // Satélite (Esri World Imagery)
@@ -25,74 +28,42 @@ const esriSat = L.tileLayer(
   }
 );
 
-// Overlays transparentes de rótulos da Esri (nomes de lugares + vias)
+// Overlays transparentes de rótulos (Esri)
 const esriRefPlaces = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  {
-    maxZoom: 19,
-    pane: "labels", // garante z-index acima do satélite
-    attribution: "Labels &copy; Esri",
-  }
+  { maxZoom: 19, pane: "labels", attribution: "Labels &copy; Esri" }
 );
 const esriRefTransport = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-  {
-    maxZoom: 19,
-    pane: "labels",
-    attribution: "Labels &copy; Esri",
-  }
+  { maxZoom: 19, pane: "labels", attribution: "Labels &copy; Esri" }
 );
 
-// cria um pane para os rótulos acima de tudo
-const labelsPane = mapPaneInit();
-function mapPaneInit() {
-  // criamos temporariamente um mapa somente para acessar L, depois substituímos
-  const tempMap = L.map(document.createElement("div"));
-  tempMap.remove();
-  // o verdadeiro pane será criado depois do map real; só retornamos o nome
-  return "labels";
-}
-
-// Cria o mapa iniciando no satélite
-const map = L.map("map", { preferCanvas: true, layers: [] }).setView(
-  [-23.2, -45.9],
-  12
-);
-
-// cria o pane 'labels' agora no mapa real
-map.createPane("labels");
-map.getPane("labels").style.zIndex = 650; // acima dos tiles base e abaixo de tooltips/popups
-map.getPane("labels").style.pointerEvents = "none"; // rótulos não capturam clique
-
-// adiciona base inicial (satélite + rótulos)
-_escolherBase("sat");
-
-// Mantemos referências globais para alternar depois
+// Guardamos referências globais ANTES de escolher a base
 window._baseLayers = { rua: osmStreets, sat: esriSat };
 window._labelOverlays = [esriRefPlaces, esriRefTransport];
 
-// Alterna a base e cuida do maxZoom + overlays de rótulos
+// Alterna a base e cuida de maxZoom e rótulos
 function _escolherBase(base) {
   // remove tudo
   [osmStreets, esriSat, ...window._labelOverlays].forEach((l) => {
     if (map.hasLayer(l)) map.removeLayer(l);
   });
 
-  // adiciona base escolhida
+  // adiciona base
   const layer = base === "rua" ? osmStreets : esriSat;
   layer.addTo(map);
 
-  // se satélite, liga rótulos
-  if (base === "sat") {
-    window._labelOverlays.forEach((l) => l.addTo(map));
-  }
+  // satélite -> rótulos ligados
+  if (base === "sat") window._labelOverlays.forEach((l) => l.addTo(map));
 
-  // ajusta maxZoom do mapa
-  map.setMaxZoom(layer.options.maxZoom || 19);
-  if (map.getZoom() > (layer.options.maxZoom || 19)) {
-    map.setZoom(layer.options.maxZoom || 19);
-  }
+  // maxZoom coerente
+  const mz = layer.options.maxZoom || 19;
+  map.setMaxZoom(mz);
+  if (map.getZoom() > mz) map.setZoom(mz);
 }
+
+// Base inicial
+_escolherBase("sat");
 
 // ==================== CLUSTERS ====================
 const markers = L.markerClusterGroup({
@@ -114,8 +85,7 @@ const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
-let censoMode = false,
-  censoIds = null;
+let censoMode = false, censoIds = null;
 
 // Spinner overlay
 const overlay = document.getElementById("carregando");
@@ -140,15 +110,11 @@ fetch("/api/postes")
       if (!p.coordenadas) return;
       const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
       if (isNaN(lat) || isNaN(lon)) return;
-      if (!agrupado[p.id])
-        agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
+      if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
       if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
         agrupado[p.id].empresas.add(p.empresa);
     });
-    const postsArray = Object.values(agrupado).map((p) => ({
-      ...p,
-      empresas: [...p.empresas],
-    }));
+    const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
 
     // Render em batches
     function addBatch(i = 0, batchSize = 500) {
@@ -159,12 +125,9 @@ fetch("/api/postes")
         municipiosSet.add(poste.nome_municipio);
         bairrosSet.add(poste.nome_bairro);
         logradourosSet.add(poste.nome_logradouro);
-        poste.empresas.forEach(
-          (e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1)
-        );
+        poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
       });
-      if (i + batchSize < postsArray.length)
-        setTimeout(() => addBatch(i + batchSize, batchSize), 0);
+      if (i + batchSize < postsArray.length) setTimeout(() => addBatch(i + batchSize, batchSize), 0);
       else preencherListas();
     }
     addBatch();
@@ -172,8 +135,7 @@ fetch("/api/postes")
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
     if (overlay) overlay.style.display = "none";
-    if (err.message !== "Não autorizado")
-      alert("Erro ao carregar dados dos postes.");
+    if (err.message !== "Não autorizado") alert("Erro ao carregar dados dos postes.");
   });
 
 // ---------------------------------------------------------------------
@@ -182,27 +144,22 @@ fetch("/api/postes")
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
-    Array.from(set)
-      .sort()
-      .forEach((v) => {
-        const o = document.createElement("option");
-        o.value = v;
-        dl.appendChild(o);
-      });
+    Array.from(set).sort().forEach((v) => {
+      const o = document.createElement("option");
+      o.value = v;
+      dl.appendChild(o);
+    });
   };
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
-  // empresas com label
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem)
-    .sort()
-    .forEach((e) => {
-      const o = document.createElement("option");
-      o.value = e;
-      o.label = `${e} (${empresasContagem[e]} postes)`;
-      dlEmp.appendChild(o);
-    });
+  Object.keys(empresasContagem).sort().forEach((e) => {
+    const o = document.createElement("option");
+    o.value = e;
+    o.label = `${e} (${empresasContagem[e]} postes)`;
+    dlEmp.appendChild(o);
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -249,11 +206,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6,
-        color: "#666",
-        fillColor: "#bbb",
-        weight: 2,
-        fillOpacity: 0.8,
+        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8,
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", () => abrirPopup(poste));
       markers.addLayer(c);
@@ -276,20 +229,12 @@ function buscarCoordenada() {
   const [lat, lon] = inpt.split(/,\s*/).map(Number);
   if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
   map.setView([lat, lon], 18);
-  L.popup()
-    .setLatLng([lat, lon])
-    .setContent(`<b>Coordenada:</b> ${lat}, ${lon}`)
-    .openOn(map);
+  L.popup().setLatLng([lat, lon]).setContent(`<b>Coordenada:</b> ${lat}, ${lon}`).openOn(map);
 }
 
 function filtrarLocal() {
   const getVal = (id) => document.getElementById(id).value.trim().toLowerCase();
-  const [mun, bai, log, emp] = [
-    "busca-municipio",
-    "busca-bairro",
-    "busca-logradouro",
-    "busca-empresa",
-  ].map(getVal);
+  const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
   const filtro = todosPostes.filter(
     (p) =>
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
@@ -312,8 +257,7 @@ function filtrarLocal() {
         window.location.href = "/login.html";
         throw new Error("Não autorizado");
       }
-      if (!res.ok)
-        throw new Error((await res.json()).error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
       return res.blob();
     })
     .then((b) => {
@@ -359,16 +303,12 @@ function makePoleDataUri(hex) {
         <stop offset="100%" stop-color="${hex}" stop-opacity="0"/>
       </radialGradient>
     </defs>
-
     <circle cx="12" cy="13" r="10" fill="url(#haloGrad)"/>
-
     <path d="M12 4.2 C11.5 4.2 11.2 4.4 11.1 4.9 L11.1 19.5
              C11.1 20.1 11.7 20.6 12.0 20.6
              C12.3 20.6 12.9 20.1 12.9 19.5 L12.9 4.9
-             C12.8 4.4 12.5 4.2 12.0 4.2 Z"
-          fill="url(#woodGrad)"/>
+             C12.8 4.4 12.5 4.2 12.0 4.2 Z" fill="url(#woodGrad)"/>
     <rect x="11.1" y="3.7" width="1.8" height="0.7" rx="0.2" fill="#4a3a22" opacity="0.9"/>
-
     <g transform="rotate(-2 12 7.2)">
       <rect x="5.0" y="6.6" width="14.0" height="1.4" rx="0.7" fill="url(#steelGrad)"/>
       <circle cx="7.0"  cy="7.3" r="0.7" fill="#bfbfbf"/>
@@ -377,7 +317,6 @@ function makePoleDataUri(hex) {
       <path d="M5.0 6.9 C 7.8 8.0, 16.2 8.0, 19.0 6.9" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round"/>
       <path d="M5.0 7.6 C 8.2 8.6, 15.8 8.6, 19.0 7.6" fill="none" stroke="#6e6e6e" stroke-width="0.6" stroke-linecap="round" opacity="0.7"/>
     </g>
-
     <g transform="rotate(1 12 10.2)">
       <rect x="6.0" y="9.5" width="12.0" height="1.3" rx="0.65" fill="url(#steelGrad)"/>
       <circle cx="7.8"  cy="10.2" r="0.65" fill="#c7c7c7"/>
@@ -385,7 +324,6 @@ function makePoleDataUri(hex) {
       <circle cx="16.2" cy="10.2" r="0.65" fill="#c7c7c7"/>
       <path d="M6.0 9.9 C 8.5 10.9, 15.5 10.9, 18.0 9.9" fill="none" stroke="#6e6e6e" stroke-width="0.55" stroke-linecap="round" opacity="0.85"/>
     </g>
-
     <path d="M12.7 4.9 L12.7 19.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.35"/>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -405,24 +343,16 @@ const ICON_RED_48 = L.icon({
   popupAnchor: [0, -16],
   tooltipAnchor: [0, -16],
 });
-function poleIcon48(color) {
-  return color === "red" ? ICON_RED_48 : ICON_GREEN_48;
-}
-function poleColorByEmpresas(qtd) {
-  return qtd >= 5 ? "red" : "green";
-}
+function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
+function poleColorByEmpresas(qtd) { return qtd >= 5 ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
 // Adiciona marker padrão
 // ---------------------------------------------------------------------
 function adicionarMarker(p) {
   const cor = poleColorByEmpresas(p.empresas.length);
-  const m = L.marker([p.lat, p.lon], {
-    icon: poleIcon48(cor),
-  }).bindTooltip(
-    `ID: ${p.id} — ${p.empresas.length} ${
-      p.empresas.length === 1 ? "empresa" : "empresas"
-    }`,
+  const m = L.marker([p.lat, p.lon], { icon: poleIcon48(cor) }).bindTooltip(
+    `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
     { direction: "top", sticky: true }
   );
   m.on("click", () => abrirPopup(p));
@@ -461,50 +391,36 @@ document.getElementById("localizacaoUsuario").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------
-// Hora + Clima  (widget no index.html possui #hora e #tempo)
+// Hora + Clima
 // ---------------------------------------------------------------------
 function mostrarHoraLocal() {
   const s = document.querySelector("#hora span");
   if (!s) return;
-  s.textContent = new Date().toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  s.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
-  fetch(
-    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`
-  )
+  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
     .then((r) => r.json())
     .then((data) => {
       const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
       const div = document.getElementById("tempo");
       div.querySelector("img").src = url;
-      div.querySelector("span").textContent = `${
-        data.weather[0].description
-      }, ${data.main.temp.toFixed(1)}°C (${data.name})`;
+      div.querySelector("span").textContent = `${data.weather[0].description}, ${data.main.temp.toFixed(1)}°C (${data.name})`;
     })
-    .catch(() => {
-      document.querySelector("#tempo span").textContent =
-        "Erro ao obter clima.";
-    });
+    .catch(() => { document.querySelector("#tempo span").textContent = "Erro ao obter clima."; });
 }
 navigator.geolocation.getCurrentPosition(
   ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
   () => {}
 );
-setInterval(
-  () =>
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-      () => {}
-    ),
-  600000
-);
+setInterval(() => navigator.geolocation.getCurrentPosition(
+  ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+  () => {}
+), 600000);
 
 // ---------------------------------------------------------------------
 // Seletor “Mapa: Rua / Satélite + rótulos” dentro do widget-clima
@@ -547,13 +463,10 @@ setInterval(
   select.style.fontSize = "13px";
 
   const optRua = document.createElement("option");
-  optRua.value = "rua";
-  optRua.text = "Rua";
+  optRua.value = "rua"; optRua.text = "Rua";
 
   const optSat = document.createElement("option");
-  optSat.value = "sat";
-  optSat.text = "Satélite + rótulos";
-  optSat.selected = true;
+  optSat.value = "sat"; optSat.text = "Satélite + rótulos"; optSat.selected = true;
 
   select.appendChild(optRua);
   select.appendChild(optSat);
@@ -563,32 +476,24 @@ setInterval(
   row.appendChild(wrap);
   widget.appendChild(row);
 
-  select.addEventListener("change", () =>
-    _escolherBase(select.value === "rua" ? "rua" : "sat")
-  );
+  select.addEventListener("change", () => _escolherBase(select.value === "rua" ? "rua" : "sat"));
 })();
 
 // ---------------------------------------------------------------------
 // Verificar (Consulta massiva + traçado + intermediários)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
+  const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids
-    .map((id) => todosPostes.find((p) => p.id === id))
-    .filter(Boolean);
+  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
-  // intermediários e traçado
   window.intermediarios = [];
   encontrados.slice(0, -1).forEach((a, i) => {
     const b = encontrados[i + 1];
@@ -596,23 +501,15 @@ function consultarIDsEmMassa() {
     if (d > 50) {
       todosPostes
         .filter((p) => !ids.includes(p.id))
-        .filter(
-          (p) =>
-            getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
-              getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <=
-            d + 20
+        .filter((p) =>
+          getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
+          getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6,
-            color: "gold",
-            fillColor: "yellow",
-            fillOpacity: 0.8,
+            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
           })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, {
-              direction: "top",
-              sticky: true,
-            })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
             .on("click", () => abrirPopup(p))
             .addTo(map);
           window.intermediarios.push(m);
@@ -622,11 +519,7 @@ function consultarIDsEmMassa() {
   map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, {
-      color: "blue",
-      weight: 3,
-      dashArray: "4,6",
-    }).addTo(map);
+    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
     map.fitBounds(L.latLngBounds(coords));
   } else {
     map.setView(coords[0], 18);
@@ -651,11 +544,7 @@ function adicionarNumerado(p, num) {
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.bindPopup(
-    `<b>ID:</b> ${p.id}<br><b>Município:</b> ${
-      p.nome_municipio
-    }<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`
-  );
+  mk.bindPopup(`<b>ID:</b> ${p.id}<br><b>Município:</b> ${p.nome_municipio}<br><b>Empresas:</b><ul>${p.empresas.map((e) => `<li>${e}</li>`).join("")}</ul>`);
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
 }
@@ -671,16 +560,12 @@ function gerarPDFComMapa() {
     doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
 
     const resumo = window.ultimoResumoPostes || {
-      disponiveis: 0,
-      ocupados: 0,
-      naoEncontrados: [],
-      intermediarios: 0,
+      disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0,
     };
 
     let y = 140;
     doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-
     doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
     doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
 
@@ -698,42 +583,25 @@ function gerarPDFComMapa() {
 
 // Distância em metros (haversine)
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
-  const R = 6371000,
-    toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1),
-    dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Limpa campos e layers auxiliares
 function limparTudo() {
-  if (window.tracadoMassivo) {
-    map.removeLayer(window.tracadoMassivo);
-    window.tracadoMassivo = null;
-  }
+  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
-  [
-    "ids-multiplos",
-    "busca-id",
-    "busca-coord",
-    "busca-municipio",
-    "busca-bairro",
-    "busca-logradouro",
-    "busca-empresa",
-  ].forEach((id) => {
-    document.getElementById(id).value = "";
-  });
+  ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
+    .forEach((id) => { document.getElementById(id).value = ""; });
   resetarMapa();
 }
 
 // Exporta Excel genérico
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "same-origin",
+    method: "POST", credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
@@ -743,10 +611,7 @@ function exportarExcel(ids) {
         throw new Error("Não autorizado");
       }
       if (!res.ok) {
-        let err;
-        try {
-          err = (await res.json()).error;
-        } catch {}
+        let err; try { err = (await res.json()).error; } catch {}
         throw new Error(err || `HTTP ${res.status}`);
       }
       return res.blob();
@@ -754,25 +619,16 @@ function exportarExcel(ids) {
     .then((b) => {
       const u = URL.createObjectURL(b);
       const a = document.createElement("a");
-      a.href = u;
-      a.download = "relatorio_postes.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(u);
+      a.href = u; a.download = "relatorio_postes.xlsx";
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(u);
     })
-    .catch((e) => {
-      console.error("Erro Excel:", e);
-      alert("Falha ao gerar Excel:\n" + e.message);
-    });
+    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
 // Botão Excel
 document.getElementById("btnGerarExcel").addEventListener("click", () => {
-  const ids = document
-    .getElementById("ids-multiplos")
-    .value.split(/[^0-9]+/)
-    .filter(Boolean);
+  const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Informe ao menos um ID.");
   exportarExcel(ids);
 });
