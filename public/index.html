@@ -39,6 +39,9 @@
         --ui-accent-2:#0fb171;     /* hover */
         --ui-danger:#ef4444;
         --shadow:0 10px 28px rgba(0,0,0,.28);
+
+        /* largura da sidebar (deve bater com script.js) */
+        --dock-w:340px;
       }
 
       /* --- RESET & MAPA --- */
@@ -46,22 +49,34 @@
       #map { width:100%; height:100%; }
 
       /* ========================= PAINEL DE BUSCA (DARK) ====================== */
+      /* Agora é uma SIDEBAR dockada à direita, ocupando a altura toda */
       .painel-busca {
-        position: absolute;
-        top: 80px;
-        right: 20px;
-        width: 300px;
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        width: var(--dock-w);
+        overflow: auto;
+
         background: var(--ui-bg);
         color: var(--ui-text);
-        border: 1px solid var(--ui-border);
-        border-radius: 14px;
-        padding: 14px;
+        border-left: 2px solid var(--ui-border);
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+        border-radius: 0;
+        padding: 16px 14px 18px;
         box-shadow: var(--shadow);
         font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
         z-index: 1000;
+
+        transform: translateX(0%);
+        transition: transform .25s ease;
       }
+      .painel-busca.collapsed{ transform: translateX(100%); }
+
       .painel-busca h3 {
-        margin: 0 0 12px;
+        margin: 6px 0 12px;
         font-weight: 800;
         color: var(--ui-text);
         letter-spacing:.3px;
@@ -142,6 +157,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
         font-size: 13px;
         box-shadow: var(--shadow);
+        z-index: 900;
       }
       .legenda-item { display: flex; align-items: center; margin-bottom: 6px; }
       .legenda-item:last-child{ margin-bottom:0; }
@@ -151,23 +167,40 @@
       }
 
       /* ============================ BOTÕES DE TOPO =========================== */
+      /* O toggle vira uma "aba" ao lado do dock, e acompanha o recolhimento */
       .botao-topo {
-        position: absolute;
-        right: 20px;
-        width: 40px; height: 40px;
+        position: fixed;
+        right: calc(var(--dock-w) + 16px);
+        width: 42px; height: 42px;
         background: var(--ui-bg);
         color: var(--ui-text);
         border: 1px solid var(--ui-border);
         border-radius: 12px;
         box-shadow: var(--shadow);
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: background .15s ease, transform .12s ease, box-shadow .15s ease; z-index: 1001;
+        cursor: pointer; transition: background .15s ease, transform .12s ease, box-shadow .15s ease; z-index: 1100;
       }
       .botao-topo:hover { background: #122236; transform: translateY(-1px); }
       .botao-topo i { color: var(--ui-accent); }
-      #togglePainel { top: 20px; }
-      #localizacaoUsuario { top: 68px; }
-      #logoutBtn { top: 116px; }
+
+      /* Aba vertical para abrir/fechar a sidebar */
+      #togglePainel{
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px; height: 64px;
+        border-radius: 12px 0 0 12px;
+      }
+      /* Quando sidebar recolhida, a aba encosta na borda direita da janela */
+      body.sidebar-collapsed #togglePainel{ right: 16px; }
+
+      #localizacaoUsuario { top: 20px; }
+      #logoutBtn { top: 70px; }
+
+      /* Ajusta a posição dos botões quando recolhe */
+      body.sidebar-collapsed #localizacaoUsuario,
+      body.sidebar-collapsed #logoutBtn{
+        right: 16px;
+      }
 
       /* ====================== HUD (POSICIONADOR DO CARTÃO) =================== */
       #widget-clima{
@@ -205,11 +238,12 @@
       }
 
       @media (max-width: 880px){
-        .painel-busca{ right: 12px; width: 92vw; max-width: 420px; }
+        /* mantém o dock, só reduz a largura para telas menores */
+        :root{ --dock-w: 300px; }
         .painel-busca .actions{ grid-template-columns: repeat(2,1fr); }
       }
       @media (max-width: 560px){
-        .painel-busca{ left: 12px; right: 12px; width: auto; top: 72px; }
+        :root{ --dock-w: 86vw; }
         .painel-busca .actions{ grid-template-columns: 1fr 1fr; gap:10px; }
         #widget-clima{ left:12px; bottom:12px; }
       }
@@ -231,7 +265,7 @@
       <i class="fa fa-sign-out-alt"></i>
     </div>
 
-    <!-- Painel de busca -->
+    <!-- Painel de busca (sidebar) -->
     <div class="painel-busca" id="painelBusca">
       <h3>Buscar Postes</h3>
 
