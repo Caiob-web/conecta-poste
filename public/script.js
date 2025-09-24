@@ -828,7 +828,7 @@ function consultarIDsEmMassa() {
   map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
+    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map;
     map.fitBounds(L.latLngBounds(coords));
   } else {
     map.setView(coords[0], 18);
@@ -951,10 +951,24 @@ document.getElementById("togglePainel").addEventListener("click", () => {
   p.addEventListener("transitionend", onEnd);
 });
 
-// Logout
+// Logout (ATUALIZADO: robusto a offline e rota opcional)
 document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await fetch("/logout", { method: "POST" });
-  window.location.href = "/login.html";
+  try {
+    // limpa credenciais locais sempre
+    localStorage.removeItem("auth_token");
+    sessionStorage.removeItem("auth_token");
+    document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
+  } catch {}
+
+  // tenta avisar o servidor apenas se estiver online; ignora falhas
+  if (navigator.onLine) {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {}
+  }
+
+  // usa replace para não voltar com back
+  window.location.replace("/login.html");
 });
 
 /* --------------------------------------------------------------------
