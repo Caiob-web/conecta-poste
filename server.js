@@ -90,6 +90,11 @@ app.use((req, res, next) => {
     req.path.match(/\.(html|css|js|png|ico|avif)$/)
   ) return next();
 
+  // BLOQUEIA acesso ao "/" quando não autenticado (Opção A)
+  if (!req.session.user && (req.path === "/" || req.path === "")) {
+    return res.redirect("/login.html");
+  }
+
   if (req.path.startsWith("/api/")) {
     if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
     return next();
