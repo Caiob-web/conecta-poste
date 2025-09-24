@@ -5,9 +5,12 @@ const session = require("express-session");
 const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
 const ExcelJS = require("exceljs");
+const pgSession = require("connect-pg-simple")(session); // ADIÇÃO
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+app.set("trust proxy", 1); // ADIÇÃO
 
 // aumenta o limite para uploads grandes
 app.use(express.json({ limit: "1gb" }));
@@ -19,10 +22,24 @@ app.use(cors());
 // Sessão em cookie (expira ao fechar navegador)
 app.use(
   session({
+    store: new pgSession({
+      // usamos um objeto de conexão aqui para não precisar mover a criação do Pool
+      conObject: {
+        connectionString:
+          "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
+        ssl: { rejectUnauthorized: false }
+      },
+      tableName: "session",
+      createTableIfMissing: true
+    }),
     secret: "uma-chave-secreta",
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, secure: false },
+    cookie: {
+      httpOnly: true,
+      secure: true,      // em produção (HTTPS)
+      sameSite: "lax"
+    },
   })
 );
 
