@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mapa de Postes</title>
 
+    <!-- Evitar cache para não reusar página após logout -->
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
     <!-- Guard de login (adição sem remover nada): se não autenticado, envia para /login.html -->
     <script>
       (function () {
@@ -13,6 +18,20 @@
         fetch("/api/postes", { credentials: "include", cache: "no-store" })
           .then(function (r) { if (r.status === 401) location.replace("/login.html"); })
           .catch(function () { /* silencioso */ });
+      })();
+    </script>
+
+    <!-- Guard de REFRESH: se for reload (F5/Ctrl+R), faz logout e volta para o login -->
+    <script>
+      (function () {
+        try {
+          var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation') || [])[0];
+          var isReload = nav ? nav.type === 'reload' : (performance && performance.navigation ? performance.navigation.type === 1 : false);
+          if (isReload) {
+            fetch("/logout", { method: "POST", credentials: "include", cache: "no-store" })
+              .finally(function(){ location.replace("/login.html"); });
+          }
+        } catch (e) { /* silencioso */ }
       })();
     </script>
 
