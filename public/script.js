@@ -828,7 +828,7 @@ function consultarIDsEmMassa() {
   map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map;
+    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
     map.fitBounds(L.latLngBounds(coords));
   } else {
     map.setView(coords[0], 18);
