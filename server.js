@@ -23,22 +23,22 @@ app.use(cors());
 app.use(
   session({
     store: new pgSession({
-      // usamos um objeto de conexão aqui para não precisar mover a criação do Pool
+      // usa o mesmo connectionString do pool (abaixo), sem mudar a ordem do arquivo
       conObject: {
         connectionString:
           "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
-        ssl: { rejectUnauthorized: false }
+        ssl: { rejectUnauthorized: false },
       },
       tableName: "session",
-      createTableIfMissing: true
+      createTableIfMissing: true,
     }),
     secret: "uma-chave-secreta",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,      // em produção (HTTPS)
-      sameSite: "lax"
+      secure: true,    // produção HTTPS
+      sameSite: "lax",
     },
   })
 );
@@ -81,6 +81,7 @@ app.post("/login", async (req, res) => {
     const { id, password_hash } = rows[0];
     if (!(await bcrypt.compare(password, password_hash))) return res.sendStatus(401);
     req.session.user = { id, username };
+    req.session.justLoggedIn = true; // ADIÇÃO: permite somente o primeiro carregamento do "/"
     res.sendStatus(200);
   } catch (err) {
     console.error("Erro no login:", err);
@@ -110,6 +111,17 @@ app.use((req, res, next) => {
   // BLOQUEIA acesso ao "/" quando não autenticado (Opção A)
   if (!req.session.user && (req.path === "/" || req.path === "")) {
     return res.redirect("/login.html");
+  }
+
+  // EXIGIR SENHA A CADA REFRESH DO "/"
+  if (req.session.user && (req.path === "/" || req.path === "")) {
+    if (req.session.justLoggedIn) {
+      // permite este primeiro carregamento do app
+      req.session.justLoggedIn = false;
+      return next();
+    }
+    // se tentar acessar/atualizar novamente "/", força novo login
+    return req.session.destroy(() => res.redirect("/login.html"));
   }
 
   if (req.path.startsWith("/api/")) {
