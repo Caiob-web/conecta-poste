@@ -229,6 +229,25 @@
       const lgpdCheck = document.getElementById("lgpdCheck");
       const errorDiv = document.getElementById("error");
 
+      // === FORÇAR SENHA EM TODO ACESSO/ATUALIZAÇÃO ===
+      (function forceFreshLogin() {
+        try {
+          // apaga tokens/cookies de sessões antigas
+          localStorage.removeItem("auth_token");
+          sessionStorage.removeItem("auth_token");
+          document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
+        } catch(e) {}
+        // limpa o campo de senha e desativa autocomplete de senha
+        const pass = document.querySelector('input[name="password"]');
+        if (pass) {
+          pass.value = "";
+          pass.setAttribute("autocomplete", "new-password");
+        }
+        // evita voltar do bfcache com o formulário preenchido
+        window.addEventListener("pageshow", () => form.reset());
+      })();
+      // ================================================
+
       lgpdCheck.addEventListener("change", () => {
         btnLogin.disabled = !lgpdCheck.checked;
       });
@@ -237,7 +256,7 @@
         e.preventDefault();
         errorDiv.style.display = "none";
 
-        const res = await fetch("/login", {
+        const res = await fetch("/api/auth/login", {  /* <-- ajustado */
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -247,6 +266,7 @@
         });
 
         if (res.ok) {
+          // sem persistir sessão aqui -> servidor decide (cookie HttpOnly)
           window.location.href = "/";
         } else {
           errorDiv.style.display = "block";
