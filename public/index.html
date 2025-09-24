@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mapa de Postes</title>
 
+    <!-- Guard de login (adição sem remover nada): se não autenticado, envia para /login.html -->
+    <script>
+      (function () {
+        // Faz uma checagem rápida em endpoint protegido.
+        // Se o servidor responder 401 (sem sessão), redireciona imediatamente para o login.
+        fetch("/api/postes", { credentials: "include", cache: "no-store" })
+          .then(function (r) { if (r.status === 401) location.replace("/login.html"); })
+          .catch(function () { /* silencioso */ });
+      })();
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/ChatGPT%20Image%2019%20de%20jun.%20de%202025%2C%2021_12_44.png?v=1750378383582" type="image/png" sizes="64x64"/>
 
