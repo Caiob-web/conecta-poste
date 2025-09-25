@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const session = require("express-session");
-const bcrypt = require("bcrypt"); // mantém (usado no /register); login usa pgcrypto
+const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
 const ExcelJS = require("exceljs");
 const pgSession = require("connect-pg-simple")(session);
@@ -12,20 +12,27 @@ const port = process.env.PORT || 3000;
 
 app.set("trust proxy", 1);
 
-// aumenta o limite para uploads grandes
+// Body parsers (uploads grandes)
 app.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
-// Habilita CORS
-app.use(cors());
+// CORS (permite cookies)
+app.use(
+  cors({
+    origin: true,           // mesmo domínio do app
+    credentials: true,      // habilita cookies
+  })
+);
 
-// Sessão em cookie (expira ao fechar navegador)
+// Sessão persistida no Postgres
+const PG_URL =
+  "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
+
 app.use(
   session({
     store: new pgSession({
       conObject: {
-        connectionString:
-          "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
+        connectionString: PG_URL,
         ssl: { rejectUnauthorized: false },
       },
       tableName: "session",
@@ -36,20 +43,19 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true, // produção HTTPS
+      secure: true,         // em produção (HTTPS)
       sameSite: "lax",
     },
   })
 );
 
-// Conexão com o banco (Neon ep-broad-smoke)
+// Conexão pool
 const pool = new Pool({
-  connectionString:
-    "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
+  connectionString: PG_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-// === Criação automática da tabela users (se não existir) ===
+// Garante a tabela users
 async function ensureUsersTable() {
   try {
     await pool.query(`
@@ -67,13 +73,15 @@ async function ensureUsersTable() {
 }
 ensureUsersTable();
 
-// Rotas de autenticação
-app.post("/register", async (req, res) => {
-  const { username, password } = req.body;
+/* =========================
+   Handlers nomeados
+========================= */
+const registerHandler = async (req, res) => {
+  const { username, password } = req.body || {};
   if (!username || !password) {
     return res
       .status(400)
-      .json({ error: "username e password são obrigatórios" });
+      .json({ ok: false, error: "username e password são obrigatórios" });
   }
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -84,60 +92,57 @@ app.post("/register", async (req, res) => {
     res.sendStatus(201);
   } catch (err) {
     console.error("Erro no registro:", err);
-    if (err.code === "23505")
-      return res.status(409).json({ error: "username já existe" });
+    if (err.code === "23505") {
+      return res.status(409).json({ ok: false, error: "username já existe" });
+    }
     res.sendStatus(500);
   }
-});
+};
 
-// Alias para o front que usa /api/auth/register
-app.post("/api/auth/register", (req, res) => {
-  app._router.handle(req, res);
-});
-
-// LOGIN: valida a senha com pgcrypto (crypt) no próprio PostgreSQL
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+const loginHandler = async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ ok: false, error: "Dados requeridos" });
+  }
   try {
     const { rows } = await pool.query(
-      `
-      SELECT id, username,
-             (password_hash = crypt($1, password_hash)) AS ok
-      FROM public.users
-      WHERE username = $2 AND is_active = true
-      `,
-      [password, username]
+      "SELECT id, password_hash, is_active FROM users WHERE username = $1",
+      [username]
     );
+    if (!rows.length || rows[0].is_active === false) {
+      return res.status(401).json({ ok: false, error: "Credenciais" });
+    }
+    const { id, password_hash } = rows[0];
+    const ok = await bcrypt.compare(password, password_hash);
+    if (!ok) return res.status(401).json({ ok: false, error: "Credenciais" });
 
-    if (!rows.length || !rows[0].ok) return res.sendStatus(401);
-
-    const { id } = rows[0];
     req.session.user = { id, username };
-    req.session.justLoggedIn = true; // permite apenas o primeiro carregamento do "/"
-    res.sendStatus(200);
+    req.session.justLoggedIn = true;
+    res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Erro no login:", err);
     res.sendStatus(500);
   }
+};
+
+// Rotas de autenticação (POST)
+app.post("/register", registerHandler);
+app.post("/login", loginHandler);
+
+// Aliases REST para o front: /api/auth/*
+app.options("/api/auth/login", (_, res) => res.sendStatus(204));
+app.options("/api/auth/register", (_, res) => res.sendStatus(204));
+app.post("/api/auth/login", loginHandler);
+app.post("/api/auth/register", registerHandler);
+
+// Para GET direto nessas URLs, responde 405 (Method Not Allowed)
+app.get(["/api/auth/login", "/api/auth/register"], (req, res) => {
+  res.status(405).json({ ok: false, error: "Method Not Allowed" });
 });
 
-// Alias para o front que usa /api/auth/login
-app.post("/api/auth/login", (req, res) => {
-  app._router.handle(req, res);
-});
-
-app.post("/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Erro ao destruir sessão:", err);
-      return res.sendStatus(500);
-    }
-    res.clearCookie("connect.sid", { path: "/" });
-    res.sendStatus(200);
-  });
-});
-
-// Middleware de proteção de rotas
+/* =========================
+   Proteção de rotas
+========================= */
 app.use((req, res, next) => {
   const openPaths = [
     "/login",
@@ -152,42 +157,61 @@ app.use((req, res, next) => {
   if (
     openPaths.some((p) => req.path.startsWith(p)) ||
     req.path.match(/\.(html|css|js|png|ico|avif)$/)
-  )
+  ) {
     return next();
+  }
 
-  // BLOQUEIA acesso ao "/" quando não autenticado (Opção A)
+  // Bloqueia "/" sem login
   if (!req.session.user && (req.path === "/" || req.path === "")) {
     return res.redirect("/login.html");
   }
 
-  // EXIGIR SENHA A CADA REFRESH DO "/"
+  // Exigir senha a cada refresh do "/"
   if (req.session.user && (req.path === "/" || req.path === "")) {
     if (req.session.justLoggedIn) {
-      req.session.justLoggedIn = false; // libera o primeiro carregamento
+      req.session.justLoggedIn = false;
       return next();
     }
-    // Recarregou "/" -> exige novo login
     return req.session.destroy(() => res.redirect("/login.html"));
   }
 
+  // Protege /api/*
   if (req.path.startsWith("/api/")) {
-    if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
     return next();
   }
 
-  if (!req.session.user) return res.redirect("/login.html");
+  if (!req.session.user) {
+    return res.redirect("/login.html");
+  }
+
   next();
 });
 
-// Serve arquivos estáticos (public)
+// Logout
+app.post("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Erro ao destruir sessão:", err);
+      return res.sendStatus(500);
+    }
+    res.clearCookie("connect.sid", { path: "/" });
+    res.sendStatus(200);
+  });
+});
+
+// Arquivos estáticos
 app.use(express.static(path.join(__dirname, "public")));
 
-// Cache para /api/postes
+/* =========================
+   Endpoints de dados
+========================= */
 let cachePostes = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000;
 
-// GET /api/postes
 app.get("/api/postes", async (req, res) => {
   const now = Date.now();
   if (cachePostes && now - cacheTimestamp < CACHE_TTL) {
@@ -212,7 +236,6 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
-// GET /api/censo
 app.get("/api/censo", async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -227,9 +250,8 @@ app.get("/api/censo", async (req, res) => {
   }
 });
 
-// POST /api/postes/report
 app.post("/api/postes/report", async (req, res) => {
-  const { ids } = req.body;
+  const { ids } = req.body || {};
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: "IDs inválidos" });
   }
@@ -247,8 +269,9 @@ app.post("/api/postes/report", async (req, res) => {
   `;
   try {
     const { rows } = await pool.query(sql, [clean]);
-    if (!rows.length)
+    if (!rows.length) {
       return res.status(404).json({ error: "Nenhum poste encontrado" });
+    }
 
     const mapPostes = {};
     rows.forEach((r) => {
@@ -288,7 +311,10 @@ app.post("/api/postes/report", async (req, res) => {
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader("Content-Disposition", "attachment; filename=relatorio_postes.xlsx");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=relatorio_postes.xlsx"
+    );
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -302,5 +328,6 @@ app.use((req, res) => {
   res.status(404).send("Rota não encontrada");
 });
 
-// Inicia o servidor
-app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
+app.listen(port, () =>
+  console.log(`Servidor rodando na porta ${port}`)
+);
