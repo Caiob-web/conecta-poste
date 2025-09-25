@@ -50,6 +50,24 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// === Criação automática da tabela users (se não existir) ===
+async function ensureUsersTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public.users (
+        id            bigserial PRIMARY KEY,
+        username      text UNIQUE NOT NULL,
+        password_hash text NOT NULL,
+        is_active     boolean NOT NULL DEFAULT true,
+        created_at    timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+  } catch (e) {
+    console.error("Falha ao garantir tabela users:", e);
+  }
+}
+ensureUsersTable();
+
 // Rotas de autenticação
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
@@ -68,6 +86,11 @@ app.post("/register", async (req, res) => {
     if (err.code === "23505") return res.status(409).json({ error: "username já existe" });
     res.sendStatus(500);
   }
+});
+
+// Alias para o front que usa /api/auth/register
+app.post("/api/auth/register", (req, res) => {
+  app._router.handle(req, res); // delega para a rota /register acima
 });
 
 app.post("/login", async (req, res) => {
@@ -89,6 +112,11 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Alias para o front que usa /api/auth/login
+app.post("/api/auth/login", (req, res) => {
+  app._router.handle(req, res); // delega para a rota /login acima
+});
+
 app.post("/logout", (req, res) => {
   req.session.destroy(err => {
     if (err) {
@@ -102,7 +130,13 @@ app.post("/logout", (req, res) => {
 
 // Middleware de proteção de rotas
 app.use((req, res, next) => {
-  const openPaths = ["/login", "/register", "/login.html", "/register.html", "/lgpd/"];
+  const openPaths = [
+    "/login", "/register",
+    "/login.html", "/register.html",
+    "/lgpd/",
+    "/api/auth/login", "/api/auth/register"
+  ];
+
   if (
     openPaths.some(p => req.path.startsWith(p)) ||
     req.path.match(/\.(html|css|js|png|ico|avif)$/)
@@ -125,6 +159,7 @@ app.use((req, res, next) => {
   }
 
   if (req.path.startsWith("/api/")) {
+    // /api/auth/* já passou pelo openPaths acima
     if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
     return next();
   }
@@ -153,7 +188,7 @@ app.get("/api/postes", async (req, res) => {
            ep.empresa
     FROM dados_poste d
     LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''  
+    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''
   `;
   try {
     const { rows } = await pool.query(sql);
