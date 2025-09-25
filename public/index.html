@@ -10,6 +10,32 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
+    <!-- Guard de REFRESH: se for reload (F5/Ctrl+R), faz logout e volta para o login -->
+    <script>
+      (function () {
+        try {
+          var navEntries = (performance.getEntriesByType && performance.getEntriesByType('navigation')) || [];
+          var nav = navEntries[0];
+          var isReload = nav ? nav.type === 'reload'
+                             : (performance && performance.navigation ? performance.navigation.type === 1 : false);
+
+          if (isReload) {
+            // tenta encerrar a sessão no backend (se existir) e volta para o login
+            fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" })
+              .catch(function(){ /* ignora se offline */ })
+              .finally(function(){
+                try {
+                  localStorage.removeItem("auth_user");
+                  sessionStorage.removeItem("auth_token");
+                  document.cookie = "auth_token=; Max-Age=0; Path=/; SameSite=Lax";
+                } catch(_) {}
+                location.replace("/login.html");
+              });
+          }
+        } catch (e) { /* silencioso */ }
+      })();
+    </script>
+
     <!-- Guard de login (CLIENTE): se não houver auth_user, manda pro login -->
     <script>
       (function () {
