@@ -11,13 +11,18 @@ const { Pool } = require("pg");
 const ExcelJS = require("exceljs");
 const pgSession = require("connect-pg-simple")(session);
 
+// ---------------------------------------------------------------
+// Config base
+// ---------------------------------------------------------------
 const app = express();
 const port = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || "development";
 
 // ---------------------------------------------------------------
 // Banco (Neon) — use a mesma connectionString em pool e sessão
 // ---------------------------------------------------------------
 const PG_CONN =
+  process.env.DATABASE_URL ||
   "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 const pool = new Pool({
@@ -31,7 +36,7 @@ async function ensureUsersTable() {
     CREATE TABLE IF NOT EXISTS public.users (
       id            bigserial PRIMARY KEY,
       username      text UNIQUE NOT NULL,
-      password_hash text NOT NULL,
+      password_hash text NOT NULL,  -- armazenando TEXTO PURO (nome da coluna ficou "hash" por legado)
       is_active     boolean NOT NULL DEFAULT true,
       created_at    timestamptz NOT NULL DEFAULT now()
     );
@@ -48,7 +53,13 @@ app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
-app.use(cors());
+
+app.use(
+  cors({
+    origin: true, // ajuste para seu domínio (ex.: https://seu-app.vercel.app)
+    credentials: true,
+  })
+);
 
 // Sessão persistida no Postgres
 app.use(
@@ -61,14 +72,16 @@ app.use(
       tableName: "session",
       createTableIfMissing: true,
     }),
-    secret: "uma-chave-secreta", // troque em produção
+    secret: process.env.COOKIE_SECRET || "uma-chave-secreta",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true, // exige HTTPS (Vercel/produção)
+      secure: NODE_ENV === "production", // exige HTTPS em produção
       sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 8, // 8h
     },
+    name: "connect.sid",
   })
 );
 
@@ -88,12 +101,14 @@ async function getUserByUsername(username) {
 async function handleLogin(req, res) {
   try {
     const { username, password } = req.body || {};
-    if (!username || !password)
+    if (!username || !password) {
       return res.status(400).json({ error: "Dados obrigatórios" });
+    }
 
     const user = await getUserByUsername(username);
-    if (!user || user.is_active === false)
+    if (!user || user.is_active === false) {
       return res.status(401).json({ error: "Credenciais inválidas" });
+    }
 
     // Comparação direta (decisão do cliente)
     if (String(user.password) !== String(password)) {
@@ -102,7 +117,7 @@ async function handleLogin(req, res) {
 
     req.session.user = { id: user.id, username: user.username };
     req.session.justLoggedIn = true;
-    return res.json({ ok: true });
+    return res.json({ ok: true, user: req.session.user });
   } catch (err) {
     console.error("Erro no login:", err);
     return res.status(500).json({ error: "Erro interno" });
@@ -112,8 +127,9 @@ async function handleLogin(req, res) {
 async function handleRegister(req, res) {
   try {
     const { username, password } = req.body || {};
-    if (!username || !password)
+    if (!username || !password) {
       return res.status(400).json({ error: "Dados obrigatórios" });
+    }
 
     await pool.query(
       `INSERT INTO public.users (username, password_hash, is_active)
@@ -122,8 +138,9 @@ async function handleRegister(req, res) {
     );
     return res.status(201).json({ ok: true });
   } catch (err) {
-    if (err.code === "23505")
+    if (err.code === "23505") {
       return res.status(409).json({ error: "Usuário já existe" });
+    }
     console.error("Erro no register:", err);
     return res.status(500).json({ error: "Erro interno" });
   }
@@ -136,10 +153,16 @@ function handleLogout(req, res) {
   });
 }
 
+function handleMe(req, res) {
+  if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
+  res.json({ ok: true, user: req.session.user });
+}
+
 // Registra rotas nas duas formas (curta e /api/auth/*)
 app.post(["/login", "/api/auth/login"], handleLogin);
 app.post(["/register", "/api/auth/register"], handleRegister);
 app.post(["/logout", "/api/auth/logout"], handleLogout);
+app.get(["/me", "/api/auth/me"], handleMe);
 
 // ---------------------------------------------------------------
 // Proteção de rotas (exige sessão em tudo que não for público)
@@ -152,13 +175,15 @@ app.use((req, res, next) => {
     "/login.html",
     "/register.html",
     "/lgpd/",
+    "/healthz",
     "/api/auth/login",
     "/api/auth/register",
     "/api/auth/logout",
+    "/api/auth/me",
   ];
 
   // arquivos estáticos comuns
-  const isStatic = /\.(html|css|js|png|ico|avif|webp|jpg|jpeg|svg|map)$/i.test(
+  const isStatic = /\.(html|css|js|png|ico|avif|webp|jpg|jpeg|svg|map|json|txt|csv|wasm)$/i.test(
     req.path
   );
 
@@ -171,7 +196,7 @@ app.use((req, res, next) => {
     return res.redirect("/login.html");
   }
 
-  // Exigir senha a cada refresh da HOME "/"
+  // Exigir senha a cada refresh da HOME "/" (comportamento desejado)
   if (req.session.user && (req.path === "/" || req.path === "")) {
     if (req.session.justLoggedIn) {
       req.session.justLoggedIn = false;
@@ -193,9 +218,10 @@ app.use((req, res, next) => {
 });
 
 // ---------------------------------------------------------------
-/* Static */
+// Static
 // ---------------------------------------------------------------
-app.use(express.static(path.join(__dirname, "public")));
+const __dirnameResolved = path.resolve();
+app.use(express.static(path.join(__dirnameResolved, "public")));
 
 // ---------------------------------------------------------------
 // APIs do app
@@ -323,8 +349,10 @@ app.post("/api/postes/report", async (req, res) => {
 });
 
 // ---------------------------------------------------------------
-// 404 genérico
+// Healthcheck & 404
 // ---------------------------------------------------------------
+app.get("/healthz", (req, res) => res.json({ ok: true }));
+
 app.use((req, res) => {
   res.status(404).send("Rota não encontrada");
 });
@@ -333,5 +361,5 @@ app.use((req, res) => {
 // Start
 // ---------------------------------------------------------------
 app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+  console.log(`Servidor rodando na porta ${port} (${NODE_ENV})`);
 });
