@@ -174,9 +174,8 @@
       <div id="error" role="alert">Credenciais inválidas</div>
       <div id="loading" aria-live="polite">Validando…</div>
 
-      <div class="links" aria-live="polite">
-        Ainda não tem conta? <a href="/register.html">Registre-se</a>
-      </div>
+      <!-- sem register -->
+      <div class="links" aria-live="polite"></div>
     </div>
 
     <div class="footer-text">
@@ -184,6 +183,9 @@
     </div>
 
     <script>
+      // >>> Ajuste aqui o destino do mapa <<<
+      const REDIRECT_URL = "/index.html"; // ex: "/mapa.html" ou "/postes.html"
+
       const form = document.getElementById("loginForm");
       const btnLogin = document.getElementById("btnLogin");
       const lgpdCheck = document.getElementById("lgpdCheck");
@@ -194,21 +196,20 @@
       const togglePass = document.getElementById("togglePass");
       const capsHint = document.getElementById("capsHint");
 
-      // Se já estiver logado, pula a tela
-      (async function checkSession() {
+      // Se já tem usuário salvo, pula a tela
+      (function autoSkipIfLogged() {
         try {
-          const r = await fetch("/api/auth/me", { credentials: "include" });
-          if (r.ok) {
-            const j = await r.json();
-            if (j && j.ok) window.location.href = "/";
+          const u = localStorage.getItem("auth_user");
+          if (u) {
+            window.location.replace(REDIRECT_URL);
           }
-        } catch(_) {}
+        } catch (_) {}
       })();
 
       // Limpa possíveis "fantasmas" de login armazenados localmente
       (function forceFreshLogin() {
         try {
-          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_user");
           sessionStorage.removeItem("auth_token");
           document.cookie = "auth_token=; Max-Age=0; Path=/; SameSite=Lax";
         } catch (_) {}
@@ -272,13 +273,18 @@
           const res = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
+            // credentials não é necessário aqui (sem cookies/sessão)
             body: JSON.stringify({ username, password })
           });
 
-          if (res.ok) {
-            // sucesso -> home
-            window.location.href = "/";
+          const data = await res.json().catch(() => ({}));
+
+          if (res.ok && data && data.user) {
+            // guarda um estado de "logado" simples
+            try { localStorage.setItem("auth_user", JSON.stringify(data.user)); } catch (_){}
+
+            // redireciona para o mapa
+            window.location.replace(REDIRECT_URL);
             return;
           }
 
@@ -286,12 +292,10 @@
           if (res.status === 401) {
             errorDiv.textContent = "Credenciais inválidas";
           } else if (res.status === 400) {
-            const data = await res.json().catch(() => ({}));
             errorDiv.textContent = data.error || "Dados inválidos";
           } else if (res.status === 405) {
             errorDiv.textContent = "Método não permitido (a rota deve aceitar POST).";
           } else {
-            const data = await res.json().catch(() => ({}));
             errorDiv.textContent = data.error || `Erro ${res.status}`;
           }
           errorDiv.style.display = "block";
