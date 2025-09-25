@@ -1,55 +1,54 @@
-// /api/auth/login.js
-const { Client } = require("pg");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
+const bcrypt = require("bcrypt");
 
-module.exports = async (req, res) => {
+const pool = new Pool({
+  connectionString:
+    process.env.DATABASE_URL ||
+    "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
+  ssl: { rejectUnauthorized: false },
+});
+
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.status(405).json({ ok: false, error: "Method Not Allowed" });
+    return;
+  }
+
   try {
-    if (req.method !== "POST") {
-      res.setHeader("Allow", "POST");
-      return res.status(405).json({ ok: false, error: "Method Not Allowed" });
-    }
-
-    const origin = req.headers.origin || "*";
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    if (req.method === "OPTIONS") return res.status(200).end();
-
     const { username, password } = req.body || {};
-
     if (!username || !password) {
-      return res.status(400).json({ ok: false, error: "Missing credentials" });
+      res.status(400).json({ ok: false, error: "username e password são obrigatórios" });
+      return;
     }
 
-    const client = new Client({ connectionString: process.env.DATABASE_URL });
-    await client.connect();
-
-    const { rows } = await client.query(
-      "SELECT id, username, password_hash, is_active FROM auth_users WHERE username = $1 LIMIT 1",
-      [username]
-    );
-    await client.end();
-
-    if (!rows.length || !rows[0].is_active) {
-      return res.status(401).json({ ok: false, error: "Credenciais inválidas" });
+    const q = `
+      SELECT id, password_hash
+      FROM public.users
+      WHERE username = $1 AND (is_active IS NULL OR is_active = TRUE)
+      LIMIT 1
+    `;
+    const { rows } = await pool.query(q, [username]);
+    if (!rows.length) {
+      res.status(401).json({ ok: false, error: "Credenciais inválidas" });
+      return;
     }
 
-    const user = rows[0];
-    const ok = await bcrypt.compare(password, user.password_hash);
+    const { id, password_hash } = rows[0];
+    const ok = await bcrypt.compare(password, password_hash);
     if (!ok) {
-      return res.status(401).json({ ok: false, error: "Credenciais inválidas" });
+      res.status(401).json({ ok: false, error: "Credenciais inválidas" });
+      return;
     }
 
-    const token = jwt.sign(
-      { sub: user.id, username: user.username },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+    // Cookie simples de sessão por Vercel Function (não-httpOnly)
+    res.setHeader(
+      "Set-Cookie",
+      `auth_token=${Buffer.from(String(id)).toString("base64")}; Path=/; SameSite=Lax; Secure`
     );
 
-    return res.status(200).json({ ok: true, token, username: user.username });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: "Server error" });
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error("login error:", e);
+    res.status(500).json({ ok: false, error: "Erro interno" });
   }
 };
