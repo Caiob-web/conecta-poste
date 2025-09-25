@@ -19,15 +19,17 @@ const port = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
 // ---------------------------------------------------------------
-// Banco (Neon) — use a mesma connectionString em pool e sessão
+// Banco (Neon) — sem fallback: exige DATABASE_URL no ambiente
 // ---------------------------------------------------------------
-const PG_CONN =
-  process.env.DATABASE_URL ||
-  "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
+const PG_CONN = process.env.DATABASE_URL;
+if (!PG_CONN) {
+  console.error("Faltou DATABASE_URL no ambiente. Configure e rode de novo.");
+  process.exit(1);
+}
 
 const pool = new Pool({
   connectionString: PG_CONN,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }, // Neon exige SSL
 });
 
 // Cria tabela users se não existir (password em texto por decisão do cliente)
@@ -352,6 +354,19 @@ app.post("/api/postes/report", async (req, res) => {
 // Healthcheck & 404
 // ---------------------------------------------------------------
 app.get("/healthz", (req, res) => res.json({ ok: true }));
+
+// Debug DB (apenas fora de produção)
+if (NODE_ENV !== "production") {
+  app.get("/api/auth/debug-db", async (req, res) => {
+    try {
+      const ping = await pool.query("SELECT 1 as ok");
+      const count = await pool.query("SELECT count(*)::int AS users FROM public.users");
+      res.json({ ok: true, ping: ping.rows[0].ok === 1, users: count.rows[0].users });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+}
 
 app.use((req, res) => {
   res.status(404).send("Rota não encontrada");
