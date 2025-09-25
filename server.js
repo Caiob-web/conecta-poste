@@ -50,7 +50,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// === Criação automática da tabela users (se não existir) ===
+// === Criação automática da tabela users (se não existir) + VIEW auth_users ===
 async function ensureUsersTable() {
   try {
     await pool.query(`
@@ -61,9 +61,17 @@ async function ensureUsersTable() {
         is_active     boolean NOT NULL DEFAULT true,
         created_at    timestamptz NOT NULL DEFAULT now()
       );
+
+      -- View de compatibilidade esperada por /api/auth/login.js
+      CREATE OR REPLACE VIEW public.auth_users AS
+      SELECT id, username, password_hash, is_active
+      FROM public.users;
+
+      -- Índice para acelerar a busca por username
+      CREATE INDEX IF NOT EXISTS idx_users_username ON public.users (username);
     `);
   } catch (e) {
-    console.error("Falha ao garantir tabela users:", e);
+    console.error("Falha ao garantir tabela/view de usuários:", e);
   }
 }
 ensureUsersTable();
