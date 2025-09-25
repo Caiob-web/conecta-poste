@@ -32,13 +32,13 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }, // Neon exige SSL
 });
 
-// Cria tabela users se não existir (password em texto por decisão do cliente)
+// Cria tabela users se não existir
 async function ensureUsersTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS public.users (
       id            bigserial PRIMARY KEY,
       username      text UNIQUE NOT NULL,
-      password_hash text NOT NULL,  -- armazenando TEXTO PURO (nome da coluna ficou "hash" por legado)
+      password_hash text NOT NULL,  -- senha em TEXTO PURO
       is_active     boolean NOT NULL DEFAULT true,
       created_at    timestamptz NOT NULL DEFAULT now()
     );
@@ -58,7 +58,7 @@ app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
 app.use(
   cors({
-    origin: true, // ajuste para seu domínio (ex.: https://seu-app.vercel.app)
+    origin: true, // ajuste para seu domínio ex.: https://conecta-poste.vercel.app
     credentials: true,
   })
 );
@@ -88,7 +88,7 @@ app.use(
 );
 
 // ---------------------------------------------------------------
-// Autenticação (SEM hash — comparação direta de texto)
+// Autenticação
 // ---------------------------------------------------------------
 async function getUserByUsername(username) {
   const { rows } = await pool.query(
@@ -112,7 +112,7 @@ async function handleLogin(req, res) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    // Comparação direta (decisão do cliente)
+    // Comparação direta (sem hash)
     if (String(user.password) !== String(password)) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
@@ -160,14 +160,14 @@ function handleMe(req, res) {
   res.json({ ok: true, user: req.session.user });
 }
 
-// Registra rotas nas duas formas (curta e /api/auth/*)
+// Rotas auth
 app.post(["/login", "/api/auth/login"], handleLogin);
 app.post(["/register", "/api/auth/register"], handleRegister);
 app.post(["/logout", "/api/auth/logout"], handleLogout);
 app.get(["/me", "/api/auth/me"], handleMe);
 
 // ---------------------------------------------------------------
-// Proteção de rotas (exige sessão em tudo que não for público)
+// Proteção de rotas
 // ---------------------------------------------------------------
 app.use((req, res, next) => {
   const openPaths = [
@@ -184,7 +184,6 @@ app.use((req, res, next) => {
     "/api/auth/me",
   ];
 
-  // arquivos estáticos comuns
   const isStatic = /\.(html|css|js|png|ico|avif|webp|jpg|jpeg|svg|map|json|txt|csv|wasm)$/i.test(
     req.path
   );
@@ -193,12 +192,10 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // Se for a raiz "/" e não autenticado -> login
   if (!req.session.user && (req.path === "/" || req.path === "")) {
     return res.redirect("/login.html");
   }
 
-  // Exigir senha a cada refresh da HOME "/" (comportamento desejado)
   if (req.session.user && (req.path === "/" || req.path === "")) {
     if (req.session.justLoggedIn) {
       req.session.justLoggedIn = false;
@@ -207,14 +204,12 @@ app.use((req, res, next) => {
     return req.session.destroy(() => res.redirect("/login.html"));
   }
 
-  // Protege APIs (exceto /api/auth/* já liberadas acima)
   if (req.path.startsWith("/api/")) {
     if (!req.session.user)
       return res.status(401).json({ error: "Não autorizado" });
     return next();
   }
 
-  // Demais rotas de página
   if (!req.session.user) return res.redirect("/login.html");
   next();
 });
@@ -226,13 +221,12 @@ const __dirnameResolved = path.resolve();
 app.use(express.static(path.join(__dirnameResolved, "public")));
 
 // ---------------------------------------------------------------
-// APIs do app
+// APIs do app (postes)
 // ---------------------------------------------------------------
 let cachePostes = null;
 let cacheTs = 0;
 const CACHE_TTL = 10 * 60 * 1000;
 
-/** GET /api/postes — dados base dos postes */
 app.get("/api/postes", async (req, res) => {
   const now = Date.now();
   if (cachePostes && now - cacheTs < CACHE_TTL) {
@@ -259,7 +253,6 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
-/** GET /api/censo — ids de censo */
 app.get("/api/censo", async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -274,88 +267,11 @@ app.get("/api/censo", async (req, res) => {
   }
 });
 
-/** POST /api/postes/report — Excel de IDs */
-app.post("/api/postes/report", async (req, res) => {
-  const { ids } = req.body || {};
-  if (!Array.isArray(ids) || !ids.length) {
-    return res.status(400).json({ error: "IDs inválidos" });
-  }
-
-  const clean = ids.map((x) => String(x).trim()).filter(Boolean);
-  if (!clean.length) return res.status(400).json({ error: "Nenhum ID válido" });
-
-  const sql = `
-    SELECT d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
-           d.material, d.altura, d.tensao_mecanica, d.coordenadas,
-           ep.empresa
-    FROM dados_poste d
-    LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas) <> ''
-      AND d.id::text = ANY($1)
-  `;
-
-  try {
-    const { rows } = await pool.query(sql, [clean]);
-    if (!rows.length)
-      return res.status(404).json({ error: "Nenhum poste encontrado" });
-
-    const mapPostes = {};
-    rows.forEach((r) => {
-      if (!mapPostes[r.id])
-        mapPostes[r.id] = { ...r, empresas: new Set() };
-      if (r.empresa) mapPostes[r.id].empresas.add(r.empresa);
-    });
-
-    const wb = new ExcelJS.Workbook();
-    const sh = wb.addWorksheet("Relatório de Postes");
-    sh.columns = [
-      { header: "ID POSTE", key: "id", width: 15 },
-      { header: "MUNICÍPIO", key: "nome_municipio", width: 20 },
-      { header: "BAIRRO", key: "nome_bairro", width: 25 },
-      { header: "LOGRADOURO", key: "nome_logradouro", width: 30 },
-      { header: "MATERIAL", key: "material", width: 15 },
-      { header: "ALTURA", key: "altura", width: 10 },
-      { header: "TENSÃO", key: "tensao_mecanica", width: 18 },
-      { header: "COORDENADAS", key: "coordenadas", width: 30 },
-      { header: "EMPRESAS", key: "empresas", width: 40 },
-    ];
-
-    Object.values(mapPostes).forEach((p) => {
-      sh.addRow({
-        id: p.id,
-        nome_municipio: p.nome_municipio,
-        nome_bairro: p.nome_bairro,
-        nome_logradouro: p.nome_logradouro,
-        material: p.material,
-        altura: p.altura,
-        tensao_mecanica: p.tensao_mecanica,
-        coordenadas: p.coordenadas,
-        empresas: [...p.empresas].join(", "),
-      });
-    });
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="relatorio_postes.xlsx"'
-    );
-    await wb.xlsx.write(res);
-    res.end();
-  } catch (err) {
-    console.error("Erro report:", err);
-    res.status(500).json({ error: "Erro interno" });
-  }
-});
-
 // ---------------------------------------------------------------
 // Healthcheck & 404
 // ---------------------------------------------------------------
 app.get("/healthz", (req, res) => res.json({ ok: true }));
 
-// Debug DB (apenas fora de produção)
 if (NODE_ENV !== "production") {
   app.get("/api/auth/debug-db", async (req, res) => {
     try {
@@ -373,15 +289,12 @@ app.use((req, res) => {
 });
 
 // ---------------------------------------------------------------
-// Start (local) e export (Vercel)
+// Start local / Export Vercel
 // ---------------------------------------------------------------
-const isVercel = !!process.env.VERCEL;
-
-if (!isVercel) {
+if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Servidor rodando na porta ${port} (${NODE_ENV})`);
   });
 }
 
-// Exporta o Express app para a Vercel usar como Serverless Function
 module.exports = app;
