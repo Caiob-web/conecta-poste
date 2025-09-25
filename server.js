@@ -358,8 +358,15 @@ app.use((req, res) => {
 });
 
 // ---------------------------------------------------------------
-// Start
+// Start (local) e export (Vercel)
 // ---------------------------------------------------------------
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port} (${NODE_ENV})`);
-});
+const isVercel = !!process.env.VERCEL;
+
+if (!isVercel) {
+  app.listen(port, () => {
+    console.log(`Servidor rodando na porta ${port} (${NODE_ENV})`);
+  });
+}
+
+// Exporta o Express app para a Vercel usar como Serverless Function
+module.exports = app;
