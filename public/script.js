@@ -413,7 +413,7 @@ if (overlay) overlay.style.display = "flex";
 // ---------------------------------------------------------------------
 // Carrega /api/postes, trata 401 redirecionando
 // ---------------------------------------------------------------------
-fetch("/api/postes")
+fetch("/api/postes", { credentials: "include" })
   .then((res) => {
     if (res.status === 401) {
       window.location.href = "/login.html";
@@ -504,7 +504,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 
   if (!censoIds) {
     try {
-      const res = await fetch("/api/censo");
+      const res = await fetch("/api/censo", { credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const arr = await res.json();
       censoIds = new Set(arr.map((i) => String(i.poste)));
@@ -565,7 +565,7 @@ function filtrarLocal() {
 
   fetch("/api/postes/report", {
     method: "POST",
-    credentials: "same-origin",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
   })
@@ -906,7 +906,7 @@ function limparTudo() {
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
     method: "POST",
-    credentials: "same-origin",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
