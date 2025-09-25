@@ -23,7 +23,6 @@ app.use(cors());
 app.use(
   session({
     store: new pgSession({
-      // usa o mesmo connectionString do pool (abaixo), sem mudar a ordem do arquivo
       conObject: {
         connectionString:
           "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
@@ -37,20 +36,20 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,    // produção HTTPS
+      secure: true,   // HTTPS em produção
       sameSite: "lax",
     },
   })
 );
 
-// Conexão com o banco (Neon ep-broad-smoke)
+// Conexão com o banco
 const pool = new Pool({
   connectionString:
     "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
   ssl: { rejectUnauthorized: false },
 });
 
-// === Criação automática da tabela users (se não existir) + VIEW auth_users ===
+// === garantir tabela users + view auth_users ===
 async function ensureUsersTable() {
   try {
     await pool.query(`
@@ -62,12 +61,10 @@ async function ensureUsersTable() {
         created_at    timestamptz NOT NULL DEFAULT now()
       );
 
-      -- View de compatibilidade esperada por /api/auth/login.js
       CREATE OR REPLACE VIEW public.auth_users AS
       SELECT id, username, password_hash, is_active
       FROM public.users;
 
-      -- Índice para acelerar a busca por username
       CREATE INDEX IF NOT EXISTS idx_users_username ON public.users (username);
     `);
   } catch (e) {
@@ -76,54 +73,55 @@ async function ensureUsersTable() {
 }
 ensureUsersTable();
 
-// Rotas de autenticação
-app.post("/register", async (req, res) => {
-  const { username, password } = req.body;
+// ---------- Handlers de auth (sem app._router.handle) ----------
+async function handleRegister(req, res) {
+  const { username, password } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ error: "username e password são obrigatórios" });
   }
   try {
     const hash = await bcrypt.hash(password, 10);
     await pool.query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+      "INSERT INTO public.users (username, password_hash) VALUES ($1, $2)",
       [username, hash]
     );
-    res.sendStatus(201);
+    return res.sendStatus(201);
   } catch (err) {
     console.error("Erro no registro:", err);
     if (err.code === "23505") return res.status(409).json({ error: "username já existe" });
-    res.sendStatus(500);
+    return res.sendStatus(500);
   }
-});
+}
 
-// Alias para o front que usa /api/auth/register
-app.post("/api/auth/register", (req, res) => {
-  app._router.handle(req, res); // delega para a rota /register acima
-});
-
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+async function handleLogin(req, res) {
+  const { username, password } = req.body || {};
   try {
     const { rows } = await pool.query(
-      "SELECT id, password_hash FROM users WHERE username = $1",
+      "SELECT id, password_hash FROM public.users WHERE username = $1",
       [username]
     );
-    if (!rows.length) return res.sendStatus(401);
+    if (!rows.length) {
+      return res.status(401).json({ error: "Credenciais inválidas" });
+    }
     const { id, password_hash } = rows[0];
-    if (!(await bcrypt.compare(password, password_hash))) return res.sendStatus(401);
+    const ok = await bcrypt.compare(password, password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: "Credenciais inválidas" });
+    }
     req.session.user = { id, username };
-    req.session.justLoggedIn = true; // ADIÇÃO: permite somente o primeiro carregamento do "/"
-    res.sendStatus(200);
+    req.session.justLoggedIn = true; // permite só o primeiro load do "/"
+    return res.sendStatus(200);
   } catch (err) {
     console.error("Erro no login:", err);
-    res.sendStatus(500);
+    return res.sendStatus(500);
   }
-});
+}
 
-// Alias para o front que usa /api/auth/login
-app.post("/api/auth/login", (req, res) => {
-  app._router.handle(req, res); // delega para a rota /login acima
-});
+app.post("/register", handleRegister);
+app.post("/api/auth/register", handleRegister);
+
+app.post("/login", handleLogin);
+app.post("/api/auth/login", handleLogin);
 
 app.post("/logout", (req, res) => {
   req.session.destroy(err => {
@@ -150,24 +148,20 @@ app.use((req, res, next) => {
     req.path.match(/\.(html|css|js|png|ico|avif)$/)
   ) return next();
 
-  // BLOQUEIA acesso ao "/" quando não autenticado (Opção A)
   if (!req.session.user && (req.path === "/" || req.path === "")) {
     return res.redirect("/login.html");
   }
 
-  // EXIGIR SENHA A CADA REFRESH DO "/"
+  // exigir senha a cada refresh do "/"
   if (req.session.user && (req.path === "/" || req.path === "")) {
     if (req.session.justLoggedIn) {
-      // permite este primeiro carregamento do app
       req.session.justLoggedIn = false;
       return next();
     }
-    // se tentar acessar/atualizar novamente "/", força novo login
     return req.session.destroy(() => res.redirect("/login.html"));
   }
 
   if (req.path.startsWith("/api/")) {
-    // /api/auth/* já passou pelo openPaths acima
     if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
     return next();
   }
@@ -176,15 +170,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve arquivos estáticos (public)
+// arquivos estáticos
 app.use(express.static(path.join(__dirname, "public")));
 
-// Cache para /api/postes
+// Cache simples
 let cachePostes = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000;
 
-// GET /api/postes
+// /api/postes
 app.get("/api/postes", async (req, res) => {
   const now = Date.now();
   if (cachePostes && now - cacheTimestamp < CACHE_TTL) {
@@ -209,7 +203,7 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
-// GET /api/censo
+// /api/censo
 app.get("/api/censo", async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -224,7 +218,7 @@ app.get("/api/censo", async (req, res) => {
   }
 });
 
-// POST /api/postes/report
+// /api/postes/report
 app.post("/api/postes/report", async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
@@ -301,5 +295,4 @@ app.use((req, res) => {
   res.status(404).send("Rota não encontrada");
 });
 
-// Inicia o servidor
 app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
