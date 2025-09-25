@@ -2,28 +2,27 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const session = require("express-session");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcrypt"); // mantém (usado no /register); login usa pgcrypto
 const { Pool } = require("pg");
 const ExcelJS = require("exceljs");
-const pgSession = require("connect-pg-simple")(session); // ADIÇÃO
+const pgSession = require("connect-pg-simple")(session);
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.set("trust proxy", 1); // ADIÇÃO
+app.set("trust proxy", 1);
 
 // aumenta o limite para uploads grandes
 app.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
-// Habilita CORS (mesma origem funciona; se separar front/back, ajuste origin e credentials)
+// Habilita CORS
 app.use(cors());
 
 // Sessão em cookie (expira ao fechar navegador)
 app.use(
   session({
     store: new pgSession({
-      // usa o mesmo connectionString do pool (abaixo), sem mudar a ordem do arquivo
       conObject: {
         connectionString:
           "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
@@ -68,10 +67,8 @@ async function ensureUsersTable() {
 }
 ensureUsersTable();
 
-// --------------------
-// Handlers reutilizáveis
-// --------------------
-const registerHandler = async (req, res) => {
+// Rotas de autenticação
+app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res
@@ -91,34 +88,43 @@ const registerHandler = async (req, res) => {
       return res.status(409).json({ error: "username já existe" });
     res.sendStatus(500);
   }
-};
+});
 
-const loginHandler = async (req, res) => {
+// Alias para o front que usa /api/auth/register
+app.post("/api/auth/register", (req, res) => {
+  app._router.handle(req, res);
+});
+
+// LOGIN: valida a senha com pgcrypto (crypt) no próprio PostgreSQL
+app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const { rows } = await pool.query(
-      "SELECT id, password_hash FROM users WHERE username = $1",
-      [username]
+      `
+      SELECT id, username,
+             (password_hash = crypt($1, password_hash)) AS ok
+      FROM public.users
+      WHERE username = $2 AND is_active = true
+      `,
+      [password, username]
     );
-    if (!rows.length) return res.sendStatus(401);
-    const { id, password_hash } = rows[0];
-    const ok = await bcrypt.compare(password, password_hash);
-    if (!ok) return res.sendStatus(401);
+
+    if (!rows.length || !rows[0].ok) return res.sendStatus(401);
+
+    const { id } = rows[0];
     req.session.user = { id, username };
-    req.session.justLoggedIn = true; // permite somente o primeiro carregamento do "/"
+    req.session.justLoggedIn = true; // permite apenas o primeiro carregamento do "/"
     res.sendStatus(200);
   } catch (err) {
     console.error("Erro no login:", err);
     res.sendStatus(500);
   }
-};
+});
 
-// Rotas de autenticação (duas URLs apontando para o mesmo handler)
-app.post("/register", registerHandler);
-app.post("/api/auth/register", registerHandler);
-
-app.post("/login", loginHandler);
-app.post("/api/auth/login", loginHandler);
+// Alias para o front que usa /api/auth/login
+app.post("/api/auth/login", (req, res) => {
+  app._router.handle(req, res);
+});
 
 app.post("/logout", (req, res) => {
   req.session.destroy((err) => {
@@ -157,17 +163,15 @@ app.use((req, res, next) => {
   // EXIGIR SENHA A CADA REFRESH DO "/"
   if (req.session.user && (req.path === "/" || req.path === "")) {
     if (req.session.justLoggedIn) {
-      // permite este primeiro carregamento do app
-      req.session.justLoggedIn = false;
+      req.session.justLoggedIn = false; // libera o primeiro carregamento
       return next();
     }
-    // se tentar acessar/atualizar novamente "/", força novo login
+    // Recarregou "/" -> exige novo login
     return req.session.destroy(() => res.redirect("/login.html"));
   }
 
   if (req.path.startsWith("/api/")) {
-    if (!req.session.user)
-      return res.status(401).json({ error: "Não autorizado" });
+    if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
     return next();
   }
 
@@ -284,10 +288,7 @@ app.post("/api/postes/report", async (req, res) => {
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=relatorio_postes.xlsx"
-    );
+    res.setHeader("Content-Disposition", "attachment; filename=relatorio_postes.xlsx");
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
