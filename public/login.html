@@ -206,9 +206,7 @@
         <label>
           <input type="checkbox" id="lgpdCheck" />
           Aceito a
-          <a href="/lgpd/privacy.html" target="_blank"
-            >Política de Privacidade</a
-          >
+          <a href="/lgpd/privacy.html" target="_blank">Política de Privacidade</a>
         </label>
         <button type="submit" id="btnLogin" disabled>Login</button>
       </form>
@@ -256,9 +254,10 @@
         e.preventDefault();
         errorDiv.style.display = "none";
 
-        const res = await fetch("/api/auth/login", {
+        const res = await fetch("/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // importante para o cookie de sessão
           body: JSON.stringify({
             username: form.username.value.trim(),
             password: form.password.value,
