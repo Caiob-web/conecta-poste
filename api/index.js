@@ -1,4 +1,6 @@
 // api/index.js
-const serverless = require("serverless-http");
-const expressApp = require("../server");      // seu server.js exportando 'app'
-module.exports = serverless(expressApp);
+// Vercel chama isso como função serverless.
+// Basta exportar o app do server.js (sem serverless-http).
+
+const app = require("../server");
+module.exports = app;
