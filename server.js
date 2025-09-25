@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const session = require("express-session");
-const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
 const ExcelJS = require("exceljs");
 const pgSession = require("connect-pg-simple")(session);
@@ -12,27 +11,28 @@ const port = process.env.PORT || 3000;
 
 app.set("trust proxy", 1);
 
-// Body parsers (uploads grandes)
+// aumenta o limite para uploads grandes
 app.use(express.json({ limit: "1gb" }));
 app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
-// CORS (permite cookies)
-app.use(
-  cors({
-    origin: true,           // mesmo domínio do app
-    credentials: true,      // habilita cookies
-  })
-);
+// Habilita CORS
+app.use(cors());
 
-// Sessão persistida no Postgres
-const PG_URL =
+// ====== Pool do banco (Neon) ======
+const DB_URL =
   "postgresql://neondb_owner:npg_CIxXZ6mF9Oud@ep-broad-smoke-a8r82sdg-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
 
+const pool = new Pool({
+  connectionString: DB_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+// ====== Sessão (store no Postgres) ======
 app.use(
   session({
     store: new pgSession({
       conObject: {
-        connectionString: PG_URL,
+        connectionString: DB_URL,
         ssl: { rejectUnauthorized: false },
       },
       tableName: "session",
@@ -43,26 +43,21 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,         // em produção (HTTPS)
+      secure: true, // true em produção HTTPS
       sameSite: "lax",
     },
   })
 );
 
-// Conexão pool
-const pool = new Pool({
-  connectionString: PG_URL,
-  ssl: { rejectUnauthorized: false },
-});
-
-// Garante a tabela users
+// ====== Garante tabela users com senha em texto (se não existir) ======
 async function ensureUsersTable() {
   try {
+    // Cria a tabela se não existir
     await pool.query(`
       CREATE TABLE IF NOT EXISTS public.users (
         id            bigserial PRIMARY KEY,
         username      text UNIQUE NOT NULL,
-        password_hash text NOT NULL,
+        password_text text NOT NULL,
         is_active     boolean NOT NULL DEFAULT true,
         created_at    timestamptz NOT NULL DEFAULT now()
       );
@@ -73,95 +68,86 @@ async function ensureUsersTable() {
 }
 ensureUsersTable();
 
-/* =========================
-   Handlers nomeados
-========================= */
-const registerHandler = async (req, res) => {
+// ====== Handlers de auth (sem hash) ======
+async function handleRegister(req, res) {
   const { username, password } = req.body || {};
   if (!username || !password) {
-    return res
-      .status(400)
-      .json({ ok: false, error: "username e password são obrigatórios" });
+    return res.status(400).json({ error: "username e password são obrigatórios" });
   }
   try {
-    const hash = await bcrypt.hash(password, 10);
     await pool.query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
-      [username, hash]
+      "INSERT INTO users (username, password_text) VALUES ($1, $2)",
+      [username, String(password)]
     );
     res.sendStatus(201);
   } catch (err) {
     console.error("Erro no registro:", err);
-    if (err.code === "23505") {
-      return res.status(409).json({ ok: false, error: "username já existe" });
-    }
+    if (err.code === "23505") return res.status(409).json({ error: "username já existe" });
     res.sendStatus(500);
   }
-};
+}
 
-const loginHandler = async (req, res) => {
+async function handleLogin(req, res) {
   const { username, password } = req.body || {};
-  if (!username || !password) {
-    return res.status(400).json({ ok: false, error: "Dados requeridos" });
-  }
   try {
     const { rows } = await pool.query(
-      "SELECT id, password_hash, is_active FROM users WHERE username = $1",
+      "SELECT id, password_text FROM users WHERE username = $1 AND is_active = true",
       [username]
     );
-    if (!rows.length || rows[0].is_active === false) {
-      return res.status(401).json({ ok: false, error: "Credenciais" });
+    if (!rows.length) return res.sendStatus(401);
+
+    const { id, password_text } = rows[0];
+    if (String(password_text) !== String(password)) {
+      return res.sendStatus(401);
     }
-    const { id, password_hash } = rows[0];
-    const ok = await bcrypt.compare(password, password_hash);
-    if (!ok) return res.status(401).json({ ok: false, error: "Credenciais" });
 
     req.session.user = { id, username };
-    req.session.justLoggedIn = true;
-    res.status(200).json({ ok: true });
+    req.session.justLoggedIn = true; // permite somente o primeiro carregamento do "/"
+    res.sendStatus(200);
   } catch (err) {
     console.error("Erro no login:", err);
     res.sendStatus(500);
   }
-};
+}
 
-// Rotas de autenticação (POST)
-app.post("/register", registerHandler);
-app.post("/login", loginHandler);
+function handleLogout(req, res) {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Erro ao destruir sessão:", err);
+      return res.sendStatus(500);
+    }
+    res.clearCookie("connect.sid", { path: "/" });
+    res.sendStatus(200);
+  });
+}
 
-// Aliases REST para o front: /api/auth/*
-app.options("/api/auth/login", (_, res) => res.sendStatus(204));
-app.options("/api/auth/register", (_, res) => res.sendStatus(204));
-app.post("/api/auth/login", loginHandler);
-app.post("/api/auth/register", registerHandler);
+// ====== Rotas de autenticação (duas URLs apontam para o mesmo handler) ======
+app.post("/register", handleRegister);
+app.post("/api/auth/register", handleRegister);
 
-// Para GET direto nessas URLs, responde 405 (Method Not Allowed)
-app.get(["/api/auth/login", "/api/auth/register"], (req, res) => {
-  res.status(405).json({ ok: false, error: "Method Not Allowed" });
-});
+app.post("/login", handleLogin);
+app.post("/api/auth/login", handleLogin);
 
-/* =========================
-   Proteção de rotas
-========================= */
+app.post("/logout", handleLogout);
+app.post("/api/auth/logout", handleLogout);
+
+// ====== Middleware de proteção de rotas ======
 app.use((req, res, next) => {
   const openPaths = [
-    "/login",
-    "/register",
-    "/login.html",
-    "/register.html",
+    "/login", "/register",
+    "/login.html", "/register.html",
     "/lgpd/",
-    "/api/auth/login",
-    "/api/auth/register",
+    "/api/auth/login", "/api/auth/register", "/api/auth/logout"
   ];
 
   if (
     openPaths.some((p) => req.path.startsWith(p)) ||
-    req.path.match(/\.(html|css|js|png|ico|avif)$/)
+    req.path.match(/\.(html|css|js|png|ico|avif|webp)$/)
   ) {
     return next();
   }
 
-  // Bloqueia "/" sem login
+  // Bloqueia acesso ao "/" quando não autenticado (Opção A)
   if (!req.session.user && (req.path === "/" || req.path === "")) {
     return res.redirect("/login.html");
   }
@@ -175,43 +161,24 @@ app.use((req, res, next) => {
     return req.session.destroy(() => res.redirect("/login.html"));
   }
 
-  // Protege /api/*
   if (req.path.startsWith("/api/")) {
-    if (!req.session.user) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
+    if (!req.session.user) return res.status(401).json({ error: "Não autorizado" });
     return next();
   }
 
-  if (!req.session.user) {
-    return res.redirect("/login.html");
-  }
-
+  if (!req.session.user) return res.redirect("/login.html");
   next();
 });
 
-// Logout
-app.post("/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Erro ao destruir sessão:", err);
-      return res.sendStatus(500);
-    }
-    res.clearCookie("connect.sid", { path: "/" });
-    res.sendStatus(200);
-  });
-});
-
-// Arquivos estáticos
+// ====== Arquivos estáticos ======
 app.use(express.static(path.join(__dirname, "public")));
 
-/* =========================
-   Endpoints de dados
-========================= */
+// ====== Cache para /api/postes ======
 let cachePostes = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000;
 
+// GET /api/postes
 app.get("/api/postes", async (req, res) => {
   const now = Date.now();
   if (cachePostes && now - cacheTimestamp < CACHE_TTL) {
@@ -223,7 +190,7 @@ app.get("/api/postes", async (req, res) => {
            ep.empresa
     FROM dados_poste d
     LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''
+    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''  
   `;
   try {
     const { rows } = await pool.query(sql);
@@ -236,12 +203,13 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
+// GET /api/censo
 app.get("/api/censo", async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT poste, cidade, coordenadas
       FROM censo_municipio
-      WHERE coordenadas IS NOT NULL AND TRIM(coordenadas)<>''
+      WHERE coordenadas IS NOT NULL AND TRIM(coordenadas)<>''  
     `);
     res.json(rows);
   } catch (err) {
@@ -250,8 +218,9 @@ app.get("/api/censo", async (req, res) => {
   }
 });
 
+// POST /api/postes/report
 app.post("/api/postes/report", async (req, res) => {
-  const { ids } = req.body || {};
+  const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: "IDs inválidos" });
   }
@@ -264,14 +233,12 @@ app.post("/api/postes/report", async (req, res) => {
            ep.empresa
     FROM dados_poste d
     LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''
+    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>'' 
       AND d.id::text = ANY($1)
   `;
   try {
     const { rows } = await pool.query(sql, [clean]);
-    if (!rows.length) {
-      return res.status(404).json({ error: "Nenhum poste encontrado" });
-    }
+    if (!rows.length) return res.status(404).json({ error: "Nenhum poste encontrado" });
 
     const mapPostes = {};
     rows.forEach((r) => {
@@ -311,10 +278,7 @@ app.post("/api/postes/report", async (req, res) => {
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=relatorio_postes.xlsx"
-    );
+    res.setHeader("Content-Disposition", "attachment; filename=relatorio_postes.xlsx");
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -328,6 +292,5 @@ app.use((req, res) => {
   res.status(404).send("Rota não encontrada");
 });
 
-app.listen(port, () =>
-  console.log(`Servidor rodando na porta ${port}`)
-);
+// Inicia o servidor
+app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
