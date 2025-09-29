@@ -8,12 +8,7 @@
     />
     <title>Login</title>
 
-    <!-- Favicon -->
-    <link
-      rel="icon"
-      href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/OIP.webp?v=1750376922471"
-      type="image/webp"
-    />
+    <!-- Favicon removido intencionalmente -->
 
     <link
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
@@ -36,13 +31,7 @@
         content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.25); z-index: 0;
       }
 
-      /* Logo no topo */
-      .edp-logo-top {
-        position: absolute; top: 16px; left: 16px; z-index: 1;
-        width: 120px; opacity: .9; transition: opacity .3s;
-        filter: drop-shadow(0 2px 6px rgba(0,0,0,.25));
-      }
-      .edp-logo-top:hover { opacity: 1; }
+      /* Removido: classe de logo no topo (.edp-logo-top) */
 
       .login-box {
         position: relative; z-index: 1; width: 340px;
@@ -52,13 +41,8 @@
         background: rgba(255,255,255,.96);
         backdrop-filter: saturate(1.1) blur(2px);
       }
-      .login-box::before {
-        content: ""; position: absolute; top: 50%; left: 50%;
-        width: 200px; height: 200px;
-        background: url("https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/edp%20logo.avif?v=1750365835690")
-          no-repeat center/contain;
-        opacity: .08; transform: translate(-50%,-50%); pointer-events: none;
-      }
+      /* Removido: marca d’água de logo no ::before
+      .login-box::before { ... } */
 
       .login-box h2 { margin-bottom: 24px; font-weight: 300; color: #333; }
 
@@ -122,11 +106,7 @@
     </style>
   </head>
   <body>
-    <img
-      src="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/edp%20logo.avif?v=1750365835690"
-      alt="EDP Logo"
-      class="edp-logo-top"
-    />
+    <!-- Removido: <img class="edp-logo-top" ...> -->
 
     <div class="login-box" role="main" aria-labelledby="loginTitle">
       <h2 id="loginTitle">Entrar</h2>
@@ -179,7 +159,7 @@
     </div>
 
     <div class="footer-text">
-      Desenvolvido por Caio Henrique Faria Gouveia - Setor Compartilhantes - EDP 2025
+      Desenvolvido por Caio Henrique Faria Gouveia — 2025
     </div>
 
     <script>
