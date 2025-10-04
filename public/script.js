@@ -8,101 +8,68 @@
   const css = `
     /* HUD raiz (caixa externa) */
     #tempo{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:14px;
-      background:rgba(255,255,255,0.92);
-      box-shadow:0 8px 24px rgba(0,0,0,.12);
-      backdrop-filter:saturate(1.15) blur(2px);
+      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
+      border-radius:14px; background:rgba(255,255,255,0.92);
+      box-shadow:0 8px 24px rgba(0,0,0,.12); backdrop-filter:saturate(1.15) blur(2px);
     }
     /* Hora */
     #tempo .hora-row{
-      display:flex;
-      align-items:center;
-      gap:8px;
+      display:flex; align-items:center; gap:8px;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#0f172a;
-      font-weight:700;
+      color:#0f172a; font-weight:700;
     }
     #tempo .hora-row .dot{
-      width:10px;height:10px;border-radius:50%;
+      width:10px; height:10px; border-radius:50%;
       background:linear-gradient(180deg,#1e3a8a,#2563eb);
-      box-shadow:0 0 0 2px #e5e7eb inset;
-      display:inline-block;
+      box-shadow:0 0 0 2px #e5e7eb inset; display:inline-block;
     }
-
     /* Cartão do clima + seletor */
     #tempo .weather-card{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.95);
+      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
+      border-radius:12px; background:rgba(255,255,255,0.95);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
       min-width:260px;
     }
-    #tempo .weather-row{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-height:40px;
-    }
+    #tempo .weather-row{ display:flex; align-items:center; gap:10px; min-height:40px; }
     #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
     #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
-    #tempo .tempo-text b{ font-weight:700; }
-    #tempo .tempo-text small{ color:#6b7280; }
-
+    #tempo .tempo-text b{ font-weight:700; } #tempo .tempo-text small{ color:#6b7280; }
     /* Linha do seletor de mapa dentro do cartão */
     #tempo .map-row{
-      margin-top:6px;
-      padding-top:8px;
-      border-top:1px dashed rgba(0,0,0,.10);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      margin-top:6px; padding-top:8px; border-top:1px dashed rgba(0,0,0,.10);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
     }
-    #tempo .map-row .lbl{
-      font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      letter-spacing:.2px;
-      color:#475569;
-      font-weight:700;
-    }
+    #tempo .map-row .lbl{ font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial; letter-spacing:.2px; color:#475569; font-weight:700; }
     #tempo .select-wrap{
       position:relative; display:inline-flex; align-items:center; gap:8px;
       padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
-      background:#ffffff; transition:border-color .15s ease, box-shadow .15s ease;
+      background:#fff; transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
     #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
-    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; }
-    #tempo .select-wrap .ico-caret{
-      position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none;
-    }
-    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
+    #tempo .select-wrap .ico-globe{ width:16px; height:16px; opacity:.75; }
+    #tempo .select-wrap .ico-caret{ position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none; }
+    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui,-apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
 
     /* ---- Modal Indicadores (BI) ---- */
-    .bi-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:4000;background:rgba(0,0,0,.35);}
-    .bi-card{width:min(960px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);font-family:'Segoe UI',system-ui;}
-    .bi-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
-    .bi-head h3{margin:0;font-weight:700;color:#111827;font-size:16px}
-    .bi-close{border:0;background:#f3f4f6;color:#111827;border-radius:8px;padding:6px 10px;cursor:pointer}
-    .bi-body{padding:12px 16px;display:grid;grid-template-columns:1fr 320px;gap:12px;}
-    .bi-side label{font-size:13px;color:#374151}
-    .bi-input{padding:8px;border:1px solid #ddd;border-radius:8px;width:100%}
-    .bi-chk{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#374151;}
-    .bi-resumo{margin-top:8px;font-size:13px;color:#111827;}
-    .bi-btn{margin-top:8px;border:1px solid #ddd;background:#fff;border-radius:8px;padding:8px;cursor:pointer}
+    .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
+    .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
+    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
+    .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
+    .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
+    .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
+    .bi-side label{font-size:13px; color:#374151}
+    .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
+    .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
+    .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
+    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
     .bi-table-wrap{padding:0 16px 16px 16px;}
-    .bi-table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:8px;overflow:auto}
+    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
     .bi-table thead{background:#f9fafb}
-    .bi-table th,.bi-table td{padding:10px;border-bottom:1px solid #eee}
+    .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
 
-    /* Garante tooltip sempre acima dos labels */
+    /* Garante tooltip acima de labels/polylines */
     .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
   `;
   const style = document.createElement("style");
@@ -116,42 +83,26 @@
 (function injectDockSidebarStyles(){
   const css = `
     :root{ --dock-w: 340px; }
-
     .painel-busca{
-      position: fixed !important;
-      top: 0; right: 0; height: 100vh; width: var(--dock-w);
-      overflow: auto; overflow-x: hidden;
-      border-left: 2px solid var(--ui-border, #19d68f);
-      border-radius: 0 !important;
-      padding: 12px 12px 20px;
+      position: fixed !important; top: 0; right: 0; height: 100vh; width: var(--dock-w);
+      overflow: auto; overflow-x: hidden; border-left: 2px solid var(--ui-border, #19d68f);
+      border-radius: 0 !important; padding: 12px 12px 20px;
       transform: translateX(0%); transition: transform .25s ease;
       z-index: 1000; box-sizing: border-box;
     }
-    .painel-busca .actions{
-      display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
-      gap: 10px !important; margin-top: 6px;
-    }
+    .painel-busca .actions{ display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-top: 6px; }
     .painel-busca.collapsed{ transform: translateX(100%); }
-
     #togglePainel{
-      position: fixed !important; top: 50%;
-      right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
-      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important;
-      background: var(--ui-bg, #0f1b2a) !important;
-      border: 1px solid var(--ui-border, #19d68f) !important;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
+      position: fixed !important; top: 50%; right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
+      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important; background: var(--ui-bg, #0f1b2a) !important;
+      border: 1px solid var(--ui-border, #19d68f) !important; box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
       display:flex;align-items:center;justify-content:center;
     }
     body.sidebar-collapsed #togglePainel{ right: 6px !important; }
     #togglePainel i{ transition: transform .2s ease; }
     body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
-
-    #localizacaoUsuario, #logoutBtn{
-      position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100;
-    }
+    #localizacaoUsuario, #logoutBtn{ position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100; }
     body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
-
-    /* HUD acoplado na lateral (logo abaixo das ações) */
     .dock-hud{ margin-top:12px; }
   `;
   const style = document.createElement('style');
@@ -174,8 +125,7 @@
       background:transparent !important; border:none !important; box-shadow:none !important;
       color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
-      transform: translate(-50%, -50%);
-      user-select:none; pointer-events:auto;
+      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
     }
   `;
   const style = document.createElement('style');
@@ -184,40 +134,24 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
+const map = L.map("map").setView([-23.2, -45.9], 12); // SVG (sem preferCanvas)
 
-// Rua (OSM)
+// Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
-// Satélite (Esri)
-const esriSat = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom: 19 }
-);
-// Rótulos por cima do satélite
+const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
 const labelsPane = map.createPane("labels");
 labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
-const cartoLabels = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
-  { pane: "labels", maxZoom: 19, subdomains: "abcd" }
-);
+const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", { pane: "labels", maxZoom: 19, subdomains: "abcd" });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
-
-// Começa com Rua (OSM)
 osm.addTo(map);
 
-// === Renderer Canvas + estilo das bolinhas (verde/verm) ===
-const DOT_RENDERER = L.canvas({ padding: 0.5 });
+// estilo dos pontos
 function dotStyle(qtdEmpresas){
   return {
-    radius: 6,
-    color: "#fff",
-    weight: 1,
+    radius: 6, color: "#fff", weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
-    fillOpacity: 0.95,
-    renderer: DOT_RENDERER,
-    interactive: true,
-    bubblingMouseEvents: false
+    fillOpacity: 0.95
   };
 }
 
@@ -241,18 +175,12 @@ const markers = L.markerClusterGroup({
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50,
-  iconCreateFunction: function (cluster) {
-    return new L.DivIcon({
-      html: String(cluster.getChildCount()),
-      className: "cluster-num-only",
-      iconSize: null
-    });
-  }
+  iconCreateFunction: (cluster) =>
+    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
 
-// garante handler único
+// Clique no cluster: spiderfy + abre 1º filho
 markers.off("clusterclick");
-// clique no cluster: spiderfy + abre 1º filho
 markers.on("clusterclick", (e) => {
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
   const childs = e.layer.getAllChildMarkers();
@@ -268,40 +196,22 @@ markers.on("clusterclick", (e) => {
   });
 });
 
-// qualquer layer simples dentro do cluster abre popup
-markers.on("click", (e) => {
-  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const l = e.layer;
-  if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
-  if (l && l.posteData) {
-    try { l.openTooltip?.(); } catch {}
-    abrirPopup(l.posteData);
-  }
-});
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
-// cache: id(string) -> L.Layer
-const idToMarker = new Map();
+const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
-
-// helper: normaliza chave de ID
 function keyId(id){ return String(id); }
-
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
-
-function refreshClustersSoon() {
-  // força o plugin a recalcular hit-test dos clusters
-  requestAnimationFrame(() => markers.refreshClusters());
-}
+function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
 
 /* ====================================================================
    Popup fixo: instância única, sem piscar
 ==================================================================== */
 const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
-let popupPinned = false;   // true se o usuário não fechou o popup
-let lastPopup = null;      // {lat, lon, html}
+let popupPinned = false;
+let lastPopup = null;
 
 function reabrirPopupFixo(delay = 0){
   if (!popupPinned || !lastPopup) return;
@@ -311,28 +221,24 @@ function reabrirPopupFixo(delay = 0){
   };
   delay ? setTimeout(open, delay) : open();
 }
-map.on("popupclose", (e) => {
-  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
-});
+map.on("popupclose", (e) => { if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }});
 
 /* ====================================================================
    Tooltip fixo (reabrir após cluster/reset)
 ==================================================================== */
-let tipPinned = false;   // fica true após clique (para manter aberto)
+let tipPinned = false;   // true após clique (para manter aberto)
 let lastTip = null;      // { id }
 
 function reabrirTooltipFixo(delay = 0) {
   if (!lastTip || !tipPinned) return;
   const open = () => {
     const layer = idToMarker.get(keyId(lastTip.id));
-    if (layer && markers.hasLayer(layer)) {
-      try { layer.openTooltip(); } catch {}
-    }
+    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
   };
   delay ? setTimeout(open, delay) : open();
 }
 
-// Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
+// Cria (ou retorna do cache) o layer do poste
 function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
@@ -350,19 +256,24 @@ function criarLayerPoste(p){
       try { layer.openTooltip?.(); } catch {}
       abrirPopup(p);
     });
-
   layer.posteData = p;
   idToMarker.set(key, layer);
   return layer;
 }
 
+// Reconstrói tudo do zero (modo “cura tudo”)
+function hardReset(){
+  markers.clearLayers();
+  idToMarker.clear();
+  const layers = todosPostes.map(criarLayerPoste);
+  if (layers.length) markers.addLayers(layers);
+  refreshClustersSoon();
+}
+
 // Adiciona 1 poste (usado em filtros, etc.)
 function adicionarMarker(p) {
   const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) {
-    markers.addLayer(layer);
-    refreshClustersSoon();
-  }
+  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
 }
 
 // Exibe TODOS os já criados no cache
@@ -383,10 +294,7 @@ function carregarTodosPostesGradualmente() {
   function addChunk() {
     const slice = todosPostes.slice(i, i + lote);
     const layers = slice.map(criarLayerPoste);
-    if (layers.length) {
-      markers.addLayers(layers);
-      refreshClustersSoon();
-    }
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
     else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
@@ -417,11 +325,8 @@ if (overlay) overlay.style.display = "flex";
 
   const actions = painel.querySelector(".actions");
   hud.classList.add("dock-hud");
-  if (actions && actions.parentNode === painel) {
-    painel.insertBefore(hud, actions.nextSibling);
-  } else {
-    painel.appendChild(hud);
-  }
+  if (actions && actions.parentNode === painel) painel.insertBefore(hud, actions.nextSibling);
+  else painel.appendChild(hud);
 
   hud.innerHTML = "";
 
@@ -436,9 +341,7 @@ if (overlay) overlay.style.display = "flex";
     <div class="weather-row">
       <img alt="Clima" src="" />
       <div class="tempo-text">
-        <b>Carregando…</b>
-        <span> </span>
-        <small> </small>
+        <b>Carregando…</b><span> </span><small> </small>
       </div>
     </div>
     <div class="map-row">
@@ -447,8 +350,7 @@ if (overlay) overlay.style.display = "flex";
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
-          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20"
-                fill="none" stroke="#111827" stroke-width="2"/>
+          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="#111827" stroke-width="2"/>
         </svg>
         <select id="select-base">
           <option value="rua">Rua</option>
@@ -573,10 +475,8 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
-      const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
-        interactive: true, bubblingMouseEvents: false
-      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
+      const c = L.circleMarker([poste.lat, poste.lon], { radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8 })
+        .bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
       c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
         lastTip = { id: keyId(poste.id) }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
@@ -618,17 +518,14 @@ function filtrarLocal() {
       (!emp || (Array.isArray(p.empresas) ? p.empresas : []).join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
-  markers.clearLayers();
-  refreshClustersSoon();
+  markers.clearLayers(); refreshClustersSoon();
 
   filtro.forEach(adicionarMarker);
   refreshClustersSoon();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
+  reabrirTooltipFixo(0); reabrirPopupFixo(0);
 
   fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "include",
+    method: "POST", credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
   })
@@ -647,21 +544,16 @@ function filtrarLocal() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => {
-      console.error("Erro exportar filtro:", e);
-      alert("Falha ao gerar Excel backend:\n" + e.message);
-    });
+    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
 
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
 function resetarMapa() {
-  // limpa estados pinados para não tentar reabrir algo inexistente
-  popupPinned = false; lastPopup = null;
-  tipPinned = false; lastTip = null;
-
-  exibirTodosPostes();     // reconstroi clusters
-  refreshClustersSoon();   // garante hover/click ativo
+  // hard reset para curar qualquer estado de evento perdido
+  popupPinned = false; lastPopup = null; tipPinned = false; lastTip = null;
+  hardReset();
+  reabrirTooltipFixo(0); reabrirPopupFixo(0);
 }
 
 // ---------------------------------------------------------------------
@@ -706,30 +598,18 @@ function makePolePhoto48(glowHex) {
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
-
-const ICON_GREEN_48 = L.icon({
-  iconUrl: makePolePhoto48("#24a148"),
-  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
-});
-const ICON_RED_48 = L.icon({
-  iconUrl: makePolePhoto48("#d64545"),
-  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
-});
+const ICON_GREEN_48 = L.icon({ iconUrl: makePolePhoto48("#24a148"), iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22] });
+const ICON_RED_48   = L.icon({ iconUrl: makePolePhoto48("#d64545"), iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22] });
 function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
 function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
 // Street View (link público)
 // ---------------------------------------------------------------------
-function buildGoogleMapsPanoURL(lat, lng) {
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
-}
+function buildGoogleMapsPanoURL(lat, lng) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`; }
 function googleButtonHTML(lat, lng, label = "Abrir no Google Street View") {
   const url = buildGoogleMapsPanoURL(lat, lng);
-  return `<button onclick="window.open('${url}','_blank','noopener')"
-    style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
-    ${label}
-  </button>`;
+  return `<button onclick="window.open('${url}','_blank','noopener')" style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">${label}</button>`;
 }
 function streetImageryBlockHTML(lat, lng) {
   return `
@@ -741,7 +621,6 @@ function streetImageryBlockHTML(lat, lng) {
     </small>
   `.trim();
 }
-
 (function addStreetViewControl() {
   if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
   const Control = L.Control.extend({
@@ -768,10 +647,7 @@ function streetImageryBlockHTML(lat, lng) {
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
   const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
-  const list = empresas.length
-    ? empresas.map((e) => `<li>${e}</li>`).join("")
-    : `<li><i>Disponível (sem empresas)</i></li>`;
-
+  const list = empresas.length ? empresas.map((e) => `<li>${e}</li>`).join("") : `<li><i>Disponível (sem empresas)</i></li>`;
   const html = `
     <b>ID:</b> ${p.id}<br>
     <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
@@ -831,7 +707,6 @@ function preencherClimaUI(data) {
     t.innerHTML = `<b>Erro ao obter clima</b>`;
   }
 }
-
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
   fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
@@ -842,10 +717,8 @@ function obterPrevisaoDoTempo(lat, lon) {
       if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
     });
 }
-
-// tenta pegar geo; se falhar, usa SP
 (function initWeather() {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
   if (!navigator.geolocation) return fallback();
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
@@ -867,8 +740,7 @@ setInterval(() => {
 function consultarIDsEmMassa() {
   const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
-  markers.clearLayers();
-  refreshClustersSoon();
+  markers.clearLayers(); refreshClustersSoon();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
@@ -890,10 +762,8 @@ function consultarIDsEmMassa() {
         )
         .forEach((p) => {
           const empresasStr = (Array.isArray(p.empresas) ? p.empresas : []).join(", ");
-          const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
-            interactive: true, bubblingMouseEvents: false
-          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
+          const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
             .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
               lastTip = { id: keyId(p.id) }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
@@ -903,8 +773,7 @@ function consultarIDsEmMassa() {
         });
     }
   });
-  map.addLayer(markers);
-  refreshClustersSoon();
+  map.addLayer(markers); refreshClustersSoon();
 
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
@@ -930,10 +799,7 @@ function consultarIDsEmMassa() {
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
   const cor = qtd >= 5 ? "red" : "green";
-  const html = `<div style="
-      background:${cor};color:white;width:22px;height:22px;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white
-    ">${num}</div>`;
+  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
   mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
@@ -972,9 +838,7 @@ function gerarPDFComMapa() {
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -990,8 +854,7 @@ function limparTudo() {
 // Exporta Excel genérico
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "include",
+    method: "POST", credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
@@ -1000,10 +863,7 @@ function exportarExcel(ids) {
         window.location.href = "/login.html";
         throw new Error("Não autorizado");
       }
-      if (!res.ok) {
-        let err; try { err = (await res.json()).error; } catch {}
-        throw new Error(err || `HTTP ${res.status}`);
-      }
+      if (!res.ok) { let err; try { err = (await res.json()).error; } catch {} throw new Error(err || `HTTP ${res.status}`); }
       return res.blob();
     })
     .then((b) => {
@@ -1013,10 +873,7 @@ function exportarExcel(ids) {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => {
-      console.error("Erro Excel:", e);
-      alert("Falha ao gerar Excel:\n" + e.message);
-    });
+    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
 // Botão Excel
@@ -1043,22 +900,17 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
     sessionStorage.removeItem("auth_token");
     document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
   } catch {}
-
-  if (navigator.onLine) {
-    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
-  }
+  if (navigator.onLine) { try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {} }
   window.location.replace("/login.html");
 });
 
 /* --------------------------------------------------------------------
-   Indicadores (BI)
+   === Indicadores (BI)
 -------------------------------------------------------------------- */
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
-
-  const mapa = new Map();
-  let total = 0;
+  const mapa = new Map(); let total = 0;
 
   for (const p of todosPostes) {
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
@@ -1071,19 +923,14 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
     total++;
   }
 
-  const rows = Array.from(mapa.entries())
-    .map(([municipio, qtd]) => ({ municipio, qtd }))
-    .sort((a, b) => b.qtd - a.qtd);
-
+  const rows = Array.from(mapa.entries()).map(([municipio, qtd]) => ({ municipio, qtd })).sort((a, b) => b.qtd - a.qtd);
   return { rows, total };
 }
-
 function rowsToCSV(rows) {
   const header = "Municipio,Quantidade\n";
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
-
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -1095,10 +942,8 @@ function rowsToCSV(rows) {
     actions.appendChild(btn);
   }
 })();
-
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
-
   const backdrop = document.createElement("div");
   backdrop.className = "bi-backdrop";
   backdrop.id = "modalIndicadores";
@@ -1113,9 +958,7 @@ function ensureBIModal() {
         <div class="bi-side">
           <label>Filtrar por empresa (opcional)</label>
           <input id="filtroEmpresaBI" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
-          <label class="bi-chk">
-            <input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa
-          </label>
+          <label class="bi-chk"><input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa</label>
           <div id="resumoBI" class="bi-resumo"></div>
           <button id="exportarCsvBI" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
         </div>
@@ -1123,9 +966,7 @@ function ensureBIModal() {
       <div class="bi-table-wrap">
         <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
           <table id="tabelaMunicipios" class="bi-table">
-            <thead>
-              <tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr>
-            </thead>
+            <thead><tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -1140,12 +981,9 @@ function ensureBIModal() {
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
     const onlyView = document.getElementById("apenasVisiveisBI");
-    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
-      atualizarIndicadores();
-    }
+    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) atualizarIndicadores();
   });
 }
-
 function abrirIndicadores() {
   ensureBIModal();
   const modal = document.getElementById("modalIndicadores");
@@ -1159,18 +997,15 @@ function abrirIndicadores() {
   } else { proceed(); }
 }
 function fecharIndicadores() { const m = document.getElementById("modalIndicadores"); if (m) m.style.display = "none"; }
-
 function atualizarIndicadores() {
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
-
   const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
 
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
-    tb.innerHTML = rows.map(r => `
-      <tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>
-    `).join("") || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+    tb.innerHTML = rows.map(r => `<tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`).join("")
+      || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
   }
 
   const resumo = document.getElementById("resumoBI");
@@ -1193,11 +1028,7 @@ function atualizarIndicadores() {
       chartMunicipiosRef = new Chart(ctx, {
         type: "bar",
         data: { labels, datasets: [{ label: "Postes por município", data }] },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } } }
       });
     }
   }
@@ -1208,8 +1039,7 @@ function atualizarIndicadores() {
       const csv = rowsToCSV(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      const a = document.createElement("a"); a.href = url;
       const sufixo = empresa ? `_${empresa.replace(/\W+/g,'_')}` : "";
       a.download = `postes_por_municipio${sufixo}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
