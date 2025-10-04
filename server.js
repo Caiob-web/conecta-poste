@@ -18,6 +18,8 @@ const app = express();
 const port = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
+app.disable("x-powered-by"); // hardening simples
+
 // ---------------------------------------------------------------
 // Banco (Neon) — sem fallback: exige DATABASE_URL no ambiente
 // ---------------------------------------------------------------
@@ -231,8 +233,7 @@ app.get("/api/postes", async (req, res) => {
   const now = Date.now();
   if (cachePostes && now - cacheTs < CACHE_TTL) {
     return res.json(cachePostes);
-  }
-
+    }
   const sql = `
     SELECT d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
            d.material, d.altura, d.tensao_mecanica, d.coordenadas,
@@ -241,7 +242,6 @@ app.get("/api/postes", async (req, res) => {
     LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
     WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas) <> ''
   `;
-
   try {
     const { rows } = await pool.query(sql);
     cachePostes = rows;
@@ -263,6 +263,67 @@ app.get("/api/censo", async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error("Erro em /api/censo:", err);
+    res.status(500).json({ error: "Erro no servidor" });
+  }
+});
+
+// ---------- NOVO: Relatório Excel por IDs (usado pelo front) ----------
+app.post("/api/postes/report", async (req, res) => {
+  try {
+    const ids = (req.body?.ids || []).map(String).filter(Boolean);
+    if (!ids.length) return res.status(400).json({ error: "Informe ids" });
+
+    // Coleta dados e agrega empresas por poste
+    const sql = `
+      SELECT d.id,
+             d.nome_municipio,
+             d.nome_bairro,
+             d.nome_logradouro,
+             d.coordenadas,
+             array_agg(ep.empresa ORDER BY ep.empresa)
+               FILTER (WHERE ep.empresa IS NOT NULL) AS empresas
+      FROM dados_poste d
+      LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
+      WHERE d.id::text = ANY($1)
+      GROUP BY d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro, d.coordenadas
+      ORDER BY d.id::text;
+    `;
+    const { rows } = await pool.query(sql, [ids]);
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Filtro");
+    ws.columns = [
+      { header: "ID POSTE", key: "id", width: 16 },
+      { header: "Município", key: "municipio", width: 24 },
+      { header: "Bairro", key: "bairro", width: 24 },
+      { header: "Logradouro", key: "logradouro", width: 30 },
+      { header: "Empresas", key: "empresas", width: 40 },
+      { header: "Coordenadas", key: "coord", width: 24 },
+    ];
+
+    for (const r of rows) {
+      ws.addRow({
+        id: r.id,
+        municipio: r.nome_municipio || "",
+        bairro: r.nome_bairro || "",
+        logradouro: r.nome_logradouro || "",
+        empresas: (r.empresas || []).join(", "),
+        coord: r.coordenadas || "",
+      });
+    }
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="relatorio_postes.xlsx"'
+    );
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("Erro em /api/postes/report:", err);
     res.status(500).json({ error: "Erro no servidor" });
   }
 });
