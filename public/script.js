@@ -248,7 +248,23 @@ const markers = L.markerClusterGroup({
     });
   }
 });
-markers.on("clusterclick", (e) => e.layer.spiderfy());
+
+// Clique no cluster: spiderfy + abre automaticamente 1º filho (tooltip + popup)
+markers.on("clusterclick", (e) => {
+  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+  const childs = e.layer.getAllChildMarkers();
+  e.layer.spiderfy();
+  setTimeout(() => {
+    const first = childs && childs[0];
+    if (first && first.posteData) {
+      try { first.openTooltip?.(); } catch {}
+      abrirPopup(first.posteData);
+      lastTip = { id: keyId(first.posteData.id) };
+      tipPinned = true;
+    }
+  }, 0);
+});
+
 // failsafe: qualquer layer simples dentro do cluster abre popup
 markers.on("click", (e) => {
   // FIX: se vier DOM event, não deixa “subir”
@@ -256,7 +272,6 @@ markers.on("click", (e) => {
   const l = e.layer;
   if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
   if (l && l.posteData) {
-    // tenta também abrir tooltip, se existir
     try { l.openTooltip?.(); } catch {}
     abrirPopup(l.posteData);
   }
@@ -264,8 +279,12 @@ markers.on("click", (e) => {
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
-const idToMarker = new Map();   // cache: id -> L.Layer
+// cache: id(string) -> L.Layer
+const idToMarker = new Map();
 let todosCarregados = false;
+
+// helper: normaliza chave de ID
+function keyId(id){ return String(id); }
 
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
@@ -298,7 +317,7 @@ let lastTip = null;      // { id }
 function reabrirTooltipFixo(delay = 0) {
   if (!lastTip || !tipPinned) return;
   const open = () => {
-    const layer = idToMarker.get(lastTip.id);
+    const layer = idToMarker.get(keyId(lastTip.id));
     if (layer && markers.hasLayer(layer)) {
       try { layer.openTooltip(); } catch {}
     }
@@ -308,22 +327,28 @@ function reabrirTooltipFixo(delay = 0) {
 
 // Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
 function criarLayerPoste(p){
-  if (idToMarker.has(p.id)) return idToMarker.get(p.id);
-  const layer = L.circleMarker([p.lat, p.lon], dotStyle(p.empresas.length))
+  const key = keyId(p.id);
+  if (idToMarker.has(key)) return idToMarker.get(key);
+
+  const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
+  const qtd = empresas.length;
+  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
+
+  const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
     .bindTooltip(
-      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+      `ID: ${p.id} — ${txtQtd}`,
       { direction: "top", sticky: true }
     )
-    .on("mouseover", () => { lastTip = { id: p.id }; tipPinned = false; })
+    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
       // FIX: impedir que o clique “suba” e garantir abertura
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      lastTip = { id: p.id }; tipPinned = true;
+      lastTip = { id: key }; tipPinned = true;
       try { e.target.openTooltip?.(); } catch {}
       abrirPopup(p);
     });
   layer.posteData = p; // usado pelo failsafe do cluster
-  idToMarker.set(p.id, layer);
+  idToMarker.set(key, layer);
   return layer;
 }
 
@@ -498,14 +523,15 @@ function preencherListas() {
 // Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
+  const idSet = new Set((filtroIds || []).map(keyId));
   const dadosParaExcel = todosPostes
-    .filter((p) => filtroIds.includes(p.id))
+    .filter((p) => idSet.has(keyId(p.id)))
     .map((p) => ({
       "ID POSTE": p.id,
       Município: p.nome_municipio,
       Bairro: p.nome_bairro,
       Logradouro: p.nome_logradouro,
-      Empresas: p.empresas.join(", "),
+      Empresas: (Array.isArray(p.empresas) ? p.empresas : []).join(", "),
       Coordenadas: p.coordenadas,
     }));
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
@@ -541,9 +567,9 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
         // FIX: garantir clique no Canvas e não deixar subir
         interactive: true, bubblingMouseEvents: false
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("mouseover", () => { lastTip = { id: poste.id }; tipPinned = false; });
+      c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
       c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-        lastTip = { id: poste.id }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
+        lastTip = { id: keyId(poste.id) }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
       c.posteData = poste;
       markers.addLayer(c);
     });
@@ -556,7 +582,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // ---------------------------------------------------------------------
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
-  const p = todosPostes.find((x) => x.id === id);
+  const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], 18);
   abrirPopup(p);
@@ -578,7 +604,7 @@ function filtrarLocal() {
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
       (!bai || p.nome_bairro.toLowerCase() === bai) &&
       (!log || p.nome_logradouro.toLowerCase() === log) &&
-      (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
+      (!emp || (Array.isArray(p.empresas) ? p.empresas : []).join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
@@ -725,7 +751,11 @@ function streetImageryBlockHTML(lat, lng) {
 // Abre popup (usa a instância única mainPopup)
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
-  const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
+  const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
+  const list = empresas.length
+    ? empresas.map((e) => `<li>${e}</li>`).join("")
+    : `<li><i>Disponível (sem empresas)</i></li>`;
+
   const html = `
     <b>ID:</b> ${p.id}<br>
     <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
@@ -826,7 +856,7 @@ function consultarIDsEmMassa() {
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
+  const encontrados = ids.map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id))).filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
@@ -836,20 +866,21 @@ function consultarIDsEmMassa() {
     const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
     if (d > 50) {
       todosPostes
-        .filter((p) => !ids.includes(p.id))
+        .filter((p) => !ids.includes(keyId(p.id)))
         .filter((p) =>
           getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
           getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
+          const empresasStr = (Array.isArray(p.empresas) ? p.empresas : []).join(", ");
           const m = L.circleMarker([p.lat, p.lon], {
             radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
             // FIX: interativo e sem bubbling
             interactive: true, bubblingMouseEvents: false
-          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
-            .on("mouseover", () => { lastTip = { id: p.id }; tipPinned = false; })
+          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
+            .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
             .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-              lastTip = { id: p.id }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
+              lastTip = { id: keyId(p.id) }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
             .addTo(map);
           m.posteData = p;
           window.intermediarios.push(m);
@@ -867,9 +898,9 @@ function consultarIDsEmMassa() {
 
   window.ultimoResumoPostes = {
     total: ids.length,
-    disponiveis: encontrados.filter((p) => p.empresas.length <= 4).length,
-    ocupados: encontrados.filter((p) => p.empresas.length >= 5).length,
-    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
+    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
+    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
+    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
     intermediarios: window.intermediarios.length,
   };
 
@@ -879,16 +910,17 @@ function consultarIDsEmMassa() {
 
 // Adiciona marcador numerado (usa o mesmo abrirPopup)
 function adicionarNumerado(p, num) {
-  const cor = p.empresas.length >= 5 ? "red" : "green";
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const cor = qtd >= 5 ? "red" : "green";
   const html = `<div style="
       background:${cor};color:white;width:22px;height:22px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("mouseover", () => { lastTip = { id: p.id }; tipPinned = false; });
+  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
   mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-    lastTip = { id: p.id }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
+    lastTip = { id: keyId(p.id) }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
