@@ -101,6 +101,9 @@
     .bi-table thead{background:#f9fafb}
     .bi-table th,.bi-table td{padding:10px;border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
+
+    /* Garante tooltip sempre acima dos labels */
+    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
   `;
   const style = document.createElement("style");
   style.textContent = css;
@@ -192,7 +195,6 @@ const esriSat = L.tileLayer(
 );
 // Rótulos por cima do satélite
 const labelsPane = map.createPane("labels");
-// FIX: manter rótulos **abaixo** dos tooltips (tooltipPane=650). Antes era 650 e podia cobrir o tooltip.
 labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
 const cartoLabels = L.tileLayer(
@@ -214,7 +216,6 @@ function dotStyle(qtdEmpresas){
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
     fillOpacity: 0.95,
     renderer: DOT_RENDERER,
-    // FIX: garantir interatividade do path em Canvas e evitar “propagação” fechar/consumir cliques
     interactive: true,
     bubblingMouseEvents: false
   };
@@ -249,12 +250,14 @@ const markers = L.markerClusterGroup({
   }
 });
 
-// Clique no cluster: spiderfy + abre automaticamente 1º filho (tooltip + popup)
+// garante handler único
+markers.off("clusterclick");
+// clique no cluster: spiderfy + abre 1º filho
 markers.on("clusterclick", (e) => {
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
   const childs = e.layer.getAllChildMarkers();
   e.layer.spiderfy();
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     const first = childs && childs[0];
     if (first && first.posteData) {
       try { first.openTooltip?.(); } catch {}
@@ -262,12 +265,11 @@ markers.on("clusterclick", (e) => {
       lastTip = { id: keyId(first.posteData.id) };
       tipPinned = true;
     }
-  }, 0);
+  });
 });
 
-// failsafe: qualquer layer simples dentro do cluster abre popup
+// qualquer layer simples dentro do cluster abre popup
 markers.on("click", (e) => {
-  // FIX: se vier DOM event, não deixa “subir”
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
   const l = e.layer;
   if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
@@ -289,12 +291,17 @@ function keyId(id){ return String(id); }
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 
+function refreshClustersSoon() {
+  // força o plugin a recalcular hit-test dos clusters
+  requestAnimationFrame(() => markers.refreshClusters());
+}
+
 /* ====================================================================
    Popup fixo: instância única, sem piscar
 ==================================================================== */
 const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
-let popupPinned = false;                 // true se o usuário não fechou o popup
-let lastPopup = null;                    // {lat, lon, html}
+let popupPinned = false;   // true se o usuário não fechou o popup
+let lastPopup = null;      // {lat, lon, html}
 
 function reabrirPopupFixo(delay = 0){
   if (!popupPinned || !lastPopup) return;
@@ -335,19 +342,16 @@ function criarLayerPoste(p){
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
 
   const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
-    .bindTooltip(
-      `ID: ${p.id} — ${txtQtd}`,
-      { direction: "top", sticky: true }
-    )
+    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
     .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
-      // FIX: impedir que o clique “suba” e garantir abertura
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
       lastTip = { id: key }; tipPinned = true;
-      try { e.target.openTooltip?.(); } catch {}
+      try { layer.openTooltip?.(); } catch {}
       abrirPopup(p);
     });
-  layer.posteData = p; // usado pelo failsafe do cluster
+
+  layer.posteData = p;
   idToMarker.set(key, layer);
   return layer;
 }
@@ -355,14 +359,18 @@ function criarLayerPoste(p){
 // Adiciona 1 poste (usado em filtros, etc.)
 function adicionarMarker(p) {
   const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) markers.addLayer(layer);
+  if (!markers.hasLayer(layer)) {
+    markers.addLayer(layer);
+    refreshClustersSoon();
+  }
 }
 
 // Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
-  if (arr.length) markers.addLayers(arr); // usa chunkedLoading
+  if (arr.length) markers.addLayers(arr);
+  refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 }
@@ -375,7 +383,10 @@ function carregarTodosPostesGradualmente() {
   function addChunk() {
     const slice = todosPostes.slice(i, i + lote);
     const layers = slice.map(criarLayerPoste);
-    if (layers.length) markers.addLayers(layers);
+    if (layers.length) {
+      markers.addLayers(layers);
+      refreshClustersSoon();
+    }
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
     else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
@@ -404,7 +415,6 @@ if (overlay) overlay.style.display = "flex";
   const painel = document.querySelector(".painel-busca");
   if (!hud || !painel) return;
 
-  // move o HUD para o painel, logo abaixo do .actions (lado direito)
   const actions = painel.querySelector(".actions");
   hud.classList.add("dock-hud");
   if (actions && actions.parentNode === painel) {
@@ -546,6 +556,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
+  refreshClustersSoon();
   if (!censoMode) { exibirTodosPostes(); reabrirTooltipFixo(0); reabrirPopupFixo(0); return; }
 
   if (!censoIds) {
@@ -564,7 +575,6 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
         radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
-        // FIX: garantir clique no Canvas e não deixar subir
         interactive: true, bubblingMouseEvents: false
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
@@ -573,6 +583,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       c.posteData = poste;
       markers.addLayer(c);
     });
+  refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 });
@@ -608,8 +619,10 @@ function filtrarLocal() {
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
+  refreshClustersSoon();
 
   filtro.forEach(adicionarMarker);
+  refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 
@@ -643,15 +656,17 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
-  // não altera zoom
-  exibirTodosPostes();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
+  // limpa estados pinados para não tentar reabrir algo inexistente
+  popupPinned = false; lastPopup = null;
+  tipPinned = false; lastTip = null;
+
+  exibirTodosPostes();     // reconstroi clusters
+  refreshClustersSoon();   // garante hover/click ativo
 }
 
-/* ====================================================================
-   ÍCONES 48px — poste fotorealista + halo de disponibilidade
-==================================================================== */
+// ---------------------------------------------------------------------
+// ÍCONES 48px — poste fotorealista + halo de disponibilidade
+// ---------------------------------------------------------------------
 function makePolePhoto48(glowHex) {
   const svg = `
   <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
@@ -704,7 +719,8 @@ function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_4
 function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
-// === Street View gratuito (link público) =============================
+// Street View (link público)
+// ---------------------------------------------------------------------
 function buildGoogleMapsPanoURL(lat, lng) {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
@@ -852,6 +868,7 @@ function consultarIDsEmMassa() {
   const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
   markers.clearLayers();
+  refreshClustersSoon();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
@@ -875,7 +892,6 @@ function consultarIDsEmMassa() {
           const empresasStr = (Array.isArray(p.empresas) ? p.empresas : []).join(", ");
           const m = L.circleMarker([p.lat, p.lon], {
             radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
-            // FIX: interativo e sem bubbling
             interactive: true, bubblingMouseEvents: false
           }).bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
@@ -888,6 +904,8 @@ function consultarIDsEmMassa() {
     }
   });
   map.addLayer(markers);
+  refreshClustersSoon();
+
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
@@ -923,6 +941,7 @@ function adicionarNumerado(p, num) {
     lastTip = { id: keyId(p.id) }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
+  refreshClustersSoon();
   window.numeroMarkers.push(mk);
 }
 
@@ -1017,31 +1036,23 @@ document.getElementById("togglePainel").addEventListener("click", () => {
   p.addEventListener("transitionend", onEnd);
 });
 
-// Logout (ATUALIZADO: robusto a offline e rota opcional)
+// Logout
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   try {
-    // limpa credenciais locais sempre
     localStorage.removeItem("auth_token");
     sessionStorage.removeItem("auth_token");
     document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
   } catch {}
 
-  // tenta avisar o servidor apenas se estiver online; ignora falhas
   if (navigator.onLine) {
-    try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    } catch {}
+    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
   }
-
-  // usa replace para não voltar com back
   window.location.replace("/login.html");
 });
 
 /* --------------------------------------------------------------------
-   === Indicadores (BI) — injeção automática de botão + modal ===
+   Indicadores (BI)
 -------------------------------------------------------------------- */
-
-// Agregação por município, com filtros
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
@@ -1067,14 +1078,12 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   return { rows, total };
 }
 
-// CSV
 function rowsToCSV(rows) {
   const header = "Municipio,Quantidade\n";
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
 
-// Injeta botão "Indicadores"
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -1087,7 +1096,6 @@ function rowsToCSV(rows) {
   }
 })();
 
-// Modal de BI
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
 
@@ -1211,57 +1219,7 @@ function atualizarIndicadores() {
 }
 
 /* ====================================================================
-   TEMA ESCURO – PALETA DO PRINT
-==================================================================== */
-(function injectDarkPanelStyles(){
-  const css = `
-  :root{
-    --ui-bg:#0f1b2a; --ui-elev:#132235; --ui-text:#e6edf7; --ui-muted:#9fb3c8;
-    --ui-border:#19d68f; --ui-border-dim:#134e37; --ui-accent:#18c77f; --ui-accent-2:#0fb171; --ui-danger:#ef4444;
-  }
-  .painel-busca{
-    color:var(--ui-text); background:var(--ui-bg); border:1px solid var(--ui-border);
-    border-radius:14px; box-shadow:0 8px 28px rgba(0,0,0,.25); padding:12px;
-  }
-  .painel-busca h2, .painel-busca h3{ margin:0 0 8px 0; font-weight:800; letter-spacing:.3px; color:var(--ui-text); }
-  .painel-busca input, .painel-busca select, .painel-busca textarea{
-    width:100%; background:var(--ui-elev); color:var(--ui-text); border:1px solid var(--ui-border);
-    border-radius:10px; padding:8px 10px; outline:none; transition:border-color .15s ease, box-shadow .15s ease;
-  }
-  .painel-busca input::placeholder, .painel-busca textarea::placeholder{ color:#89a2b7; }
-  .painel-busca input:focus, .painel-busca select:focus, .painel-busca textarea:focus{
-    border-color:var(--ui-accent); box-shadow:0 0 0 3px rgba(24,199,127,.25);
-  }
-  .painel-busca button, .painel-busca .actions button{
-    background:var(--ui-accent); color:#031d12; font-weight:800; border:1px solid var(--ui-border);
-    border-radius:10px; padding:8px 10px; cursor:pointer;
-    transition:transform .12s ease, background .15s ease, border-color .15s ease;
-  }
-  .painel-busca button:hover{ background:var(--ui-accent-2); transform:translateY(-1px); }
-  .painel-busca button:disabled{ opacity:.6; cursor:not-allowed; }
-
-  #tempo{
-    background:rgba(10,20,32,.9) !important; color:var(--ui-text) !important; border:1px solid var(--ui-border);
-  }
-  #tempo .hora-row{ color:var(--ui-text) !important; }
-  #tempo .hora-row .dot{ background:radial-gradient(circle at 40% 40%, var(--ui-accent), #0b6a45); box-shadow:0 0 0 2px rgba(24,199,127,.25) inset; }
-  #tempo .weather-card{ background:rgba(15,27,42,.92) !important; border:1px solid var(--ui-border); }
-  #tempo .tempo-text{ color:var(--ui-text) !important; }
-  #tempo .tempo-text small{ color:var(--ui-muted) !important; }
-  #tempo .map-row{ border-top:1px dashed rgba(25,214,143,.35) !important; }
-  #tempo .select-wrap{ background:#0d1a2b !important; color:var(--ui-text); border-color:var(--ui-border) !important; }
-  #tempo select{ color:var(--ui-text) !important; }
-  #tempo .select-wrap:focus-within{ box-shadow:0 0 0 3px rgba(24,199,127,.22) !important; border-color:var(--ui-accent) !important; }
-  `;
-  const style = document.createElement('style');
-  style.id = 'dark-poste-theme';
-  style.textContent = css;
-  document.head.appendChild(style);
-})();
-
-/* ====================================================================
    Reabertura do tooltip/popup após reconstrução do cluster
-   (registrado por último para cobrir todos os cenários)
 ==================================================================== */
 markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
