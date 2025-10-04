@@ -181,7 +181,11 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map", { preferCanvas: true, closePopupOnClick: false }).setView([-23.2, -45.9], 12);
+const map = L.map("map", {
+  preferCanvas: true,
+  zoomAnimation: false,
+  markerZoomAnimation: false
+}).setView([-23.2, -45.9], 12);
 
 // Rua (OSM)
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
@@ -232,15 +236,15 @@ function setBase(mode) {
 
 // -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
+  spiderfyOnMaxZoom: false,
   showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
+  zoomToBoundsOnClick: true,
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50,
-  removeOutsideVisibleBounds: false,
+  removeOutsideVisibleBounds: true,
   iconCreateFunction: function (cluster) {
     return new L.DivIcon({
       html: String(cluster.getChildCount()),
@@ -249,20 +253,6 @@ const markers = L.markerClusterGroup({
     });
   }
 });
-markers.on("clusterclick", (e) => e.layer.spiderfy());
-// failsafe: qualquer layer simples dentro do cluster abre popup
-markers.on("click", (e) => {
-  // FIX: se vier DOM event, não deixa “subir”
-  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const l = e.layer;
-  if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
-  if (l && l.posteData) {
-    // tenta também abrir tooltip, se existir
-    try { l.openTooltip?.(); } catch {}
-    abrirPopup(l.posteData);
-  }
-});
-markers.on("spiderfied", () => { reabrirTooltipFixo(0); });
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
@@ -272,48 +262,18 @@ let todosCarregados = false;
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 
-/* ====================================================================
-   Popup fixo: instância única, sem piscar
-==================================================================== */
-const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
-let popupPinned = false;                 // true se o usuário não fechou o popup
-let lastPopup = null;                    // {lat, lon, html}
-let lastSelectedId = null;               // para reabrir o tooltip
-
-function reabrirPopupFixo(delay = 0){
-  if (!popupPinned || !lastPopup) return;
-  const open = () => {
-    mainPopup.setLatLng([lastPopup.lat, lastPopup.lon]).setContent(lastPopup.html);
-    if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
-  };
-  delay ? setTimeout(open, delay) : open();
-}
-function reabrirTooltipFixo(delay = 0){
-  if (!lastSelectedId) return;
-  const m = idToMarker.get(lastSelectedId);
-  if (!m) return;
-  const open = () => { try { m.openTooltip?.(); } catch {} };
-  delay ? setTimeout(open, delay) : open();
-}
-map.on("popupclose", (e) => {
-  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
-});
-
 // Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
 function criarLayerPoste(p){
   if (idToMarker.has(p.id)) return idToMarker.get(p.id);
   const layer = L.circleMarker([p.lat, p.lon], dotStyle(p.empresas.length))
     .bindTooltip(
       `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-      { direction: "top", sticky: true }
+      { direction: "top", sticky: false, opacity: 0.9 }
     )
-    .on("click", (e) => {
-      // FIX: impedir que o clique “suba” e garantir abertura
-      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      try { e.target.openTooltip?.(); } catch {}
+    .on("click", () => {
       abrirPopup(p);
     });
-  layer.posteData = p; // usado pelo failsafe do cluster
+  layer.posteData = p; // (mantém referência de dados)
   idToMarker.set(p.id, layer);
   return layer;
 }
@@ -329,8 +289,6 @@ function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
   if (arr.length) markers.addLayers(arr); // usa chunkedLoading
-  reabrirPopupFixo(0);
-  reabrirTooltipFixo(0);
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -344,7 +302,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; reabrirPopupFixo(0); reabrirTooltipFixo(0); }
+    else { todosCarregados = true; }
   }
   scheduleIdle(addChunk);
 }
@@ -511,7 +469,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  if (!censoMode) { exibirTodosPostes(); reabrirPopupFixo(0); reabrirTooltipFixo(0); return; }
+  if (!censoMode) { exibirTodosPostes(); return; }
 
   if (!censoIds) {
     try {
@@ -521,7 +479,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       censoIds = new Set(arr.map((i) => String(i.poste)));
     } catch {
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false; exibirTodosPostes(); reabrirPopupFixo(0); reabrirTooltipFixo(0); return;
+      censoMode = false; exibirTodosPostes(); return;
     }
   }
   todosPostes
@@ -529,15 +487,12 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
         radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
-        // FIX: garantir clique no Canvas e não deixar subir
         interactive: true, bubblingMouseEvents: false
-      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{c.openTooltip?.();}catch{} abrirPopup(poste); });
+      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: false, opacity: 0.9 })
+        .on("click", () => abrirPopup(poste));
       c.posteData = poste;
       markers.addLayer(c);
     });
-  reabrirPopupFixo(0);
-  reabrirTooltipFixo(0);
 });
 
 // ---------------------------------------------------------------------
@@ -573,8 +528,6 @@ function filtrarLocal() {
   markers.clearLayers();
 
   filtro.forEach(adicionarMarker);
-  reabrirPopupFixo(0);
-  reabrirTooltipFixo(0);
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -605,7 +558,7 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-function resetarMapa() { exibirTodosPostes(); reabrirPopupFixo(0); reabrirTooltipFixo(0); }
+function resetarMapa() { exibirTodosPostes(); }
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
@@ -706,7 +659,7 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
-// Abre popup (usa a instância única mainPopup)
+// Abrir popup (simples) no clique
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
   const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
@@ -719,11 +672,10 @@ function abrirPopup(p) {
     <b>Empresas:</b><ul>${list}</ul>
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
-  lastPopup = { lat: p.lat, lon: p.lon, html };
-  popupPinned = true;
-  lastSelectedId = p.id;
-  mainPopup.setLatLng([p.lat, p.lon]).setContent(html);
-  if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
+  L.popup({ maxWidth: 360 })
+    .setLatLng([p.lat, p.lon])
+    .setContent(html)
+    .openOn(map);
 }
 
 // ---------------------------------------------------------------------
@@ -829,10 +781,9 @@ function consultarIDsEmMassa() {
         .forEach((p) => {
           const m = L.circleMarker([p.lat, p.lon], {
             radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
-            // FIX: interativo e sem bubbling
             interactive: true, bubblingMouseEvents: false
-          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
-            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{m.openTooltip?.();}catch{} abrirPopup(p); })
+          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: false, opacity: 0.9 })
+            .on("click", () => abrirPopup(p))
             .addTo(map);
           m.posteData = p;
           window.intermediarios.push(m);
@@ -855,9 +806,6 @@ function consultarIDsEmMassa() {
     naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
     intermediarios: window.intermediarios.length,
   };
-
-  reabrirPopupFixo(0);
-  reabrirTooltipFixo(0);
 }
 
 // Adiciona marcador numerado (usa o mesmo abrirPopup)
@@ -868,8 +816,8 @@ function adicionarNumerado(p, num) {
       display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
-  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{mk.openTooltip?.();}catch{} abrirPopup(p); });
+  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: false, opacity: 0.9 });
+  mk.on("click", () => abrirPopup(p));
   mk.posteData = p;
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
@@ -901,7 +849,7 @@ function gerarPDFComMapa() {
 // Distância em metros (haversine)
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lat2 - lon1);
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
