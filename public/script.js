@@ -256,8 +256,8 @@ markers.on("click", (e) => {
   const l = e.layer;
   if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
   if (l && l.posteData) {
-    // salvar último selecionado e abrir tooltip se tiver
-    try { lastSelectedId = l.posteData.id; l.openTooltip?.(); } catch {}
+    // tenta também abrir tooltip, se existir
+    try { l.openTooltip?.(); } catch {}
     abrirPopup(l.posteData);
   }
 });
@@ -277,18 +277,6 @@ const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 })
 let popupPinned = false;                 // true se o usuário não fechou o popup
 let lastPopup = null;                    // {lat, lon, html}
 
-// >>> NOVO: lembrar último poste clicado (para reabrir tooltip)
-let lastSelectedId = null;
-
-// >>> NOVO: reabrir tooltip do último poste selecionado (sem mexer em zoom)
-function reabrirTooltipFixo(delay = 0){
-  if (!lastSelectedId) return;
-  const layer = idToMarker.get(lastSelectedId);
-  if (!layer) return;
-  const open = () => { try { layer.openTooltip?.(); } catch {} };
-  delay ? setTimeout(open, delay) : open();
-}
-
 function reabrirPopupFixo(delay = 0){
   if (!popupPinned || !lastPopup) return;
   const open = () => {
@@ -301,6 +289,23 @@ map.on("popupclose", (e) => {
   if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
 });
 
+/* ====================================================================
+   Tooltip fixo (reabrir após cluster/reset)
+==================================================================== */
+let tipPinned = false;   // fica true após clique (para manter aberto)
+let lastTip = null;      // { id }
+
+function reabrirTooltipFixo(delay = 0) {
+  if (!lastTip || !tipPinned) return;
+  const open = () => {
+    const layer = idToMarker.get(lastTip.id);
+    if (layer && markers.hasLayer(layer)) {
+      try { layer.openTooltip(); } catch {}
+    }
+  };
+  delay ? setTimeout(open, delay) : open();
+}
+
 // Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
 function criarLayerPoste(p){
   if (idToMarker.has(p.id)) return idToMarker.get(p.id);
@@ -309,11 +314,12 @@ function criarLayerPoste(p){
       `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
       { direction: "top", sticky: true }
     )
+    .on("mouseover", () => { lastTip = { id: p.id }; tipPinned = false; })
     .on("click", (e) => {
       // FIX: impedir que o clique “suba” e garantir abertura
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      lastTip = { id: p.id }; tipPinned = true;
       try { e.target.openTooltip?.(); } catch {}
-      lastSelectedId = p.id;            // <<< NOVO
       abrirPopup(p);
     });
   layer.posteData = p; // usado pelo failsafe do cluster
@@ -332,8 +338,8 @@ function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
   if (arr.length) markers.addLayers(arr); // usa chunkedLoading
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
-  reabrirTooltipFixo(0); // <<< NOVO
 }
 
 // Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
@@ -347,7 +353,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; reabrirPopupFixo(0); reabrirTooltipFixo(0); } // <<< NOVO
+    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
   }
   scheduleIdle(addChunk);
 }
@@ -535,16 +541,13 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
         // FIX: garantir clique no Canvas e não deixar subir
         interactive: true, bubblingMouseEvents: false
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("click", (e) => {
-        if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-        try{c.openTooltip?.();}catch{}
-        lastSelectedId = poste.id;        // <<< NOVO
-        abrirPopup(poste);
-      });
+      c.on("mouseover", () => { lastTip = { id: poste.id }; tipPinned = false; });
+      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+        lastTip = { id: poste.id }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
       c.posteData = poste;
       markers.addLayer(c);
     });
-  reabrirTooltipFixo(0); // <<< NOVO
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 });
 
@@ -556,7 +559,6 @@ function buscarID() {
   const p = todosPostes.find((x) => x.id === id);
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], 18);
-  lastSelectedId = p.id;                  // <<< NOVO
   abrirPopup(p);
 }
 
@@ -582,7 +584,7 @@ function filtrarLocal() {
   markers.clearLayers();
 
   filtro.forEach(adicionarMarker);
-  reabrirTooltipFixo(0); // <<< NOVO
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 
   fetch("/api/postes/report", {
@@ -614,7 +616,12 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-function resetarMapa() { exibirTodosPostes(); reabrirTooltipFixo(0); reabrirPopupFixo(0); } // <<< NOVO
+function resetarMapa() {
+  // não altera zoom
+  exibirTodosPostes();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
+}
 
 /* ====================================================================
    ÍCONES 48px — poste fotorealista + halo de disponibilidade
@@ -840,7 +847,9 @@ function consultarIDsEmMassa() {
             // FIX: interativo e sem bubbling
             interactive: true, bubblingMouseEvents: false
           }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
-            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{m.openTooltip?.();}catch{} lastSelectedId = p.id; abrirPopup(p); })
+            .on("mouseover", () => { lastTip = { id: p.id }; tipPinned = false; })
+            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+              lastTip = { id: p.id }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
             .addTo(map);
           m.posteData = p;
           window.intermediarios.push(m);
@@ -864,7 +873,7 @@ function consultarIDsEmMassa() {
     intermediarios: window.intermediarios.length,
   };
 
-  reabrirTooltipFixo(0); // <<< NOVO (voltar tooltip após análise)
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 }
 
@@ -877,7 +886,9 @@ function adicionarNumerado(p, num) {
     ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{mk.openTooltip?.();}catch{} lastSelectedId = p.id; abrirPopup(p); });
+  mk.on("mouseover", () => { lastTip = { id: p.id }; tipPinned = false; });
+  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+    lastTip = { id: p.id }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
   window.numeroMarkers.push(mk);
@@ -1215,3 +1226,12 @@ function atualizarIndicadores() {
   style.textContent = css;
   document.head.appendChild(style);
 })();
+
+/* ====================================================================
+   Reabertura do tooltip/popup após reconstrução do cluster
+   (registrado por último para cobrir todos os cenários)
+==================================================================== */
+markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
