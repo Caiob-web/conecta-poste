@@ -931,17 +931,25 @@ function rowsToCSV(rows) {
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
+
+// Botão Indicadores (corrigido para não submeter formulário)
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
   if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
+    btn.type = "button"; // evita submit
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
-    btn.addEventListener("click", abrirIndicadores);
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      abrirIndicadores();
+    });
     actions.appendChild(btn);
   }
 })();
+
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
   const backdrop = document.createElement("div");
@@ -1068,13 +1076,19 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
      ordem_venda | ov | ordem
 ===================================================================== */
 
+// Botão OV (corrigido para não submeter formulário)
 (function injectOVButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions || document.getElementById("btnOV")) return;
   const btn = document.createElement("button");
   btn.id = "btnOV";
+  btn.type = "button"; // evita submit
   btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-  btn.addEventListener("click", abrirOV);
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    abrirOV();
+  });
   actions.appendChild(btn);
 })();
 
