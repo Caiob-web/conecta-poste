@@ -312,6 +312,7 @@ const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
+window.todosPostes = todosPostes; // expõe para index.html quando necessário
 
 // Spinner overlay
 const overlay = document.getElementById("carregando");
@@ -931,25 +932,21 @@ function rowsToCSV(rows) {
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
-
-// Botão Indicadores (corrigido para não submeter formulário)
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
-  if (!actions) return;
-  if (!document.getElementById("btnIndicadores")) {
+  if (actions && !document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
-    btn.type = "button"; // evita submit
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      abrirIndicadores();
-    });
     actions.appendChild(btn);
   }
+  // Garante binding mesmo se o botão já existir no HTML
+  const btnExist = document.getElementById("btnIndicadores");
+  if (btnExist && !btnExist.__bound) {
+    btnExist.addEventListener("click", abrirIndicadores);
+    btnExist.__bound = true;
+  }
 })();
-
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
   const backdrop = document.createElement("div");
@@ -1066,30 +1063,30 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
 
 /* =====================================================================
    ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
-   - Endpoints tentados: /api/ov, /api/ordens-venda, /api/ordensvenda
-   - Campos esperados (quaisquer maiúsc/minúsc e acentos):
+   - Endpoints tentados: /api/ov, /api/ordens-venda, /api/ordensvenda (+ fallbacks)
+   - Campos esperados (robustos a variações e acentos):
      empresa | cliente | cliente_empresa
-     municipio | município
-     data | data_envio | data_envio_carta  (aceita dd/mm/aaaa ou ISO)
-     status | status_ocupacao
-     postes | qt_postes
-     ordem_venda | ov | ordem
+     municipio | município | municipality | city
+     data | data_envio | data_envio_carta | data da carta | data_carta
+     status | status_ocupacao | status da ocupação
+     postes | qt_postes | quantidade_postes
+     ordem_venda | ov | ordem | carta | parecer
 ===================================================================== */
 
-// Botão OV (corrigido para não submeter formulário)
+// cria o botão se não existir e, sempre, garante o binding de clique
 (function injectOVButton(){
   const actions = document.querySelector(".painel-busca .actions");
-  if (!actions || document.getElementById("btnOV")) return;
-  const btn = document.createElement("button");
-  btn.id = "btnOV";
-  btn.type = "button"; // evita submit
-  btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    abrirOV();
-  });
-  actions.appendChild(btn);
+  if (actions && !document.getElementById("btnOV")) {
+    const btn = document.createElement("button");
+    btn.id = "btnOV";
+    btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
+    actions.appendChild(btn);
+  }
+  const btnExist = document.getElementById("btnOV");
+  if (btnExist && !btnExist.__bound) {
+    btnExist.addEventListener("click", abrirOV);
+    btnExist.__bound = true;
+  }
 })();
 
 let ovCache = null;     // cache bruto do backend
@@ -1199,18 +1196,39 @@ function abrirOV(){
 function fecharOV(){ const m = document.getElementById("modalOV"); if (m) m.style.display = "none"; }
 
 /* -------------------------- Fetch + normalização ------------------- */
+function _normKey(s){
+  return (s ?? "")
+    .toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"") // remove acentos
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .replace(/[^\w ]+/g,"")
+    .trim();
+}
 async function fetchOV(){
   if (ovCache) return ovCache;
 
-  // tenta múltiplos endpoints
-  const endpoints = ["/api/ov","/api/ordens-venda","/api/ordensvenda"];
+  // tenta múltiplos endpoints (inclui alguns fallbacks comuns)
+  const endpoints = [
+    "/api/ov",
+    "/api/ordens-venda",
+    "/api/ordensvenda",
+    "/api/ocupacoes",
+    "/api/ocupacoes-postes",
+    "/api/ocupacoes_postes",
+    "/api/ocupacoes_postes_sumario",
+    "/api/indicadores",
+    "/api/ov/list"
+  ];
   let lastErr;
   for (const url of endpoints) {
     try {
       const r = await fetch(url, { credentials:"include", cache:"no-store" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const raw = await r.json();
-      ovCache = raw.map(normalizaOV).filter(Boolean);
+      ovCache = (Array.isArray(raw) ? raw : (raw?.rows || raw?.data || []))
+        .map(normalizaOV)
+        .filter(Boolean);
       return ovCache;
     } catch(e){ lastErr = e; }
   }
@@ -1220,26 +1238,31 @@ async function fetchOV(){
 }
 function normalizaOV(row){
   if (!row || typeof row !== "object") return null;
-  // pega o campo ignorando variações de nome
+  const keys = Object.keys(row);
   const pick = (...names) => {
     for (const n of names) {
-      const k = Object.keys(row).find(x => x && x.toString().toLowerCase() === n.toLowerCase());
+      const nn = _normKey(n);
+      const k = keys.find(x => _normKey(x) === nn);
       if (k) return row[k];
-    } return undefined;
+    }
+    return undefined;
   };
-  const empresa  = pick("empresa","cliente","cliente/empresa","cliente_empresa") || "—";
-  const municipio= pick("municipio","município") || "—";
-  const ordem    = pick("ordem_venda","ov","ordem") || "";
-  const status   = String(pick("status","status_ocupacao","status da ocupação") || "").toUpperCase();
-  const postes   = Number(pick("postes","qt_postes") || 0) || 0;
 
-  let data = pick("data","data_envio","data_envio_carta","data envio carta");
+  const empresa   = pick("empresa","cliente","cliente empresa","cliente_empresa","company") || "—";
+  const municipio = pick("municipio","município","municipality","city") || "—";
+  const ordem     = pick("ordem_venda","ov","ordem","carta","parecer") || "";
+  const statusRaw = pick("status","status_ocupacao","status da ocupação","status_da_ocupacao") || "";
+  const status    = String(statusRaw).toUpperCase();
+  const postes    = Number(pick("postes","qt_postes","qtd_postes","quantidade_postes","total_postes") || 0) || 0;
+
+  let data = pick("data","data_envio","data_envio_carta","data envio carta","data da carta","data_carta");
   // aceita dd/mm/aaaa
   if (typeof data === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
     const [d,m,a] = data.split("/").map(Number);
     data = new Date(a, m-1, d).toISOString();
   } else if (data) {
-    try { data = new Date(data).toISOString(); } catch { data = null; }
+    const t = new Date(data);
+    data = isNaN(+t) ? null : t.toISOString();
   }
 
   return { empresa, municipio, ordem, status, postes, dataISO: data };
