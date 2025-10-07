@@ -1055,3 +1055,282 @@ markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); }
 markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
+
+/* =====================================================================
+   ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
+   - Endpoints tentados: /api/ov, /api/ordens-venda, /api/ordensvenda
+   - Campos esperados (quaisquer maiúsc/minúsc e acentos):
+     empresa | cliente | cliente_empresa
+     municipio | município
+     data | data_envio | data_envio_carta  (aceita dd/mm/aaaa ou ISO)
+     status | status_ocupacao
+     postes | qt_postes
+     ordem_venda | ov | ordem
+===================================================================== */
+
+(function injectOVButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions || document.getElementById("btnOV")) return;
+  const btn = document.createElement("button");
+  btn.id = "btnOV";
+  btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
+  btn.addEventListener("click", abrirOV);
+  actions.appendChild(btn);
+})();
+
+let ovCache = null;     // cache bruto do backend
+let ovModalChart = null;
+
+function ensureOVModal(){
+  if (document.getElementById("modalOV")) return;
+
+  // estilos básicos do modal (reutiliza “BI” look&feel)
+  const css = `
+    .ov-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4300; background:rgba(0,0,0,.35);}
+    .ov-card{width:min(1100px,96vw); max-height:92vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
+    .ov-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
+    .ov-head h3{margin:0; font-weight:800; color:#111827; font-size:16px; letter-spacing:.2px;}
+    .ov-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
+    .ov-body{display:grid; grid-template-columns:1fr 340px; gap:12px; padding:12px 16px;}
+    .ov-right label{display:block; font-size:13px; color:#374151; margin-top:6px;}
+    .ov-input, .ov-date{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
+    .ov-chk{display:flex; gap:8px; align-items:center; font-size:13px; color:#374151; margin-top:6px;}
+    .ov-small{font-size:12px; color:#6b7280}
+    .ov-actions{margin-top:8px;}
+    .ov-btn{border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
+    .ov-table-wrap{padding:0 16px 16px 16px;}
+    .ov-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee;}
+    .ov-table thead{background:#f9fafb}
+    .ov-table th,.ov-table td{padding:10px; border-bottom:1px solid #eee}
+    .ov-table td.num{text-align:right}
+  `;
+  const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "ov-backdrop"; backdrop.id = "modalOV";
+  backdrop.innerHTML = `
+    <div class="ov-card">
+      <div class="ov-head">
+        <h3>Ordens de Venda</h3>
+        <button class="ov-close" id="fecharOV">Fechar</button>
+      </div>
+      <div class="ov-body">
+        <div style="min-height:180px">
+          <canvas id="ovChart" height="160"></canvas>
+        </div>
+        <div class="ov-right">
+          <label>Filtrar por empresa (opcional)</label>
+          <input id="ovEmpresa" class="ov-input" list="lista-empresas" placeholder="Ex.: VIVO, CLARO...">
+
+          <label>Filtrar por município (opcional)</label>
+          <input id="ovMunicipio" class="ov-input" list="lista-municipios" placeholder="Ex.: SÃO JOSÉ DOS CAMPOS">
+
+          <label class="ov-chk"><input type="checkbox" id="ovApenasVisiveis"> Considerar somente municípios visíveis no mapa</label>
+
+          <label>Período (opcional)</label>
+          <input id="ovDataIni" class="ov-date" type="date">
+          <input id="ovDataFim" class="ov-date" type="date">
+          <div class="ov-small">Dica: use só “Data inicial” para filtrar por mês/ano (ex.: 2025-01-01 a 2025-01-31).</div>
+
+          <div class="ov-actions">
+            <button id="ovCsv" class="ov-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ov-table-wrap">
+        <div style="overflow:auto; border:1px solid #eee; border-radius:8px;">
+          <table class="ov-table" id="ovTabela">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Empresa</th>
+                <th class="num">Ordens</th>
+                <th class="num">Postes Totais</th>
+                <th class="num">Ocupação Nova (postes)</th>
+                <th class="num">Regularização (postes)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  document.getElementById("fecharOV")?.addEventListener("click", () => fecharOV());
+  ["ovEmpresa","ovMunicipio","ovDataIni","ovDataFim"].forEach(id =>
+    document.getElementById(id)?.addEventListener("input", atualizarOV)
+  );
+  document.getElementById("ovApenasVisiveis")?.addEventListener("change", atualizarOV);
+  document.getElementById("ovCsv")?.addEventListener("click", exportarOVCsv);
+
+  // se mover/der zoom e o filtro “visíveis” estiver marcado, atualiza
+  map.on("moveend zoomend", () => {
+    const modal = document.getElementById("modalOV");
+    const onlyView = document.getElementById("ovApenasVisiveis");
+    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) atualizarOV();
+  });
+}
+
+function abrirOV(){
+  ensureOVModal();
+  const modal = document.getElementById("modalOV");
+  const proceed = () => { modal.style.display = "flex"; atualizarOV(); };
+  if (typeof Chart === "undefined") {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+    s.onload = proceed; s.onerror = proceed; document.head.appendChild(s);
+  } else { proceed(); }
+}
+function fecharOV(){ const m = document.getElementById("modalOV"); if (m) m.style.display = "none"; }
+
+/* -------------------------- Fetch + normalização ------------------- */
+async function fetchOV(){
+  if (ovCache) return ovCache;
+
+  // tenta múltiplos endpoints
+  const endpoints = ["/api/ov","/api/ordens-venda","/api/ordensvenda"];
+  let lastErr;
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url, { credentials:"include", cache:"no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const raw = await r.json();
+      ovCache = raw.map(normalizaOV).filter(Boolean);
+      return ovCache;
+    } catch(e){ lastErr = e; }
+  }
+  console.error("Falha ao carregar Ordens de Venda:", lastErr);
+  ovCache = []; // evita novas tentativas durante a sessão
+  return ovCache;
+}
+function normalizaOV(row){
+  if (!row || typeof row !== "object") return null;
+  // pega o campo ignorando variações de nome
+  const pick = (...names) => {
+    for (const n of names) {
+      const k = Object.keys(row).find(x => x && x.toString().toLowerCase() === n.toLowerCase());
+      if (k) return row[k];
+    } return undefined;
+  };
+  const empresa  = pick("empresa","cliente","cliente/empresa","cliente_empresa") || "—";
+  const municipio= pick("municipio","município") || "—";
+  const ordem    = pick("ordem_venda","ov","ordem") || "";
+  const status   = String(pick("status","status_ocupacao","status da ocupação") || "").toUpperCase();
+  const postes   = Number(pick("postes","qt_postes") || 0) || 0;
+
+  let data = pick("data","data_envio","data_envio_carta","data envio carta");
+  // aceita dd/mm/aaaa
+  if (typeof data === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
+    const [d,m,a] = data.split("/").map(Number);
+    data = new Date(a, m-1, d).toISOString();
+  } else if (data) {
+    try { data = new Date(data).toISOString(); } catch { data = null; }
+  }
+
+  return { empresa, municipio, ordem, status, postes, dataISO: data };
+}
+
+/* -------------------------- Filtros + agregação -------------------- */
+function municipiosVisiveisSet(){
+  // inferimos pelo dataset de postes (tem coordenadas): municípios dentro do bounds
+  const s = new Set();
+  const b = map.getBounds();
+  for (const p of todosPostes) {
+    if (b.contains([p.lat, p.lon])) s.add(p.nome_municipio);
+  }
+  return s;
+}
+function aplicaFiltros(ov){
+  const emp = (document.getElementById("ovEmpresa")?.value || "").trim().toLowerCase();
+  const mun = (document.getElementById("ovMunicipio")?.value || "").trim().toLowerCase();
+  const ini = document.getElementById("ovDataIni")?.value || "";
+  const fim = document.getElementById("ovDataFim")?.value || "";
+  const onlyVis = !!document.getElementById("ovApenasVisiveis")?.checked;
+
+  let setVis = null;
+  if (onlyVis) setVis = municipiosVisiveisSet();
+
+  return ov.filter(r => {
+    if (emp && !String(r.empresa).toLowerCase().includes(emp)) return false;
+    if (mun && String(r.municipio).toLowerCase() !== mun) return false;
+    if (onlyVis && !setVis.has(r.municipio)) return false;
+
+    if (ini || fim) {
+      if (!r.dataISO) return false;
+      const t = new Date(r.dataISO).getTime();
+      if (ini) { const ti = new Date(ini + "T00:00:00").getTime(); if (t < ti) return false; }
+      if (fim) { const tf = new Date(fim + "T23:59:59").getTime(); if (t > tf) return false; }
+    }
+    return true;
+  });
+}
+function agregaPorEmpresa(rows){
+  // agregação: ordens, postes totais, ocupação nova, regularização
+  const m = new Map();
+  for (const r of rows) {
+    const key = r.empresa || "—";
+    const x = m.get(key) || { empresa:key, ordens:0, postes:0, ocnova:0, regular:0 };
+    x.ordens += 1;
+    x.postes += r.postes || 0;
+    const s = r.status || "";
+    if (s.includes("OCUPAÇÃO")) x.ocnova += r.postes || 0;
+    else if (s.includes("REGULARIZA")) x.regular += r.postes || 0;
+    m.set(key, x);
+  }
+  const arr = Array.from(m.values())
+    .sort((a,b) => b.postes - a.postes);
+  return arr;
+}
+
+/* -------------------------- UI update + chart ---------------------- */
+async function atualizarOV(){
+  const all = await fetchOV();
+  const rows = aplicaFiltros(all);
+  const agg  = agregaPorEmpresa(rows);
+
+  // tabela
+  const tb = document.querySelector("#ovTabela tbody");
+  if (tb) {
+    tb.innerHTML = agg.map(r => `
+      <tr>
+        <td>${r.empresa}</td>
+        <td class="num">${r.ordens.toLocaleString("pt-BR")}</td>
+        <td class="num">${r.postes.toLocaleString("pt-BR")}</td>
+        <td class="num">${r.ocnova.toLocaleString("pt-BR")}</td>
+        <td class="num">${r.regular.toLocaleString("pt-BR")}</td>
+      </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+  }
+
+  // chart (top 15 por postes totais)
+  const labels = agg.slice(0,15).map(r => r.empresa);
+  const data   = agg.slice(0,15).map(r => r.postes);
+  const ctx = document.getElementById("ovChart");
+  if (typeof Chart !== "undefined" && ctx) {
+    if (ovModalChart) {
+      ovModalChart.data.labels = labels;
+      ovModalChart.data.datasets[0].data = data;
+      ovModalChart.update();
+    } else {
+      ovModalChart = new Chart(ctx, {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Postes em OV por empresa", data }] },
+        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0 } }, y:{ beginAtZero:true } } }
+      });
+    }
+  }
+}
+
+function exportarOVCsv(){
+  const header = "Empresa,Ordens,Postes Totais,Ocupação Nova,Regularização\n";
+  const rows = Array.from(document.querySelectorAll("#ovTabela tbody tr")).map(tr =>
+    Array.from(tr.children).map(td => `"${td.textContent.replace(/"/g,'""')}"`).join(",")
+  ).join("\n");
+  const csv = header + rows + "\n";
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "ov_ranking.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
