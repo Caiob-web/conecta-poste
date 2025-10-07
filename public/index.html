@@ -135,24 +135,6 @@
       .texto-loading { margin-top: 12px; color: var(--ui-text); font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
       @keyframes girar { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
 
-      /* ===== Estilos do modal BI (iguais ao script.js) ===== */
-      .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
-      .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-      .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
-      .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
-      .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
-      .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
-      .bi-side label{font-size:13px; color:#374151}
-      .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
-      .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
-      .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
-      .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
-      .bi-table-wrap{padding:0 16px 16px 16px;}
-      .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
-      .bi-table thead{background:#f9fafb}
-      .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
-      .bi-table td.num{text-align:right}
-
       @media (max-width: 880px){
         :root{ --dock-w: 300px; }
         .painel-busca .actions{ grid-template-columns: repeat(2,1fr); }
@@ -223,15 +205,15 @@
         <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
         <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
-
-        <!-- Botão Indicadores com chamada direta -->
-        <button id="btnIndicadores"
-          onclick="window.abrirIndicadores ? abrirIndicadores() : (function(){ var m=document.getElementById('modalIndicadores'); if(m){ m.style.display='flex'; if(window.atualizarIndicadores) atualizarIndicadores(); } })();">
-          <i class="fa fa-chart-column"></i> Indicadores
+        <!-- NOVO: Botão de Ordens de Venda -->
+        <button id="btnOV"
+          onclick="window.abrirOV ? abrirOV() : (function(){var m=document.getElementById('modalOV'); if(m){ m.style.display='flex'; }})();">
+          <i class="fa fa-receipt"></i> Ordem de Venda
         </button>
+        <!-- /NOVO -->
       </div>
 
-      <!-- HUD -->
+      <!-- HUD (agora AQUI, logo abaixo das funções) -->
       <div id="widget-clima" class="dock-hud">
         <div id="tempo"></div>
       </div>
@@ -253,91 +235,63 @@
       <div class="texto-loading">Carregando postes…</div>
     </div>
 
-    <!-- ===== Modal BI PRÉ-INSERIDO ===== -->
-    <div class="bi-backdrop" id="modalIndicadores">
+    <!-- ===== Modal ORDENS DE VENDA ===== -->
+    <div class="bi-backdrop" id="modalOV" style="display:none;">
       <div class="bi-card">
         <div class="bi-head">
-          <h3>Indicadores de Postes</h3>
-          <button id="fecharIndicadores" class="bi-close">Fechar</button>
+          <h3>Ordens de Venda</h3>
+          <button id="fecharOV" class="bi-close">Fechar</button>
         </div>
+
         <div class="bi-body">
-          <div><canvas id="chartMunicipios" height="160"></canvas></div>
+          <div>
+            <canvas id="chartOV" height="160"></canvas>
+          </div>
           <div class="bi-side">
             <label>Filtrar por empresa (opcional)</label>
-            <input id="filtroEmpresaBI" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
-            <label class="bi-chk"><input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa</label>
-            <div id="resumoBI" class="bi-resumo"></div>
-            <button id="exportarCsvBI" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
+            <input id="filtroEmpresaOV" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
+            <label class="bi-chk"><input type="checkbox" id="apenasVisiveisOV"> Considerar somente postes/OVs na área visível</label>
+            <label>Período (opcional)</label>
+            <input id="dataIniOV" type="date" class="bi-input" style="margin-bottom:6px">
+            <input id="dataFimOV" type="date" class="bi-input">
+            <div id="resumoOV" class="bi-resumo"></div>
+            <button id="exportarCsvOV" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
           </div>
         </div>
+
         <div class="bi-table-wrap">
           <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
-            <table id="tabelaMunicipios" class="bi-table">
-              <thead><tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr></thead>
+            <table id="tabelaOV" class="bi-table">
+              <thead>
+                <tr>
+                  <th style="text-align:left;"># Ordem</th>
+                  <th style="text-align:left;">Cliente/Empresa</th>
+                  <th style="text-align:left;">Município</th>
+                  <th style="text-align:right;">Valor</th>
+                  <th style="text-align:left;">Status</th>
+                  <th style="text-align:left;">Data</th>
+                </tr>
+              </thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
+
       </div>
     </div>
-    <!-- ================================ -->
+    <!-- ===== /Modal ORDENS DE VENDA ===== -->
 
-    <!-- JS base -->
+    <!-- JS libs -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 
-    <!-- App -->
+    <!-- App principal -->
     <script src="script.js"></script>
 
-    <!-- jsPDF e captura de imagem do mapa -->
+    <!-- Extras -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
-
-    <!-- Chart.js (garantia de carregamento) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-
-    <!-- Comportamentos adicionais do modal (fallback) -->
-    <script>
-      // Fecha modal
-      document.addEventListener('click', function(e){
-        if (e.target && e.target.id === 'fecharIndicadores') {
-          var m = document.getElementById('modalIndicadores');
-          if (m) m.style.display = 'none';
-        }
-      });
-
-      // Reagir a filtros do modal (caso script.js já tenha as funcs)
-      document.getElementById('filtroEmpresaBI').addEventListener('input', function(){
-        if (window.atualizarIndicadores) atualizarIndicadores();
-      });
-      document.getElementById('apenasVisiveisBI').addEventListener('change', function(){
-        if (window.atualizarIndicadores) atualizarIndicadores();
-      });
-
-      // Exportar CSV (usa rowsToCSV do script.js; se não existir, cria versão simples)
-      document.getElementById('exportarCsvBI').addEventListener('click', function(){
-        if (!window.rowsToCSV || !window.agregaPorMunicipio) return;
-        var empresa = (document.getElementById('filtroEmpresaBI').value||'');
-        var apenasVisiveis = !!document.getElementById('apenasVisiveisBI').checked;
-        var out = agregaPorMunicipio({ empresa, apenasVisiveis });
-        var csv = rowsToCSV(out.rows);
-        var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        var sufixo = empresa ? "_"+empresa.replace(/\W+/g,'_') : "";
-        a.download = "postes_por_municipio"+sufixo+".csv";
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      });
-
-      // Abrir modal ao carregar, se vier de link com hash #indicadores (opcional)
-      if (location.hash === '#indicadores') {
-        var m = document.getElementById('modalIndicadores'); m.style.display = 'flex';
-        if (window.atualizarIndicadores) atualizarIndicadores();
-      }
-    </script>
 
     <!-- Logout (CLIENTE) -->
     <script>
@@ -390,6 +344,24 @@
           gerarExcelCliente(ids);
         }
       };
+    </script>
+
+    <!-- Handlers simples do modal OV (fechar/inputs/CSV) -->
+    <script>
+      document.addEventListener('click', function(e){
+        if (e.target && e.target.id === 'fecharOV') {
+          var m = document.getElementById('modalOV'); if (m) m.style.display = 'none';
+        }
+      });
+      ['filtroEmpresaOV','apenasVisiveisOV','dataIniOV','dataFimOV'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', function(){ if (window.atualizarOV) atualizarOV(); });
+        if (el && el.type === 'checkbox') el.addEventListener('change', function(){ if (window.atualizarOV) atualizarOV(); });
+      });
+      document.getElementById('exportarCsvOV')?.addEventListener('click', function(){
+        if (!window.exportarOVCSV) return;
+        exportarOVCSV();
+      });
     </script>
   </body>
 </html>
