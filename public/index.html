@@ -20,9 +20,8 @@
                              : (performance && performance.navigation ? performance.navigation.type === 1 : false);
 
           if (isReload) {
-            // tenta encerrar a sessão no backend (se existir) e volta para o login
             fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" })
-              .catch(function(){ /* ignora se offline */ })
+              .catch(function(){})
               .finally(function(){
                 try {
                   localStorage.removeItem("auth_user");
@@ -32,7 +31,7 @@
                 location.replace("/login.html");
               });
           }
-        } catch (e) { /* silencioso */ }
+        } catch (e) {}
       })();
     </script>
 
@@ -206,6 +205,8 @@
         <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
         <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
+        <!-- Botão fixo (reforço) para Indicadores -->
+        <button id="btnIndicadores"><i class="fa fa-chart-column"></i> Indicadores</button>
       </div>
 
       <!-- HUD (agora AQUI, logo abaixo das funções) -->
@@ -230,7 +231,7 @@
       <div class="texto-loading">Carregando postes…</div>
     </div>
 
-    <!-- JS -->
+    <!-- JS base -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
@@ -238,6 +239,7 @@
     <!-- App -->
     <script src="script.js"></script>
 
+    <!-- jsPDF e captura de imagem do mapa -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
@@ -292,6 +294,42 @@
           gerarExcelCliente(ids);
         }
       };
+    </script>
+
+    <!-- Fallback: garante Chart.js + funcionamento do botão Indicadores -->
+    <script>
+      // Carrega Chart.js cedo (caso ainda não tenha sido injetado pelo script.js)
+      (function ensureChartLoaded(){
+        var already = document.querySelector('script[src*="chart.umd.min.js"]');
+        if (!already) {
+          var s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+          s.async = true;
+          document.head.appendChild(s);
+        }
+      })();
+
+      // Garante criação do modal e abertura ao clicar no botão
+      (function hookIndicadores(){
+        function ensureModal(){
+          if (document.getElementById('modalIndicadores')) return;
+          if (typeof ensureBIModal === 'function') ensureBIModal();
+        }
+        function openIndicadores(){
+          try {
+            if (typeof abrirIndicadores === 'function') abrirIndicadores();
+            else { ensureModal(); var m = document.getElementById('modalIndicadores'); if (m) m.style.display = 'flex'; }
+          } catch(e){
+            console.error('Falha ao abrir Indicadores:', e);
+            ensureModal(); var m = document.getElementById('modalIndicadores'); if (m) m.style.display = 'flex';
+          }
+        }
+        document.addEventListener('click', function(ev){
+          var el = ev.target.closest('#btnIndicadores');
+          if (el) { ev.preventDefault(); openIndicadores(); }
+        });
+        document.addEventListener('DOMContentLoaded', ensureModal);
+      })();
     </script>
   </body>
 </html>
