@@ -125,7 +125,6 @@
       #logoutBtn { top: 70px; }
       body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px; }
 
-      /* HUD agora dentro da sidebar */
       #widget-clima{ margin-top: 12px; }
 
       .overlay-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -205,12 +204,10 @@
         <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
         <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
-        <!-- NOVO: Botão de Ordens de Venda -->
-        <button id="btnOV"
-          onclick="window.abrirOV ? abrirOV() : (function(){var m=document.getElementById('modalOV'); if(m){ m.style.display='flex'; }})();">
-          <i class="fa fa-receipt"></i> Ordem de Venda
-        </button>
-        <!-- /NOVO -->
+        <!-- NOVO: botão Ordens de Venda -->
+        <button id="btnOV"><i class="fa fa-briefcase"></i> Ordens de Venda</button>
+        <!-- Indicadores (BI) já é injetado via script, mas deixamos fixo para garantir ordem visual -->
+        <button id="btnIndicadores"><i class="fa fa-chart-column"></i> Indicadores</button>
       </div>
 
       <!-- HUD (agora AQUI, logo abaixo das funções) -->
@@ -235,63 +232,15 @@
       <div class="texto-loading">Carregando postes…</div>
     </div>
 
-    <!-- ===== Modal ORDENS DE VENDA ===== -->
-    <div class="bi-backdrop" id="modalOV" style="display:none;">
-      <div class="bi-card">
-        <div class="bi-head">
-          <h3>Ordens de Venda</h3>
-          <button id="fecharOV" class="bi-close">Fechar</button>
-        </div>
-
-        <div class="bi-body">
-          <div>
-            <canvas id="chartOV" height="160"></canvas>
-          </div>
-          <div class="bi-side">
-            <label>Filtrar por empresa (opcional)</label>
-            <input id="filtroEmpresaOV" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
-            <label class="bi-chk"><input type="checkbox" id="apenasVisiveisOV"> Considerar somente postes/OVs na área visível</label>
-            <label>Período (opcional)</label>
-            <input id="dataIniOV" type="date" class="bi-input" style="margin-bottom:6px">
-            <input id="dataFimOV" type="date" class="bi-input">
-            <div id="resumoOV" class="bi-resumo"></div>
-            <button id="exportarCsvOV" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
-          </div>
-        </div>
-
-        <div class="bi-table-wrap">
-          <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
-            <table id="tabelaOV" class="bi-table">
-              <thead>
-                <tr>
-                  <th style="text-align:left;"># Ordem</th>
-                  <th style="text-align:left;">Cliente/Empresa</th>
-                  <th style="text-align:left;">Município</th>
-                  <th style="text-align:right;">Valor</th>
-                  <th style="text-align:left;">Status</th>
-                  <th style="text-align:left;">Data</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-    </div>
-    <!-- ===== /Modal ORDENS DE VENDA ===== -->
-
-    <!-- JS libs -->
+    <!-- Bibliotecas -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-
-    <!-- App principal -->
-    <script src="script.js"></script>
-
-    <!-- Extras -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
+
+    <!-- App -->
+    <script src="script.js"></script>
 
     <!-- Logout (CLIENTE) -->
     <script>
@@ -308,7 +257,7 @@
     <!-- Excel automático após filtragem (mantido) -->
     <script>
       function gerarExcelCliente(filtroIds) {
-        const dadosParaExcel = todosPostes
+        const dadosParaExcel = (window.todosPostes || [])
           .filter((p) => filtroIds.includes(p.id))
           .map((p) => ({
             "ID POSTE": p.id,
@@ -324,44 +273,28 @@
         XLSX.writeFile(wb, "relatorio_filtrado.xlsx");
       }
 
-      const _origFiltrarLocal = filtrarLocal;
-      filtrarLocal = function () {
-        _origFiltrarLocal();
-        const mun = document.getElementById("busca-municipio").value.trim().toLowerCase();
-        const bai = document.getElementById("busca-bairro").value.trim().toLowerCase();
-        const log = document.getElementById("busca-logradouro").value.trim().toLowerCase();
-        const emp = document.getElementById("busca-empresa").value.trim().toLowerCase();
+      const _origFiltrarLocal = window.filtrarLocal;
+      if (_origFiltrarLocal) {
+        window.filtrarLocal = function () {
+          _origFiltrarLocal();
+          const mun = document.getElementById("busca-municipio").value.trim().toLowerCase();
+          const bai = document.getElementById("busca-bairro").value.trim().toLowerCase();
+          const log = document.getElementById("busca-logradouro").value.trim().toLowerCase();
+          const emp = document.getElementById("busca-empresa").value.trim().toLowerCase();
 
-        const filtro = todosPostes.filter((p) =>
-          (!mun || p.nome_municipio.toLowerCase() === mun) &&
-          (!bai || p.nome_bairro.toLowerCase() === bai) &&
-          (!log || p.nome_logradouro.toLowerCase() === log) &&
-          (!emp || (Array.isArray(p.empresas)?p.empresas:[]).join(", ").toLowerCase().includes(emp))
-        );
+          const filtro = (window.todosPostes || []).filter((p) =>
+            (!mun || p.nome_municipio.toLowerCase() === mun) &&
+            (!bai || p.nome_bairro.toLowerCase() === bai) &&
+            (!log || p.nome_logradouro.toLowerCase() === log) &&
+            (!emp || (Array.isArray(p.empresas)?p.empresas:[]).join(", ").toLowerCase().includes(emp))
+          );
 
-        if (filtro.length) {
-          const ids = filtro.map((p) => p.id);
-          gerarExcelCliente(ids);
-        }
-      };
-    </script>
-
-    <!-- Handlers simples do modal OV (fechar/inputs/CSV) -->
-    <script>
-      document.addEventListener('click', function(e){
-        if (e.target && e.target.id === 'fecharOV') {
-          var m = document.getElementById('modalOV'); if (m) m.style.display = 'none';
-        }
-      });
-      ['filtroEmpresaOV','apenasVisiveisOV','dataIniOV','dataFimOV'].forEach(function(id){
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('input', function(){ if (window.atualizarOV) atualizarOV(); });
-        if (el && el.type === 'checkbox') el.addEventListener('change', function(){ if (window.atualizarOV) atualizarOV(); });
-      });
-      document.getElementById('exportarCsvOV')?.addEventListener('click', function(){
-        if (!window.exportarOVCSV) return;
-        exportarOVCSV();
-      });
+          if (filtro.length) {
+            const ids = filtro.map((p) => p.id);
+            gerarExcelCliente(ids);
+          }
+        };
+      }
     </script>
   </body>
 </html>
