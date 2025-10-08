@@ -54,7 +54,7 @@
     /* ---- Modal Indicadores (BI) ---- */
     .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
     .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
+    .bi-head{Display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
     .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
     .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
     .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
@@ -1073,34 +1073,6 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
 let ovCache = null;     // cache bruto do backend
 let ovModalChart = null;
 
-/* =========================
-   === ADDED: Health-check helper for OV endpoint
-   This function tests whether /api/ov (or /api/ov/health) responds before opening modal.
-   Prevents 404 spam in console and shows a friendly message.
-   ========================= */
-async function ensureOVService() {
-  try {
-    // Try basic GET on /api/ov to see if route exists (do not parse body)
-    const res = await fetch("/api/ov", { method: "GET", cache: "no-store" });
-    if (res && (res.status === 200 || res.status === 204 || res.status === 206)) return true;
-    // If 404 then try /api/ov/health if backend provides it
-    if (res && res.status === 404) {
-      try {
-        const h = await fetch("/api/ov/health", { method: "GET", cache: "no-store" });
-        if (h && h.ok) return true;
-      } catch (err) {
-        // ignore
-      }
-    }
-    // any other status -> return false
-    return false;
-  } catch (e) {
-    // network error or blocked -> treat as unavailable
-    return false;
-  }
-}
-// === END ADDED ===
-
 function ensureOVModal(){
   if (document.getElementById("modalOV")) return;
 
@@ -1114,14 +1086,14 @@ function ensureOVModal(){
     .ov-right label{display:block; font-size:13px; color:#374151; margin-top:6px;}
     .ov-input, .ov-date{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
     .ov-chk{display:flex; gap:8px; align-items:center; font-size:13px; color:#374151; margin-top:6px;}
-    .ov-small{font-size:12px; color:#6b7280}
+    .ov-small{font-size:12px; color:#6b7280`}
     .ov-actions{margin-top:8px;}
     .ov-btn{border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
     .ov-table-wrap{padding:0 16px 16px 16px;}
     .ov-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee;}
-    .ov-table thead{background:#f9fafb}
-    .ov-table th,.ov-table td{padding:10px; border-bottom:1px solid #eee}
-    .ov-table td.num{text-align:right}
+    .ov-table thead{background:#f9fafb`}
+    .ov-table th,.ov-table td{padding:10px; border-bottom:1px solid #eee`}
+    .ov-table td.num{text-align:right`}
   `;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
@@ -1190,19 +1162,9 @@ function ensureOVModal(){
   });
 }
 
-async function abrirOV(){
+function abrirOV(){
   ensureOVModal();
   const modal = document.getElementById("modalOV");
-  if (!modal) return;
-
-  // === ADDED: check service before proceeding to avoid 404 and noisy console errors
-  const available = await ensureOVService();
-  if (!available) {
-    alert("Serviço de Ordens de Venda indisponível no backend (/api/ov). Verifique o deploy/roteamento do servidor.");
-    return;
-  }
-  // === END ADDED ===
-
   const proceed = () => { modal.style.display = "flex"; atualizarOV(); };
   if (typeof Chart === "undefined") {
     const s = document.createElement("script");
@@ -1308,47 +1270,42 @@ function agregaPorEmpresa(rows){
 
 /* -------------------------- UI update + chart ---------------------- */
 async function atualizarOV(){
-  // === ADDED: trata erro na chamada ao backend para evitar erro 404 não tratato
-  let all;
   try {
-    all = await fetchOV();
+    const all = await fetchOV();
+    const rows = aplicaFiltros(all);
+    const agg  = agregaPorEmpresa(rows);
+
+    const tb = document.querySelector("#ovTabela tbody");
+    if (tb) {
+      tb.innerHTML = agg.map(r => `
+        <tr>
+          <td>${r.empresa}</td>
+          <td class="num">${r.ordens.toLocaleString("pt-BR")}</td>
+          <td class="num">${r.postes.toLocaleString("pt-BR")}</td>
+          <td class="num">${r.ocnova.toLocaleString("pt-BR")}</td>
+          <td class="num">${r.regular.toLocaleString("pt-BR")}</td>
+        </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+    }
+
+    const labels = agg.slice(0,15).map(r => r.empresa);
+    const data   = agg.slice(0,15).map(r => r.postes);
+    const ctx = document.getElementById("ovChart");
+    if (typeof Chart !== "undefined" && ctx) {
+      if (ovModalChart) {
+        ovModalChart.data.labels = labels;
+        ovModalChart.data.datasets[0].data = data;
+        ovModalChart.update();
+      } else {
+        ovModalChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels, datasets: [{ label: "Postes em OV por empresa", data }] },
+          options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0 } }, y:{ beginAtZero:true } } }
+        });
+      }
+    }
   } catch (e) {
     console.error("Falha ao carregar Ordens de Venda:", e);
     alert("Falha ao carregar Ordens de Venda: " + (e && e.message ? e.message : e));
-    return;
-  }
-  // === END ADDED ===
-
-  const rows = aplicaFiltros(all);
-  const agg  = agregaPorEmpresa(rows);
-
-  const tb = document.querySelector("#ovTabela tbody");
-  if (tb) {
-    tb.innerHTML = agg.map(r => `
-      <tr>
-        <td>${r.empresa}</td>
-        <td class="num">${r.ordens.toLocaleString("pt-BR")}</td>
-        <td class="num">${r.postes.toLocaleString("pt-BR")}</td>
-        <td class="num">${r.ocnova.toLocaleString("pt-BR")}</td>
-        <td class="num">${r.regular.toLocaleString("pt-BR")}</td>
-      </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
-  }
-
-  const labels = agg.slice(0,15).map(r => r.empresa);
-  const data   = agg.slice(0,15).map(r => r.postes);
-  const ctx = document.getElementById("ovChart");
-  if (typeof Chart !== "undefined" && ctx) {
-    if (ovModalChart) {
-      ovModalChart.data.labels = labels;
-      ovModalChart.data.datasets[0].data = data;
-      ovModalChart.update();
-    } else {
-      ovModalChart = new Chart(ctx, {
-        type: "bar",
-        data: { labels, datasets: [{ label: "Postes em OV por empresa", data }] },
-        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0 } }, y:{ beginAtZero:true } } }
-      });
-    }
   }
 }
 
@@ -1364,3 +1321,41 @@ function exportarOVCsv(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ====== Corrige botões já presentes no HTML: garante listener ======
+// === ADDED ===
+// Este bloco garante que, caso os botões já existam no DOM (ex.: criado em index.html),
+// os event listeners das funções abrirOV e abrirIndicadores sejam (re)atribuídos.
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    const bi = document.getElementById('btnIndicadores');
+    if (bi) {
+      // remove listeners por precaução e re-atribui
+      bi.removeEventListener('click', abrirIndicadores);
+      bi.addEventListener('click', abrirIndicadores);
+    }
+    const ov = document.getElementById('btnOV');
+    if (ov) {
+      ov.removeEventListener('click', abrirOV);
+      ov.addEventListener('click', abrirOV);
+    }
+  } catch (e) {
+    console.warn('Erro ao reatribuir listeners OV/Indicadores:', e);
+  }
+});
+// === END ADDED ===
+
+/* ====================================================================
+   Reabertura do tooltip/popup após reconstrução do cluster
+==================================================================== */
+markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
+
+/* =====================================================================
+   ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
+   (o resto do arquivo já foi mantido sem alterações)
+===================================================================== */
+
+// (arquivo termina aqui)
