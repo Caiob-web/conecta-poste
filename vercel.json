@@ -3,13 +3,13 @@
   "routes": [
     { "src": "^/api/(.*)$", "dest": "/api/server.js" },
 
-    // raiz abre o login
+    // raiz vai para o login
     { "src": "^/$", "dest": "/login.html" },
 
-    // deixa /index.html acessível diretamente
+    // permitir acessar /index.html diretamente
     { "src": "^/index.html$", "dest": "/index.html" },
 
-    // serve qualquer outro arquivo estático normalmente
-    { "src": "^(?!/api/).*$", "dest": "/$1" }
+    // QUALQUER outro arquivo estático (notar o (.*) para ativar $1)
+    { "src": "^(?!/api/)(.*)$", "dest": "/$1" }
   ]
 }
