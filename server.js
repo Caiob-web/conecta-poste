@@ -1,34 +1,29 @@
-/**
- * server.js — API de Postes + BI de Ordens de Venda (tabela "indicadores")
- * Execução: node server.js
- * ENV obrigatória: DATABASE_URL (Postgres/Neon)
- * ENV opcional:    APP_USERS="admin:admin,oper:123" (login simples)
- */
+// api/server.js — API de Postes + BI (ESM, serverless no Vercel)
 
-const express = require("express");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
-const path = require("path");
-const XLSX = require("xlsx");
-const { Pool } = require("pg");
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import XLSX from "xlsx";
+import pkg from "pg";
+const { Pool } = pkg;
 
-/* ============================= Infra ================================== */
+/* ============================= Infra ============================= */
 const app = express();
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true })); // aceita form-encoded (login)
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Static (pasta "public")
-const __dirnameResolved = __dirname; // CommonJS já expõe __dirname
-app.use(express.static(path.join(__dirnameResolved, "public")));
+// NADA de app.listen() em serverless e nada de servir estático aqui.
+// Vercel serve os arquivos estáticos diretamente.
 
+/* ============================ DB Pool ============================ */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-/* ============================ Utils =================================== */
+/* ============================== Utils =========================== */
 async function hasRelation(name) {
   const r = await pool.query(`select to_regclass($1) ok`, [name]);
   return !!r.rows?.[0]?.ok;
@@ -38,7 +33,7 @@ async function resolveFirstExisting(names = []) {
   return null;
 }
 function q(id) {
-  return `"${String(id).replace(/"/g, '""')}"`; // quote identifier
+  return `"${String(id).replace(/"/g, '""')}"`;
 }
 function splitSchemaTable(rel) {
   if (!rel) return { schema: "public", table: null };
@@ -54,8 +49,8 @@ function normalizeKey(s) {
     .replace(/^_+|_+$/g, "");
 }
 
-/* ========================= AUTH (login simples) ======================== */
-// Usuários via env APP_USERS="admin:admin,gerente:123"
+/* ============================== Auth ============================ */
+// Usuários simples por env: APP_USERS="admin:admin,oper:123"
 const USERS = (process.env.APP_USERS || "admin:admin")
   .split(",")
   .map(s => {
@@ -70,7 +65,6 @@ app.post("/api/auth/login", (req, res) => {
   const ok = USERS.some(({ u:U, p:P }) => U === u && P === p);
   if (!ok) return res.status(401).json({ ok:false, error:"Credenciais inválidas" });
 
-  // cookie “simples” + devolve user p/ front salvar no localStorage
   res.cookie("auth_token", Buffer.from(`${u}:ok`).toString("base64"), {
     httpOnly: false, sameSite: "lax", path: "/"
   });
@@ -82,8 +76,7 @@ app.post("/api/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-/* ============================== POSTES ================================ */
-// GET /api/postes
+/* ============================== Postes ========================== */
 app.get("/api/postes", async (req, res) => {
   try {
     const { north, south, east, west, limit } = req.query;
@@ -100,7 +93,7 @@ app.get("/api/postes", async (req, res) => {
       if ([north, south, east, west].every((v) => v !== undefined)) {
         params.push(south, north, west, east);
         where = `WHERE latitude BETWEEN $1 AND $2 AND longitude BETWEEN $3 AND $4`;
-      }
+        }
       const sql = `
         SELECT
           id,
@@ -149,7 +142,6 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
-// POST /api/postes/report -> Excel (ids[])
 app.post("/api/postes/report", async (req, res) => {
   try {
     const { ids } = req.body || {};
@@ -194,23 +186,9 @@ app.post("/api/postes/report", async (req, res) => {
   }
 });
 
-// GET /api/censo (stub)
-app.get("/api/censo", async (_req, res) => {
-  try {
-    if (await hasRelation("censo_municipio")) {
-      const r = await pool.query(`SELECT DISTINCT id as poste FROM censo_municipio LIMIT 100000`);
-      return res.json(r.rows);
-    }
-    return res.json([]);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-/* ===================== ORDENS DE VENDA / INDICADORES =================== */
+/* ====================== Ordens de Venda / Indicadores ================ */
 const TABLE_OV_CANDIDATES = [
-  "indicadores",
+  "indicadores",              // sua tabela
   "public.indicadores",
   "ordem_de_venda",
   "ordem_venda",
@@ -222,7 +200,6 @@ const TABLE_OV_CANDIDATES = [
 async function resolveOvTable() {
   const tbl = await resolveFirstExisting(TABLE_OV_CANDIDATES);
   if (!tbl) throw new Error("Tabela/view de OVs não encontrada. Ajuste TABLE_OV_CANDIDATES.");
-
   const { schema, table } = splitSchemaTable(tbl);
   const meta = await pool.query(
     `select table_schema, table_name
@@ -238,7 +215,6 @@ async function resolveOvTable() {
 
 async function getOvColumns() {
   const { schema, table } = await resolveOvTable();
-
   const cols = await pool.query(
     `select column_name from information_schema.columns
      where table_schema = $1 and table_name = $2`,
@@ -274,7 +250,6 @@ async function getOvColumns() {
   return { schema, table, empresa, municipio, status, postes, ov, data };
 }
 
-// GET /api/ov (dump p/ compatibilidade)
 app.get("/api/ov", async (_req, res) => {
   try {
     const c = await getOvColumns();
@@ -298,7 +273,6 @@ app.get("/api/ov", async (_req, res) => {
   }
 });
 
-// GET /api/ov/list  (filtros)
 app.get("/api/ov/list", async (req, res) => {
   try {
     const { ov, empresa, municipio, status, limit = 100, page = 1 } = req.query;
@@ -336,7 +310,6 @@ app.get("/api/ov/list", async (req, res) => {
   }
 });
 
-// GET /api/ov/kpis (agregados)
 app.get("/api/ov/kpis", async (req, res) => {
   try {
     const { ov, empresa } = req.query;
@@ -402,10 +375,6 @@ app.get("/api/ov/kpis", async (req, res) => {
   }
 });
 
-/* ============================= ROOT =================================== */
-app.get("/", (_req, res) => {
-  res.send("API de Postes + BI de OV rodando 🚀");
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`> Server on http://localhost:${PORT}`));
+/* ============================ Export =========================== */
+// Em funções Node do Vercel, exportar o app já funciona como handler.
+export default app;
