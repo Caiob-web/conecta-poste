@@ -208,7 +208,7 @@
         <button id="btnIndicadores"><i class="fa fa-chart-column"></i> Indicadores</button>
       </div>
 
-      <!-- HUD -->
+      <!-- HUD (clima / seletor de mapa) -->
       <div id="widget-clima" class="dock-hud">
         <div id="tempo"></div>
       </div>
@@ -238,7 +238,7 @@
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
     <!-- App -->
-    <script src="/script.js"></script>
+    <script src="script.js"></script>
 
     <!-- Logout (CLIENTE) -->
     <script>
@@ -248,7 +248,9 @@
           sessionStorage.removeItem("auth_token");
           document.cookie = "auth_token=; Max-Age=0; Path=/; SameSite=Lax";
         } catch(_) {}
-        location.replace("/login.html");
+        fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+          .catch(()=>{})
+          .finally(()=>location.replace("/login.html"));
       });
     </script>
 
