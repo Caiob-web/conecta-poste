@@ -931,17 +931,34 @@ function rowsToCSV(rows) {
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
-(function injectBIButton(){
-  const actions = document.querySelector(".painel-busca .actions");
-  if (!actions) return;
-  if (!document.getElementById("btnIndicadores")) {
+/* >>> CHANGED: versão robusta do injector de botão Indicadores
+   Substitui antiga IIFE para garantir criação do botão mesmo que .painel-busca
+   seja renderizado de forma assíncrona. */
+(function injectBIButtonRobust(){
+  function waitForActions(cb, timeout = 15000) {
+    const tryNow = () => {
+      const actions = document.querySelector(".painel-busca .actions");
+      if (actions) { cb(actions); return true; }
+      return false;
+    };
+    if (tryNow()) return;
+    const mo = new MutationObserver(() => { if (tryNow()) mo.disconnect(); });
+    mo.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => mo.disconnect(), timeout);
+  }
+
+  waitForActions((actions) => {
+    if (document.getElementById("btnIndicadores")) return;
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
+    btn.type = "button";
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
     btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
-  }
+  });
 })();
+/* <<< CHANGED */
+
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
   const backdrop = document.createElement("div");
@@ -1060,15 +1077,33 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
    ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
 ===================================================================== */
 
-(function injectOVButton(){
-  const actions = document.querySelector(".painel-busca .actions");
-  if (!actions || document.getElementById("btnOV")) return;
-  const btn = document.createElement("button");
-  btn.id = "btnOV";
-  btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-  btn.addEventListener("click", abrirOV);
-  actions.appendChild(btn);
+/* >>> CHANGED: versão robusta do injector de botão Ordens de Venda
+   Substitui antiga IIFE para garantir criação do botão mesmo que .painel-busca
+   seja renderizado de forma assíncrona. */
+(function injectOVButtonRobust(){
+  function waitForActions(cb, timeout = 15000) {
+    const tryNow = () => {
+      const actions = document.querySelector(".painel-busca .actions");
+      if (actions) { cb(actions); return true; }
+      return false;
+    };
+    if (tryNow()) return;
+    const mo = new MutationObserver(() => { if (tryNow()) mo.disconnect(); });
+    mo.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => mo.disconnect(), timeout);
+  }
+
+  waitForActions((actions) => {
+    if (document.getElementById("btnOV")) return;
+    const btn = document.createElement("button");
+    btn.id = "btnOV";
+    btn.type = "button";
+    btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
+    btn.addEventListener("click", abrirOV);
+    actions.appendChild(btn);
+  });
 })();
+ /* <<< CHANGED */
 
 let ovCache = null;     // cache bruto do backend
 let ovModalChart = null;
