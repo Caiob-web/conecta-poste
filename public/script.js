@@ -931,34 +931,17 @@ function rowsToCSV(rows) {
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
-/* >>> CHANGED: versão robusta do injector de botão Indicadores
-   Substitui antiga IIFE para garantir criação do botão mesmo que .painel-busca
-   seja renderizado de forma assíncrona. */
-(function injectBIButtonRobust(){
-  function waitForActions(cb, timeout = 15000) {
-    const tryNow = () => {
-      const actions = document.querySelector(".painel-busca .actions");
-      if (actions) { cb(actions); return true; }
-      return false;
-    };
-    if (tryNow()) return;
-    const mo = new MutationObserver(() => { if (tryNow()) mo.disconnect(); });
-    mo.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => mo.disconnect(), timeout);
-  }
-
-  waitForActions((actions) => {
-    if (document.getElementById("btnIndicadores")) return;
+(function injectBIButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions) return;
+  if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
-    btn.type = "button";
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
     btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
-  });
+  }
 })();
- /* <<< CHANGED */
-
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
   const backdrop = document.createElement("div");
@@ -1056,7 +1039,7 @@ function atualizarIndicadores() {
       const csv = rowsToCSV(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url;
+      const a = document.createElement('a'); a.href = url;
       const sufixo = empresa ? `_${empresa.replace(/\W+/g,'_')}` : "";
       a.download = `postes_por_municipio${sufixo}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -1077,37 +1060,51 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
    ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
 ===================================================================== */
 
-/* >>> CHANGED: versão robusta do injector de botão Ordens de Venda
-   Substitui antiga IIFE para garantir criação do botão mesmo que .painel-busca
-   seja renderizado de forma assíncrona. */
-(function injectOVButtonRobust(){
-  function waitForActions(cb, timeout = 15000) {
-    const tryNow = () => {
-      const actions = document.querySelector(".painel-busca .actions");
-      if (actions) { cb(actions); return true; }
-      return false;
-    };
-    if (tryNow()) return;
-    const mo = new MutationObserver(() => { if (tryNow()) mo.disconnect(); });
-    mo.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => mo.disconnect(), timeout);
-  }
-
-  waitForActions((actions) => {
-    if (document.getElementById("btnOV")) return;
-    const btn = document.createElement("button");
-    btn.id = "btnOV";
-    btn.type = "button";
-    btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-    btn.addEventListener("click", abrirOV);
-    actions.appendChild(btn);
-  });
+(function injectOVButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions || document.getElementById("btnOV")) return;
+  const btn = document.createElement("button");
+  btn.id = "btnOV";
+  btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
+  btn.addEventListener("click", abrirOV);
+  actions.appendChild(btn);
 })();
- /* <<< CHANGED */
 
+// ----- variáveis OV -----
 let ovCache = null;     // cache bruto do backend
 let ovModalChart = null;
 
+/* >>> CHANGED: conjunto de empresas permitidas vindo do Neon (indicadores.ocupacoes_postes_stage) */
+let allowedOvCompanies = null; // Set<string> (cache)
+
+/* >>> CHANGED: function to fetch allowed companies from backend */
+async function fetchAllowedOvCompanies() {
+  if (allowedOvCompanies) return allowedOvCompanies;
+  try {
+    // espera que o backend exponha esse endpoint que consulta a tabela indicadores.ocupacoes_postes_stage
+    const res = await fetch('/api/indicadores/ocupacoes_postes_stage', { credentials: 'include' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json(); // [{ empresa: 'VIVO' }, { empresa: 'CLARO' }, ...]
+    allowedOvCompanies = new Set(rows.map(r => String(r.empresa || '').trim()).filter(Boolean));
+    // opcional: atualizar datalist de empresas visíveis
+    const dl = document.getElementById('lista-empresas');
+    if (dl) {
+      dl.innerHTML = '';
+      Array.from(allowedOvCompanies).sort().forEach(e => {
+        const o = document.createElement('option');
+        o.value = e;
+        dl.appendChild(o);
+      });
+    }
+    return allowedOvCompanies;
+  } catch (err) {
+    console.warn('Erro ao buscar empresas permitidas (ocupacoes_postes_stage):', err);
+    allowedOvCompanies = new Set(); // fallback: vazio
+    return allowedOvCompanies;
+  }
+}
+
+/* ensureOVModal unchanged structure but added event listeners as before */
 function ensureOVModal(){
   if (document.getElementById("modalOV")) return;
 
@@ -1197,8 +1194,11 @@ function ensureOVModal(){
   });
 }
 
-function abrirOV(){
+/* >>> CHANGED: tornar abrirOV async e garantir que allowedOvCompanies seja carregado antes de exibir/atualizar */
+async function abrirOV(){
   ensureOVModal();
+  // garantir que a lista de empresas permitidas esteja carregada antes de usar os dados
+  await fetchAllowedOvCompanies();
   const modal = document.getElementById("modalOV");
   const proceed = () => { modal.style.display = "flex"; atualizarOV(); };
   if (typeof Chart === "undefined") {
@@ -1213,6 +1213,9 @@ function fecharOV(){ const m = document.getElementById("modalOV"); if (m) m.styl
 async function fetchOV(){
   if (ovCache) return ovCache;
 
+  /* >>> CHANGED: garantir allowedOvCompanies carregado (para filtrar resultados retornados) */
+  await fetchAllowedOvCompanies();
+
   const endpoints = ["/api/ov","/api/ordens-venda","/api/ordensvenda"];
   let lastErr;
   for (const url of endpoints) {
@@ -1221,6 +1224,12 @@ async function fetchOV(){
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const raw = await r.json();
       ovCache = raw.map(normalizaOV).filter(Boolean);
+
+      /* >>> CHANGED: filtrar apenas empresas presentes em allowedOvCompanies (se houver) */
+      if (allowedOvCompanies && allowedOvCompanies.size) {
+        ovCache = ovCache.filter(r => allowedOvCompanies.has(String(r.empresa || '').trim()));
+      }
+
       return ovCache;
     } catch(e){ lastErr = e; }
   }
@@ -1351,21 +1360,3 @@ function exportarOVCsv(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
-/* >>> CHANGED: ANEXAR LISTENERS AOS BOTÕES ESTÁTICOS (index.html)
-   Explicação: index.html já tem <button id="btnOV"> e <button id="btnIndicadores">.
-   Se existirem, garantimos que possuem event listeners que disparam as funções. */
-(function attachStaticPanelButtonListeners(){
-  const bOV = document.getElementById("btnOV");
-  if (bOV && !bOV.__listenerAttached) {
-    bOV.addEventListener("click", abrirOV);
-    bOV.__listenerAttached = true;
-  }
-  const bBI = document.getElementById("btnIndicadores");
-  if (bBI && !bBI.__listenerAttached) {
-    bBI.addEventListener("click", abrirIndicadores);
-    bBI.__listenerAttached = true;
-  }
-})();
- /* <<< CHANGED */
-
