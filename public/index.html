@@ -196,20 +196,19 @@
       </div>
 
       <div class="actions">
-        <button type="button" onclick="buscarID()"><i class="fa fa-search"></i>Buscar</button>
-        <button type="button" onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
-        <button type="button" onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
-        <button type="button" onclick="consultarIDsEmMassa()"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
-        <button type="button" onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
-        <button type="button" onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
-        <button type="button" id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
-        <button type="button" id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
-        <!-- Botões com handlers explícitos para abrir os modais -->
-        <button type="button" id="btnOV" onclick="abrirOV()"><i class="fa fa-briefcase"></i> Ordens de Venda</button>
-        <button type="button" id="btnIndicadores" onclick="abrirIndicadores()"><i class="fa fa-chart-column"></i> Indicadores</button>
+        <button onclick="buscarID()"><i class="fa fa-search"></i>Buscar</button>
+        <button onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
+        <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
+        <button onclick="consultarIDsEmMassa()"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
+        <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
+        <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
+        <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
+        <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
+        <button id="btnOV"><i class="fa fa-briefcase"></i> Ordens de Venda</button>
+        <button id="btnIndicadores"><i class="fa fa-chart-column"></i> Indicadores</button>
       </div>
 
-      <!-- HUD (agora AQUI, logo abaixo das funções) -->
+      <!-- HUD -->
       <div id="widget-clima" class="dock-hud">
         <div id="tempo"></div>
       </div>
@@ -239,7 +238,7 @@
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
     <!-- App -->
-    <script src="script.js"></script>
+    <script src="/script.js"></script>
 
     <!-- Logout (CLIENTE) -->
     <script>
