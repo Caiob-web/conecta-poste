@@ -364,19 +364,7 @@ if (overlay) overlay.style.display = "flex";
   hud.appendChild(card);
 
   const selectBase = card.querySelector("#select-base");
-  // Persistência da camada base selecionada
-  try {
-    const savedBase = localStorage.getItem("baseLayer");
-    if (savedBase && ["rua","sat","satlabels"].includes(savedBase)) {
-      selectBase.value = savedBase;
-      setBase(savedBase);
-    }
-  } catch {}
-  selectBase.addEventListener("change", e => {
-    const v = e.target.value;
-    setBase(v);
-    try { localStorage.setItem("baseLayer", v); } catch {}
-  });
+  selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
 // ---------------------------------------------------------------------
@@ -623,27 +611,6 @@ function googleButtonHTML(lat, lng, label = "Abrir no Google Street View") {
   const url = buildGoogleMapsPanoURL(lat, lng);
   return `<button onclick="window.open('${url}','_blank','noopener')" style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">${label}</button>`;
 }
-// --- ações extras no popup (NOVO: copiar coords + abrir Maps) ---
-function copiarCoordenadas(lat, lon){
-  const txt = `${Number(lat).toFixed(6)}, ${Number(lon).toFixed(6)}`;
-  try {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(txt).then(() => alert("Coordenadas copiadas!")).catch(() => alert(txt));
-    } else {
-      const i = document.createElement("input"); i.value = txt; document.body.appendChild(i); i.select();
-      document.execCommand("copy"); document.body.removeChild(i); alert("Coordenadas copiadas!");
-    }
-  } catch { alert(txt); }
-}
-function extraActionsHTML(lat, lng){
-  const urlMaps = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-  return `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-      <button onclick="copiarCoordenadas(${lat},${lng})" style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">Copiar coordenadas</button>
-      <button onclick="window.open('${urlMaps}','_blank','noopener')" style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">Abrir no Google Maps</button>
-    </div>
-  `.trim();
-}
 function streetImageryBlockHTML(lat, lng) {
   return `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -689,7 +656,6 @@ function abrirPopup(p) {
     <b>Logradouro:</b> ${p.nome_logradouro}<br>
     <b>Empresas:</b><ul>${list}</ul>
     ${streetImageryBlockHTML(p.lat, p.lon)}
-    ${extraActionsHTML(p.lat, p.lon)}
   `;
   lastPopup = { lat: p.lat, lon: p.lon, html };
   popupPinned = true;
@@ -829,11 +795,6 @@ function consultarIDsEmMassa() {
   reabrirPopupFixo(0);
 }
 
-// Atalho: Ctrl/Cmd + Enter no campo “ids-multiplos”
-document.getElementById("ids-multiplos")?.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { consultarIDsEmMassa(); }
-});
-
 // Adiciona marcador numerado (usa o mesmo abrirPopup)
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
@@ -922,9 +883,6 @@ document.getElementById("btnGerarExcel").addEventListener("click", () => {
   exportarExcel(ids);
 });
 
-// (Opcional) Botão PDF se existir no HTML
-document.getElementById("btnGerarPDF")?.addEventListener("click", gerarPDFComMapa);
-
 // Toggle painel
 document.getElementById("togglePainel").addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
@@ -934,8 +892,6 @@ document.getElementById("togglePainel").addEventListener("click", () => {
   const onEnd = () => { map.invalidateSize(); p.removeEventListener("transitionend", onEnd); };
   p.addEventListener("transitionend", onEnd);
 });
-// Ajuste de tamanho ao voltar da navegação
-window.addEventListener("pageshow", () => map.invalidateSize());
 
 // Logout
 document.getElementById("logoutBtn").addEventListener("click", async () => {
@@ -1020,27 +976,7 @@ function ensureBIModal() {
 
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
   document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
-  document.getElementById("apenasVisiveisBI")?.addEventListener("change", (e) => {
-    try { localStorage.setItem("bi_apenasVisiveis", e.target.checked ? "1" : "0"); } catch {}
-    atualizarIndicadores();
-  });
-
-  // Persistência do checkbox "apenas visíveis"
-  try {
-    const onlyViewSaved = localStorage.getItem("bi_apenasVisiveis") === "1";
-    const onlyView = document.getElementById("apenasVisiveisBI");
-    if (onlyView) onlyView.checked = onlyViewSaved;
-  } catch {}
-
-  // Fechar ao clicar no backdrop ou pressionar ESC
-  backdrop.addEventListener("click", (ev) => { if (ev.target === backdrop) fecharIndicadores(); });
-  if (!window.__biEscBound) {
-    window.__biEscBound = true;
-    document.addEventListener("keydown", (ev) => {
-      const modal = document.getElementById("modalIndicadores");
-      if (ev.key === "Escape" && modal && modal.style.display === "flex") fecharIndicadores();
-    });
-  }
+  document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
 
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
@@ -1216,28 +1152,8 @@ function ensureOVModal(){
   ["ovEmpresa","ovMunicipio","ovDataIni","ovDataFim"].forEach(id =>
     document.getElementById(id)?.addEventListener("input", atualizarOV)
   );
-  document.getElementById("ovApenasVisiveis")?.addEventListener("change", (e) => {
-    try { localStorage.setItem("ov_apenasVisiveis", e.target.checked ? "1" : "0"); } catch {}
-    atualizarOV();
-  });
+  document.getElementById("ovApenasVisiveis")?.addEventListener("change", atualizarOV);
   document.getElementById("ovCsv")?.addEventListener("click", exportarOVCsv);
-
-  // Persistência "apenas visíveis"
-  try {
-    const onlyViewSaved = localStorage.getItem("ov_apenasVisiveis") === "1";
-    const onlyView = document.getElementById("ovApenasVisiveis");
-    if (onlyView) onlyView.checked = onlyViewSaved;
-  } catch {}
-
-  // Fechar ao clicar no backdrop ou ESC
-  backdrop.addEventListener("click", (ev) => { if (ev.target === backdrop) fecharOV(); });
-  if (!window.__ovEscBound) {
-    window.__ovEscBound = true;
-    document.addEventListener("keydown", (ev) => {
-      const modal = document.getElementById("modalOV");
-      if (ev.key === "Escape" && modal && modal.style.display === "flex") fecharOV();
-    });
-  }
 
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalOV");
