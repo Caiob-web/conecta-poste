@@ -312,7 +312,6 @@ const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
-window.todosPostes = todosPostes; // expõe para index.html quando necessário
 
 // Spinner overlay
 const overlay = document.getElementById("carregando");
@@ -934,17 +933,13 @@ function rowsToCSV(rows) {
 }
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
-  if (actions && !document.getElementById("btnIndicadores")) {
+  if (!actions) return;
+  if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
+    btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
-  }
-  // Garante binding mesmo se o botão já existir no HTML
-  const btnExist = document.getElementById("btnIndicadores");
-  if (btnExist && !btnExist.__bound) {
-    btnExist.addEventListener("click", abrirIndicadores);
-    btnExist.__bound = true;
   }
 })();
 function ensureBIModal() {
@@ -1063,30 +1058,16 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
 
 /* =====================================================================
    ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
-   - Endpoints tentados: /api/ov, /api/ordens-venda, /api/ordensvenda (+ fallbacks)
-   - Campos esperados (robustos a variações e acentos):
-     empresa | cliente | cliente_empresa
-     municipio | município | municipality | city
-     data | data_envio | data_envio_carta | data da carta | data_carta
-     status | status_ocupacao | status da ocupação
-     postes | qt_postes | quantidade_postes
-     ordem_venda | ov | ordem | carta | parecer
 ===================================================================== */
 
-// cria o botão se não existir e, sempre, garante o binding de clique
 (function injectOVButton(){
   const actions = document.querySelector(".painel-busca .actions");
-  if (actions && !document.getElementById("btnOV")) {
-    const btn = document.createElement("button");
-    btn.id = "btnOV";
-    btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-    actions.appendChild(btn);
-  }
-  const btnExist = document.getElementById("btnOV");
-  if (btnExist && !btnExist.__bound) {
-    btnExist.addEventListener("click", abrirOV);
-    btnExist.__bound = true;
-  }
+  if (!actions || document.getElementById("btnOV")) return;
+  const btn = document.createElement("button");
+  btn.id = "btnOV";
+  btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
+  btn.addEventListener("click", abrirOV);
+  actions.appendChild(btn);
 })();
 
 let ovCache = null;     // cache bruto do backend
@@ -1095,7 +1076,6 @@ let ovModalChart = null;
 function ensureOVModal(){
   if (document.getElementById("modalOV")) return;
 
-  // estilos básicos do modal (reutiliza “BI” look&feel)
   const css = `
     .ov-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4300; background:rgba(0,0,0,.35);}
     .ov-card{width:min(1100px,96vw); max-height:92vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
@@ -1175,7 +1155,6 @@ function ensureOVModal(){
   document.getElementById("ovApenasVisiveis")?.addEventListener("change", atualizarOV);
   document.getElementById("ovCsv")?.addEventListener("click", exportarOVCsv);
 
-  // se mover/der zoom e o filtro “visíveis” estiver marcado, atualiza
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalOV");
     const onlyView = document.getElementById("ovApenasVisiveis");
@@ -1196,73 +1175,44 @@ function abrirOV(){
 function fecharOV(){ const m = document.getElementById("modalOV"); if (m) m.style.display = "none"; }
 
 /* -------------------------- Fetch + normalização ------------------- */
-function _normKey(s){
-  return (s ?? "")
-    .toString()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"") // remove acentos
-    .toLowerCase()
-    .replace(/\s+/g," ")
-    .replace(/[^\w ]+/g,"")
-    .trim();
-}
 async function fetchOV(){
   if (ovCache) return ovCache;
 
-  // tenta múltiplos endpoints (inclui alguns fallbacks comuns)
-  const endpoints = [
-    "/api/ov",
-    "/api/ordens-venda",
-    "/api/ordensvenda",
-    "/api/ocupacoes",
-    "/api/ocupacoes-postes",
-    "/api/ocupacoes_postes",
-    "/api/ocupacoes_postes_sumario",
-    "/api/indicadores",
-    "/api/ov/list"
-  ];
+  const endpoints = ["/api/ov","/api/ordens-venda","/api/ordensvenda"];
   let lastErr;
   for (const url of endpoints) {
     try {
       const r = await fetch(url, { credentials:"include", cache:"no-store" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const raw = await r.json();
-      ovCache = (Array.isArray(raw) ? raw : (raw?.rows || raw?.data || []))
-        .map(normalizaOV)
-        .filter(Boolean);
+      ovCache = raw.map(normalizaOV).filter(Boolean);
       return ovCache;
     } catch(e){ lastErr = e; }
   }
   console.error("Falha ao carregar Ordens de Venda:", lastErr);
-  ovCache = []; // evita novas tentativas durante a sessão
+  ovCache = [];
   return ovCache;
 }
 function normalizaOV(row){
   if (!row || typeof row !== "object") return null;
-  const keys = Object.keys(row);
   const pick = (...names) => {
     for (const n of names) {
-      const nn = _normKey(n);
-      const k = keys.find(x => _normKey(x) === nn);
+      const k = Object.keys(row).find(x => x && x.toString().toLowerCase() === n.toLowerCase());
       if (k) return row[k];
-    }
-    return undefined;
+    } return undefined;
   };
+  const empresa  = pick("empresa","cliente","cliente/empresa","cliente_empresa") || "—";
+  const municipio= pick("municipio","município") || "—";
+  const ordem    = pick("ordem_venda","ov","ordem") || "";
+  const status   = String(pick("status","status_ocupacao","status da ocupação") || "").toUpperCase();
+  const postes   = Number(pick("postes","qt_postes") || 0) || 0;
 
-  const empresa   = pick("empresa","cliente","cliente empresa","cliente_empresa","company") || "—";
-  const municipio = pick("municipio","município","municipality","city") || "—";
-  const ordem     = pick("ordem_venda","ov","ordem","carta","parecer") || "";
-  const statusRaw = pick("status","status_ocupacao","status da ocupação","status_da_ocupacao") || "";
-  const status    = String(statusRaw).toUpperCase();
-  const postes    = Number(pick("postes","qt_postes","qtd_postes","quantidade_postes","total_postes") || 0) || 0;
-
-  let data = pick("data","data_envio","data_envio_carta","data envio carta","data da carta","data_carta");
-  // aceita dd/mm/aaaa
+  let data = pick("data","data_envio","data_envio_carta","data envio carta");
   if (typeof data === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
     const [d,m,a] = data.split("/").map(Number);
     data = new Date(a, m-1, d).toISOString();
   } else if (data) {
-    const t = new Date(data);
-    data = isNaN(+t) ? null : t.toISOString();
+    try { data = new Date(data).toISOString(); } catch { data = null; }
   }
 
   return { empresa, municipio, ordem, status, postes, dataISO: data };
@@ -1270,7 +1220,6 @@ function normalizaOV(row){
 
 /* -------------------------- Filtros + agregação -------------------- */
 function municipiosVisiveisSet(){
-  // inferimos pelo dataset de postes (tem coordenadas): municípios dentro do bounds
   const s = new Set();
   const b = map.getBounds();
   for (const p of todosPostes) {
@@ -1303,7 +1252,6 @@ function aplicaFiltros(ov){
   });
 }
 function agregaPorEmpresa(rows){
-  // agregação: ordens, postes totais, ocupação nova, regularização
   const m = new Map();
   for (const r of rows) {
     const key = r.empresa || "—";
@@ -1326,7 +1274,6 @@ async function atualizarOV(){
   const rows = aplicaFiltros(all);
   const agg  = agregaPorEmpresa(rows);
 
-  // tabela
   const tb = document.querySelector("#ovTabela tbody");
   if (tb) {
     tb.innerHTML = agg.map(r => `
@@ -1339,7 +1286,6 @@ async function atualizarOV(){
       </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
   }
 
-  // chart (top 15 por postes totais)
   const labels = agg.slice(0,15).map(r => r.empresa);
   const data   = agg.slice(0,15).map(r => r.postes);
   const ctx = document.getElementById("ovChart");
