@@ -54,7 +54,7 @@
     /* ---- Modal Indicadores (BI) ---- */
     .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
     .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-    .bi-head{Display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
+    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
     .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
     .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
     .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
@@ -313,6 +313,9 @@ const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
 
+// >>> CHANGED <<<: variáveis para empresas permitidas de OV (vêm do backend)
+let allowedOvCompanies = null; // array de strings (empresas permitidas pela tabela ocupacoes_postes_stage)
+
 // Spinner overlay
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
@@ -416,6 +419,8 @@ fetch("/api/postes", { credentials: "include" })
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = "";
     Array.from(set).sort().forEach((v) => {
       const o = document.createElement("option");
       o.value = v; dl.appendChild(o);
@@ -424,16 +429,57 @@ function preencherListas() {
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
+  // lista-empresas — atenção: preenche com contagem local, mas OV / indicador usa allowedOvCompanies
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem).sort().forEach((e) => {
-    const o = document.createElement("option");
-    o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
-  });
+  if (dlEmp) {
+    dlEmp.innerHTML = "";
+    Object.keys(empresasContagem).sort().forEach((e) => {
+      const o = document.createElement("option");
+      o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
+    });
+  }
 }
 
-// ---------------------------------------------------------------------
-// Geração de Excel no cliente via SheetJS
-// ---------------------------------------------------------------------
+/* ====================================================================
+   >>> CHANGED <<<: carregar empresas válidas para ORDENS DE VENDA
+   O backend expõe /api/indicadores/ocupacoes_postes_stage que retorna:
+   [{ empresa: "VIVO" }, { empresa: "CLARO" }, ...]
+==================================================================== */
+async function loadAllowedOvCompanies() {
+  try {
+    const res = await fetch("/api/indicadores/ocupacoes_postes_stage", { credentials: "include" });
+    if (!res.ok) { allowedOvCompanies = null; return; }
+    const arr = await res.json();
+    if (!Array.isArray(arr)) { allowedOvCompanies = null; return; }
+    allowedOvCompanies = arr.map(r => String(r.empresa || r || "").trim()).filter(Boolean).sort();
+    // atualizar datalist global de empresas também para refletir (opcional):
+    const dl = document.getElementById("lista-empresas");
+    if (dl && allowedOvCompanies) {
+      // mantemos as opções existentes + colocamos as permitidas no topo
+      const existing = new Set(Array.from(dl.querySelectorAll("option")).map(o => o.value));
+      // limpar e remontar priorizando allowedOvCompanies
+      dl.innerHTML = "";
+      allowedOvCompanies.forEach(c => {
+        const o = document.createElement("option"); o.value = c; dl.appendChild(o);
+      });
+      // adicionar as demais (que não estejam nas allowed)
+      Object.keys(empresasContagem).sort().forEach(e => {
+        if (!allowedOvCompanies.includes(e)) {
+          const o = document.createElement("option"); o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dl.appendChild(o);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("Não foi possível carregar allowedOvCompanies:", e);
+    allowedOvCompanies = null;
+  }
+}
+// chama já (não precisa aguardar postes)
+loadAllowedOvCompanies();
+
+/* ====================================================================
+   Geração de Excel no cliente via SheetJS
+==================================================================== */
 function gerarExcelCliente(filtroIds) {
   const idSet = new Set((filtroIds || []).map(keyId));
   const dadosParaExcel = todosPostes
@@ -934,12 +980,18 @@ function rowsToCSV(rows) {
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
+  // se botão não existe, cria (mantido comportamento anterior)
   if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
-    btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
+  }
+  // >>> CHANGED <<<: garante que o listener seja anexado mesmo que o botão já exista no HTML
+  const btnExist = document.getElementById("btnIndicadores");
+  if (btnExist && !btnExist.dataset.listenerBi) {
+    btnExist.addEventListener("click", abrirIndicadores);
+    btnExist.dataset.listenerBi = "1";
   }
 })();
 function ensureBIModal() {
@@ -1062,12 +1114,19 @@ map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); 
 
 (function injectOVButton(){
   const actions = document.querySelector(".painel-busca .actions");
-  if (!actions || document.getElementById("btnOV")) return;
-  const btn = document.createElement("button");
-  btn.id = "btnOV";
-  btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-  btn.addEventListener("click", abrirOV);
-  actions.appendChild(btn);
+  if (!actions) return;
+  if (!document.getElementById("btnOV")) {
+    const btn = document.createElement("button");
+    btn.id = "btnOV";
+    btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
+    actions.appendChild(btn);
+  }
+  // >>> CHANGED <<<: garante que o listener seja anexado mesmo que o botão já exista no HTML
+  const btnOV = document.getElementById("btnOV");
+  if (btnOV && !btnOV.dataset.listenerOv) {
+    btnOV.addEventListener("click", abrirOV);
+    btnOV.dataset.listenerOv = "1";
+  }
 })();
 
 let ovCache = null;     // cache bruto do backend
@@ -1086,14 +1145,14 @@ function ensureOVModal(){
     .ov-right label{display:block; font-size:13px; color:#374151; margin-top:6px;}
     .ov-input, .ov-date{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
     .ov-chk{display:flex; gap:8px; align-items:center; font-size:13px; color:#374151; margin-top:6px;}
-    .ov-small{font-size:12px; color:#6b7280`}
+    .ov-small{font-size:12px; color:#6b7280}
     .ov-actions{margin-top:8px;}
     .ov-btn{border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
     .ov-table-wrap{padding:0 16px 16px 16px;}
     .ov-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee;}
-    .ov-table thead{background:#f9fafb`}
-    .ov-table th,.ov-table td{padding:10px; border-bottom:1px solid #eee`}
-    .ov-table td.num{text-align:right`}
+    .ov-table thead{background:#f9fafb}
+    .ov-table th,.ov-table td{padding:10px; border-bottom:1px solid #eee}
+    .ov-table td.num{text-align:right}
   `;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
@@ -1165,7 +1224,25 @@ function ensureOVModal(){
 function abrirOV(){
   ensureOVModal();
   const modal = document.getElementById("modalOV");
-  const proceed = () => { modal.style.display = "flex"; atualizarOV(); };
+  const proceed = () => {
+    // >>> CHANGED <<<: ao abrir o modal, se allowedOvCompanies estiver disponível, populamos o datalist/placeholder
+    try {
+      const ovEmpresa = document.getElementById("ovEmpresa");
+      const dl = document.getElementById("lista-empresas");
+      if (dl && allowedOvCompanies && allowedOvCompanies.length) {
+        // limpar e preencher com allowed
+        dl.innerHTML = "";
+        allowedOvCompanies.forEach(c => {
+          const o = document.createElement("option"); o.value = c; dl.appendChild(o);
+        });
+        // se ovEmpresa está vazio, podemos sugerir o primeiro
+        if (ovEmpresa && !ovEmpresa.value) ovEmpresa.placeholder = `Ex.: ${allowedOvCompanies.slice(0,3).join(", ")}`;
+      }
+    } catch(e) { console.warn("Erro ao setar datalist OV:", e); }
+
+    modal.style.display = "flex";
+    atualizarOV();
+  };
   if (typeof Chart === "undefined") {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
@@ -1238,6 +1315,11 @@ function aplicaFiltros(ov){
   if (onlyVis) setVis = municipiosVisiveisSet();
 
   return ov.filter(r => {
+    // >>> CHANGED <<<: se allowedOvCompanies estiver definido, forçamos filtro apenas para empresas permitidas
+    if (allowedOvCompanies && Array.isArray(allowedOvCompanies) && allowedOvCompanies.length) {
+      if (!allowedOvCompanies.some(a => String(a).toLowerCase() === String(r.empresa || "").toLowerCase())) return false;
+    }
+
     if (emp && !String(r.empresa).toLowerCase().includes(emp)) return false;
     if (mun && String(r.municipio).toLowerCase() !== mun) return false;
     if (onlyVis && !setVis.has(r.municipio)) return false;
@@ -1270,42 +1352,37 @@ function agregaPorEmpresa(rows){
 
 /* -------------------------- UI update + chart ---------------------- */
 async function atualizarOV(){
-  try {
-    const all = await fetchOV();
-    const rows = aplicaFiltros(all);
-    const agg  = agregaPorEmpresa(rows);
+  const all = await fetchOV();
+  const rows = aplicaFiltros(all);
+  const agg  = agregaPorEmpresa(rows);
 
-    const tb = document.querySelector("#ovTabela tbody");
-    if (tb) {
-      tb.innerHTML = agg.map(r => `
-        <tr>
-          <td>${r.empresa}</td>
-          <td class="num">${r.ordens.toLocaleString("pt-BR")}</td>
-          <td class="num">${r.postes.toLocaleString("pt-BR")}</td>
-          <td class="num">${r.ocnova.toLocaleString("pt-BR")}</td>
-          <td class="num">${r.regular.toLocaleString("pt-BR")}</td>
-        </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
-    }
+  const tb = document.querySelector("#ovTabela tbody");
+  if (tb) {
+    tb.innerHTML = agg.map(r => `
+      <tr>
+        <td>${r.empresa}</td>
+        <td class="num">${r.ordens.toLocaleString("pt-BR")}</td>
+        <td class="num">${r.postes.toLocaleString("pt-BR")}</td>
+        <td class="num">${r.ocnova.toLocaleString("pt-BR")}</td>
+        <td class="num">${r.regular.toLocaleString("pt-BR")}</td>
+      </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+  }
 
-    const labels = agg.slice(0,15).map(r => r.empresa);
-    const data   = agg.slice(0,15).map(r => r.postes);
-    const ctx = document.getElementById("ovChart");
-    if (typeof Chart !== "undefined" && ctx) {
-      if (ovModalChart) {
-        ovModalChart.data.labels = labels;
-        ovModalChart.data.datasets[0].data = data;
-        ovModalChart.update();
-      } else {
-        ovModalChart = new Chart(ctx, {
-          type: "bar",
-          data: { labels, datasets: [{ label: "Postes em OV por empresa", data }] },
-          options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0 } }, y:{ beginAtZero:true } } }
-        });
-      }
+  const labels = agg.slice(0,15).map(r => r.empresa);
+  const data   = agg.slice(0,15).map(r => r.postes);
+  const ctx = document.getElementById("ovChart");
+  if (typeof Chart !== "undefined" && ctx) {
+    if (ovModalChart) {
+      ovModalChart.data.labels = labels;
+      ovModalChart.data.datasets[0].data = data;
+      ovModalChart.update();
+    } else {
+      ovModalChart = new Chart(ctx, {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Postes em OV por empresa", data }] },
+        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0 } }, y:{ beginAtZero:true } } }
+      });
     }
-  } catch (e) {
-    console.error("Falha ao carregar Ordens de Venda:", e);
-    alert("Falha ao carregar Ordens de Venda: " + (e && e.message ? e.message : e));
   }
 }
 
@@ -1321,41 +1398,3 @@ function exportarOVCsv(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
-// ====== Corrige botões já presentes no HTML: garante listener ======
-// === ADDED ===
-// Este bloco garante que, caso os botões já existam no DOM (ex.: criado em index.html),
-// os event listeners das funções abrirOV e abrirIndicadores sejam (re)atribuídos.
-document.addEventListener('DOMContentLoaded', function(){
-  try {
-    const bi = document.getElementById('btnIndicadores');
-    if (bi) {
-      // remove listeners por precaução e re-atribui
-      bi.removeEventListener('click', abrirIndicadores);
-      bi.addEventListener('click', abrirIndicadores);
-    }
-    const ov = document.getElementById('btnOV');
-    if (ov) {
-      ov.removeEventListener('click', abrirOV);
-      ov.addEventListener('click', abrirOV);
-    }
-  } catch (e) {
-    console.warn('Erro ao reatribuir listeners OV/Indicadores:', e);
-  }
-});
-// === END ADDED ===
-
-/* ====================================================================
-   Reabertura do tooltip/popup após reconstrução do cluster
-==================================================================== */
-markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
-
-/* =====================================================================
-   ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
-   (o resto do arquivo já foi mantido sem alterações)
-===================================================================== */
-
-// (arquivo termina aqui)
