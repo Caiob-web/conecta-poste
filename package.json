@@ -2,24 +2,19 @@
   "name": "mapa-postes",
   "version": "1.0.0",
   "private": true,
-  "type": "commonjs",
-  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "vite"
+    "dev": "vite",
+    "start": "node server.js"
   },
   "dependencies": {
-    "connect-pg-simple": "^9.0.0",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "exceljs": "^4.4.0",
-    "express": "^5.1.0",
-    "express-session": "^1.18.1",
-    "pg": "^8.16.3"
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "vite": "^4.0.0"
-  },
-  "engines": {
-    "node": "22.x"
   }
 }
