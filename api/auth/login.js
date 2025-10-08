@@ -1,26 +1,50 @@
 // api/auth/login.js
-// Login serverless (Vercel) – Condição B
+// Login serverless (Vercel) – ESM
 // Lê username+password em TEXTO PURO na tabela public.users
 
-const { Pool } = require("pg");
+import pkg from "pg";
+const { Pool } = pkg;
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // Neon
-});
+// Reusa o pool entre invocações para evitar overhead
+const pool =
+  globalThis._pgPool ??
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }, // Neon
+  });
+if (!globalThis._pgPool) globalThis._pgPool = pool;
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
+  // (Opcional) Preflight simples, caso algum dia chame de outro origin
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.status(204).end();
+    return;
+  }
+
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    res.status(405).json({ error: "Method not allowed" });
+    return;
   }
 
   try {
-    const { username, password } = req.body || {};
-    if (!username || !password) {
-      return res.status(400).json({ error: "Informe username e password." });
+    // Alguns runtimes já preenchem req.body; outros não.
+    let body = req.body;
+    if (!body) {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const raw = Buffer.concat(chunks).toString("utf8");
+      body = raw ? JSON.parse(raw) : null;
     }
 
-    // Senha em TEXTO PURO, como você quer
+    const { username, password } = body || {};
+    if (!username || !password) {
+      res.status(400).json({ error: "Informe username e password." });
+      return;
+    }
+
+    // Senha em TEXTO PURO, como solicitado
     const sql = `
       SELECT id, username
       FROM public.users
@@ -32,12 +56,13 @@ module.exports = async (req, res) => {
     const { rows } = await pool.query(sql, [username, password]);
 
     if (rows.length === 0) {
-      return res.status(401).json({ error: "Credenciais inválidas." });
+      res.status(401).json({ error: "Credenciais inválidas." });
+      return;
     }
 
-    return res.status(200).json({ user: rows[0] });
+    res.status(200).json({ user: rows[0] });
   } catch (e) {
     console.error("LOGIN ERROR:", e);
-    return res.status(500).json({ error: "Falha no login." });
+    res.status(500).json({ error: "Falha no login." });
   }
-};
+}
