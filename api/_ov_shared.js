@@ -1,21 +1,19 @@
-// api/_ov_shared.js
 import pkg from "pg";
 const { Pool } = pkg;
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Neon (pooler) + sslmode=require
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-export function q(id) {
-  return `"${String(id).replace(/"/g, '""')}"`;
-}
-function splitSchemaTable(rel) {
+export const q = (id) => `"${String(id).replace(/"/g, '""')}"`;
+
+const splitSchemaTable = (rel) => {
   if (!rel) return { schema: "public", table: null };
-  const parts = String(rel).split(".");
-  if (parts.length === 1) return { schema: "public", table: parts[0] };
-  return { schema: parts[0], table: parts[1] };
-}
+  const p = String(rel).split(".");
+  return p.length === 1 ? { schema: "public", table: p[0] } : { schema: p[0], table: p[1] };
+};
+
 async function hasRelation(name) {
   if (!name) return false;
   const { schema, table } = splitSchemaTable(name);
@@ -33,18 +31,15 @@ async function resolveFirstExisting(names = []) {
   for (const t of names) if (await hasRelation(t)) return t;
   return null;
 }
-function normalizeKey(s) {
-  return String(s)
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^\w]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
+const normalizeKey = (s) =>
+  String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "");
+
 export const postesIntExpr = (col) =>
-  `COALESCE(NULLIF(regexp_replace(${q(col)}::text, '[^0-9]', '', 'g'), ''), '0')::int`;
+  `COALESCE(NULLIF(regexp_replace("${col}"::text, '[^0-9]', '', 'g'), ''), '0')::int`;
 
 const TABLE_OV_CANDIDATES = [
-  "indicadores.ocupacoes_postes_stage", // sua tabela
+  "indicadores.ocupacoes_postes_stage", // a sua tabela
   "public.indicadores",
   "indicadores",
   "ordens_venda",
@@ -62,11 +57,11 @@ async function resolveOvTable() {
   const meta = await pool.query(
     `select table_schema, table_name
        from information_schema.tables
-      where (lower(table_schema)=lower($1) and lower(table_name)=lower($2))
+      where lower(table_schema)=lower($1) and lower(table_name)=lower($2)
      union all
      select table_schema, table_name
        from information_schema.views
-      where (lower(table_schema)=lower($1) and lower(table_name)=lower($2))
+      where lower(table_schema)=lower($1) and lower(table_name)=lower($2)
       limit 1`,
     [schema, table]
   );
