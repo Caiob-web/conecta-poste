@@ -1,9 +1,15 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "server.js", "use": "@vercel/node" }
-  ],
   "routes": [
-    { "src": "/(.*)", "dest": "server.js" }
+    { "src": "^/api/(.*)$", "dest": "/api/server.js" },
+
+    // raiz abre o login
+    { "src": "^/$", "dest": "/login.html" },
+
+    // deixa /index.html acessível diretamente
+    { "src": "^/index.html$", "dest": "/index.html" },
+
+    // serve qualquer outro arquivo estático normalmente
+    { "src": "^(?!/api/).*$", "dest": "/$1" }
   ]
 }
