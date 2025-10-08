@@ -957,7 +957,7 @@ function rowsToCSV(rows) {
     actions.appendChild(btn);
   });
 })();
-/* <<< CHANGED */
+ /* <<< CHANGED */
 
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
@@ -1351,3 +1351,21 @@ function exportarOVCsv(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/* >>> CHANGED: ANEXAR LISTENERS AOS BOTÕES ESTÁTICOS (index.html)
+   Explicação: index.html já tem <button id="btnOV"> e <button id="btnIndicadores">.
+   Se existirem, garantimos que possuem event listeners que disparam as funções. */
+(function attachStaticPanelButtonListeners(){
+  const bOV = document.getElementById("btnOV");
+  if (bOV && !bOV.__listenerAttached) {
+    bOV.addEventListener("click", abrirOV);
+    bOV.__listenerAttached = true;
+  }
+  const bBI = document.getElementById("btnIndicadores");
+  if (bBI && !bBI.__listenerAttached) {
+    bBI.addEventListener("click", abrirIndicadores);
+    bBI.__listenerAttached = true;
+  }
+})();
+ /* <<< CHANGED */
+
