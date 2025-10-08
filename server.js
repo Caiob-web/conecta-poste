@@ -375,6 +375,60 @@ app.get("/api/ov/kpis", async (req, res) => {
   }
 });
 
+/* >>> CHANGED: novo endpoint para expor as empresas da tabela indicadores.ocupacoes_postes_stage
+   - retorna JSON: [{ empresa: "VIVO" }, { empresa: "CLARO" }, ... ]
+   - tenta localizar a tabela entre candidatos; se não existir, retorna [] (200)
+   - detecta automaticamente a coluna que representa "empresa" na tabela
+*/
+const OCCUPATIONS_STAGE_CANDIDATES = [
+  "indicadores.ocupacoes_postes_stage",
+  "ocupacoes_postes_stage",
+  "indicadores.ocupacoes_postes",
+  "ocupacoes_postes",
+  "ocupacoes_postes_stage_stg",
+];
+
+async function findEmpresaColumnForTable(schema, table) {
+  const cols = await pool.query(
+    `select column_name from information_schema.columns
+     where table_schema = $1 and table_name = $2`,
+    [schema, table]
+  );
+  const byNorm = new Map();
+  cols.rows.forEach(r => byNorm.set(normalizeKey(r.column_name), r.column_name));
+
+  const candidates = ["empresa","cliente","cliente_empresa","operadora","fornecedor","nome_empresa","company","provider"];
+  for (const c of candidates) {
+    const k = normalizeKey(c);
+    if (byNorm.has(k)) return byNorm.get(k);
+  }
+  // fallback: try common names present in table
+  for (const [k, orig] of byNorm.entries()) {
+    if (k.includes("cliente") || k.includes("empresa") || k.includes("forne") || k.includes("provider")) return orig;
+  }
+  return null;
+}
+
+app.get("/api/indicadores/ocupacoes_postes_stage", async (req, res) => {
+  try {
+    const tbl = await resolveFirstExisting(OCCUPATIONS_STAGE_CANDIDATES);
+    if (!tbl) return res.json([]); // nada encontrado -> array vazio
+
+    const { schema, table } = splitSchemaTable(tbl);
+    // detectar coluna 'empresa' na tabela encontrada
+    const empresaCol = await findEmpresaColumnForTable(schema, table);
+    if (!empresaCol) return res.json([]); // se não foi possível identificar coluna retorna vazio
+
+    const fqn = `${q(schema)}.${q(table)}`;
+    const sql = `SELECT DISTINCT ${q(empresaCol)} as empresa FROM ${fqn} WHERE ${q(empresaCol)} IS NOT NULL AND ${q(empresaCol)} <> '' ORDER BY ${q(empresaCol)} COLLATE "C"`;
+    const r = await pool.query(sql);
+    return res.json(r.rows.map(row => ({ empresa: row.empresa })));
+  } catch (err) {
+    console.error("Erro /api/indicadores/ocupacoes_postes_stage:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 /* ============================ Export =========================== */
 // Em funções Node do Vercel, exportar o app já funciona como handler.
 export default app;
