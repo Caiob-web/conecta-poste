@@ -14,17 +14,13 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Nada de app.listen() em serverless.
-// O export default no fim entrega o handler.
-
 /* ============================ DB Pool ============================ */
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL, // Neon (pooler) + sslmode=require
   ssl: { rejectUnauthorized: false },
 });
 
 /* ============================== Utils =========================== */
-// Procura relation (tabela ou view) em qualquer schema (case-insensitive)
 function splitSchemaTable(rel) {
   if (!rel) return { schema: "public", table: null };
   const parts = String(rel).split(".");
@@ -64,8 +60,11 @@ function normalizeKey(s) {
     .replace(/^_+|_+$/g, "");
 }
 
+const postesIntExpr = (col) =>
+  `COALESCE(NULLIF(regexp_replace(${q(col)}::text, '[^0-9]', '', 'g'), ''), '0')::int`;
+
 /* ============================== Auth ============================ */
-// Usuários simples por env: APP_USERS="admin:admin,oper:123"
+// APP_USERS="admin:admin,oper:123"
 const USERS = (process.env.APP_USERS || "admin:admin")
   .split(",")
   .map(s => {
@@ -202,8 +201,9 @@ app.post("/api/postes/report", async (req, res) => {
 
 /* ====================== Ordens de Venda / Indicadores ================ */
 const TABLE_OV_CANDIDATES = [
-  "indicadores",
+  "indicadores.ocupacoes_postes_stage", // <- a sua tabela
   "public.indicadores",
+  "indicadores",
   "ordens_venda",
   "ordem_de_venda",
   "ordem_venda",
@@ -252,7 +252,7 @@ async function getOvColumns() {
     return null;
   }
 
-  const empresa   = pick(["empresa","cliente","cliente_empresa","cliente/empresa"]);
+  const empresa   = pick(["empresas","empresa","cliente","cliente_empresa","cliente/empresa"]); // aceita plural
   const municipio = pick(["municipio","município"]);
   const status    = pick(["status_da_ocupacao","status","status da ocupacao","status da ocupação","status_ocupacao","status_da_ocupação"]);
   const postes    = pick(["postes","qt_postes","postes_totais","qtd_postes","quantidade_postes"]);
@@ -278,7 +278,7 @@ app.get("/api/ov", async (_req, res) => {
         ${q(c.empresa)}   as empresa,
         ${q(c.municipio)} as municipio,
         ${q(c.status)}    as status,
-        ${q(c.postes)}::int as postes,
+        ${postesIntExpr(c.postes)} as postes,
         ${q(c.ov)}        as ordem_venda,
         ${c.data ? q(c.data) + " as data_envio_carta" : "NULL::timestamp as data_envio_carta"}
       FROM ${fqn}
@@ -310,15 +310,15 @@ app.get("/api/ov/list", async (req, res) => {
 
     const sql = `
       SELECT
-        ${q(c.ov)}          as ordem_venda,
-        ${q(c.empresa)}     as empresa,
-        ${q(c.municipio)}   as municipio,
-        ${q(c.status)}      as status,
-        ${q(c.postes)}::int as postes,
+        ${q(c.ov)}              as ordem_venda,
+        ${q(c.empresa)}         as empresa,
+        ${q(c.municipio)}       as municipio,
+        ${q(c.status)}          as status,
+        ${postesIntExpr(c.postes)} as postes,
         ${c.data ? q(c.data) + " as data_envio_carta" : "NULL::timestamp as data_envio_carta"}
       FROM ${fqn}
       ${whereSql}
-      ORDER BY ${q(c.postes)}::int DESC NULLS LAST
+      ORDER BY ${postesIntExpr(c.postes)} DESC NULLS LAST
       LIMIT ${lim} OFFSET ${off}
     `;
     const r = await pool.query(sql, params);
@@ -343,10 +343,10 @@ app.get("/api/ov/kpis", async (req, res) => {
 
     const baseSql = `
       SELECT
-        ${q(c.empresa)}   as empresa,
-        ${q(c.municipio)} as municipio,
-        ${q(c.status)}    as status,
-        (${q(c.postes)}::int) as postes
+        ${q(c.empresa)}       as empresa,
+        ${q(c.municipio)}     as municipio,
+        ${q(c.status)}        as status,
+        (${postesIntExpr(c.postes)}) as postes
       FROM ${fqn}
       ${whereSql}
     `;
@@ -394,7 +394,7 @@ app.get("/api/ov/kpis", async (req, res) => {
   }
 });
 
-/* --------- Debug pra você ver o que está acontecendo ----------- */
+/* --------- Debug ----------- */
 app.get("/api/ov/_debug", async (_req, res) => {
   try {
     const exists = await Promise.all(
@@ -413,7 +413,7 @@ app.get("/api/ov/_debug", async (_req, res) => {
 });
 
 /* ============================ Export =========================== */
-// Catch-all: qualquer /api/* cai aqui e o Express resolve as rotas acima.
+// Catch-all: qualquer /api/* cai aqui.
 export default function handler(req, res) {
   return app(req, res);
 }
