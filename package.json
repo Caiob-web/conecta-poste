@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "connect-pg-simple": "^9.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "vite": "^4.0.0"
