@@ -1,15 +1,7 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "^/api/(.*)$", "dest": "/api/server.js" },
-
-    // raiz vai para o login
-    { "src": "^/$", "dest": "/login.html" },
-
-    // permitir acessar /index.html diretamente
-    { "src": "^/index.html$", "dest": "/index.html" },
-
-    // QUALQUER outro arquivo estático (notar o (.*) para ativar $1)
-    { "src": "^(?!/api/)(.*)$", "dest": "/$1" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/server.js" },
+    { "source": "/", "destination": "/login.html" }
   ]
 }
