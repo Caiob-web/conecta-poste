@@ -28,14 +28,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Util: checa se tabela/view existe
+// -------- Utils ----------
 async function hasRelation(name) {
   const q = `select to_regclass($1) ok`;
   const r = await pool.query(q, [name]);
   return !!r.rows?.[0]?.ok;
 }
-
-// Util: primeira tabela existente dentro de uma lista
 async function resolveFirstExisting(names = []) {
   for (const t of names) {
     if (await hasRelation(t)) return t;
@@ -44,23 +42,18 @@ async function resolveFirstExisting(names = []) {
 }
 
 // ========================= ROTAS EXISTENTES ==========================
-// GET /api/postes  -> retorna dados base pra montar o mapa
-// - suporta bbox (?north=&south=&east=&west=&limit=) OU geral (limit padrão)
-// - formata "coordenadas" como "lat,lon" (string) p/ casar com seu script.js
+// GET /api/postes
 app.get("/api/postes", async (req, res) => {
   try {
     const { north, south, east, west, limit } = req.query;
     const max = Math.min(parseInt(limit) || 50000, 100000);
 
-    // Preferência por uma VIEW já “pronta” se existir
-    // Tente ajustar a lista abaixo para o seu ambiente.
     const preferredView = await resolveFirstExisting([
-      "indicadores_v_ocupacao", // vista agregada comum
-      "dados_poste_view",       // alternativa
+      "indicadores_v_ocupacao",
+      "dados_poste_view",
     ]);
 
     if (preferredView) {
-      // Espera colunas: id, nome_municipio, nome_bairro, nome_logradouro, empresa, latitude, longitude
       const params = [];
       let where = "";
       if ([north, south, east, west].every((v) => v !== undefined)) {
@@ -84,7 +77,6 @@ app.get("/api/postes", async (req, res) => {
       return res.json(r.rows);
     }
 
-    // Fallback para tabela "dados_poste" (ajuste campos se necessário)
     const haveDados = await hasRelation("dados_poste");
     if (!haveDados) {
       return res.status(500).json({ error: "Nenhuma view/tabela de postes encontrada." });
@@ -118,7 +110,7 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
-// POST /api/postes/report  -> gera Excel (ids[])
+// POST /api/postes/report  -> Excel (ids[])
 app.post("/api/postes/report", async (req, res) => {
   try {
     const { ids } = req.body || {};
@@ -166,36 +158,38 @@ app.post("/api/postes/report", async (req, res) => {
   }
 });
 
-// GET /api/censo  -> stub simples (ajuste para sua origem real)
+// GET /api/censo (stub)
 app.get("/api/censo", async (_req, res) => {
   try {
-    // Ajuste a origem real do seu "censo". Abaixo um fallback vazio.
     if (await hasRelation("censo_municipio")) {
       const r = await pool.query(`SELECT DISTINCT id as poste FROM censo_municipio LIMIT 100000`);
       return res.json(r.rows);
     }
-    return res.json([]); // sem fonte configurada
+    return res.json([]);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
 
-// POST /api/auth/logout  -> limpa sessão (lado servidor, se aplicável)
+// POST /api/auth/logout
 app.post("/api/auth/logout", (_req, res) => {
-  // Se você usar sessão, destrua-a aqui.
   res.clearCookie("auth_token", { path: "/" });
   res.json({ ok: true });
 });
 
-// ====================== BI DE ORDEM DE VENDA (NOVO) ===================
-// (ADICIONADO) — usa a primeira tabela/view existente na lista
+// ====================== BI DE ORDEM DE VENDA =========================
+
+// Tabelas/Views candidatas (inclui as do seu print)
 const TABLE_OV_CANDIDATES = [
-  "ordem_de_venda",
-  "ordem_venda",
-  "ordem_de_venda_asc",
+  "ocupacoes_postes_sumario",
+  "ocupacoes_postes",
+  "indicadores",
   "indicadores_ocupacao",
   "indicadores_v_ocupacao",
+  "ordem_de_venda",
+  "ordem_venda",
+  "ordem_de_venda_asc"
 ];
 
 async function resolveOvTable() {
@@ -204,58 +198,91 @@ async function resolveOvTable() {
   return tbl;
 }
 
-// (ADICIONADO) KPIs + quebras
+// SQL base normalizado (resolve nomes com acentos/espaços)
+function baseOvSql(tbl) {
+  return `
+    SELECT
+      COALESCE(empresa, "Empresa") AS empresa,
+      COALESCE(municipio, "Município") AS municipio,
+      COALESCE("STATUS DA OCUPAÇÃO", status_da_ocupacao, status, '') AS status,
+      COALESCE("Postes", postes, 0)::int AS postes,
+      COALESCE(ordem_venda, "Carta", "Parecer", '') AS ordem_venda,
+      COALESCE("Data envio Carta", data_envio_carta, data) AS data_envio_carta,
+      "Carta" AS carta
+    FROM ${tbl}
+  `;
+}
+
+// --------- ROTA RAW esperada pelo front: /api/ov (e aliases) ---------
+async function handlerOVRaw(_req, res) {
+  try {
+    const tbl = await resolveOvTable();
+    const sql = `
+      WITH base AS (${baseOvSql(tbl)})
+      SELECT
+        empresa,
+        municipio,
+        ordem_venda AS ordem,
+        status,
+        postes,
+        data_envio_carta AS data
+      FROM base
+    `;
+    const r = await pool.query(sql);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(r.rows ?? []);
+  } catch (e) {
+    console.error("Erro /api/ov:", e);
+    res.status(500).json({ error: "Falha ao consultar OV" });
+  }
+}
+app.get("/api/ov", handlerOVRaw);
+app.get("/api/ordens-venda", handlerOVRaw);
+app.get("/api/ordensvenda", handlerOVRaw);
+
+// ------------------------- KPIs + quebras ----------------------------
 app.get("/api/ov/kpis", async (req, res) => {
   try {
     const { ov, empresa } = req.query;
     const tbl = await resolveOvTable();
 
-    // Campos esperados (ajuste nomes se necessário)
-    // empresa, municipio, status_da_ocupacao, postes, ordem_venda, data_envio_carta
     const params = [];
     const where = [];
     if (ov)       { params.push(ov); where.push(`ordem_venda = $${params.length}`); }
     if (empresa)  { params.push(`%${empresa}%`); where.push(`upper(empresa) like upper($${params.length})`); }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const baseSql = `
-      SELECT
-        COALESCE(empresa,'SEM EMPRESA')             AS empresa,
-        COALESCE(municipio,'SEM MUNICIPIO')         AS municipio,
-        COALESCE(status_da_ocupacao,'DESCONHECIDO') AS status,
-        COALESCE(postes,0)::int                     AS postes,
-        ordem_venda,
-        data_envio_carta
-      FROM ${tbl}
-      ${whereSql}
-    `;
+    const base = baseOvSql(tbl);
 
     const kpisSql = `
-      WITH base AS (${baseSql})
+      WITH base AS (${base})
       SELECT
-        (SELECT COALESCE(SUM(postes),0) FROM base) AS total_postes,
-        (SELECT COUNT(DISTINCT empresa)  FROM base) AS total_empresas,
-        (SELECT COUNT(DISTINCT municipio)FROM base) AS total_municipios
+        (SELECT COALESCE(SUM(postes),0) FROM base ${whereSql}) AS total_postes,
+        (SELECT COUNT(DISTINCT empresa)  FROM base ${whereSql}) AS total_empresas,
+        (SELECT COUNT(DISTINCT municipio)FROM base ${whereSql}) AS total_municipios
     `;
     const statusSql = `
-      WITH base AS (${baseSql})
+      WITH base AS (${base})
       SELECT status, SUM(postes)::int AS total
       FROM base
+      ${whereSql}
       GROUP BY status
       ORDER BY total DESC
     `;
     const topEmpresasSql = `
-      WITH base AS (${baseSql})
+      WITH base AS (${base})
       SELECT empresa, SUM(postes)::int AS total
       FROM base
+      ${whereSql}
       GROUP BY empresa
       ORDER BY total DESC
       LIMIT 10
     `;
     const porMunicipioSql = `
-      WITH base AS (${baseSql})
+      WITH base AS (${base})
       SELECT municipio, SUM(postes)::int AS total
       FROM base
+      ${whereSql}
       GROUP BY municipio
       ORDER BY total DESC
       LIMIT 20
@@ -282,7 +309,7 @@ app.get("/api/ov/kpis", async (req, res) => {
   }
 });
 
-// (ADICIONADO) Grid detalhado
+// --------------------------- Grid detalhado --------------------------
 app.get("/api/ov/list", async (req, res) => {
   try {
     const tbl = await resolveOvTable();
@@ -293,22 +320,23 @@ app.get("/api/ov/list", async (req, res) => {
     if (ov)        { params.push(ov); where.push(`ordem_venda = $${params.length}`); }
     if (empresa)   { params.push(`%${empresa}%`); where.push(`upper(empresa) like upper($${params.length})`); }
     if (municipio) { params.push(`%${municipio}%`); where.push(`upper(municipio) like upper($${params.length})`); }
-    if (status)    { params.push(`%${status}%`); where.push(`upper(status_da_ocupacao) like upper($${params.length})`); }
+    if (status)    { params.push(`%${status}%`); where.push(`upper(status) like upper($${params.length})`); }
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const lim = Math.min(parseInt(limit) || 100, 1000);
     const off = (Math.max(parseInt(page) || 1, 1) - 1) * lim;
 
     const sql = `
+      WITH base AS (${baseOvSql(tbl)})
       SELECT
         ordem_venda,
         empresa,
         municipio,
-        status_da_ocupacao AS status,
+        status,
         COALESCE(postes,0)::int AS postes,
         data_envio_carta,
         carta
-      FROM ${tbl}
+      FROM base
       ${whereSql}
       ORDER BY COALESCE(postes,0) DESC
       LIMIT ${lim} OFFSET ${off}
