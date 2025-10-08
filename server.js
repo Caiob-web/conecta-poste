@@ -1,7 +1,5 @@
-// server.js — API de Postes + BI de Ordem de Venda (completo)
-// -----------------------------------------------------------
-// Execução: node server.js
-// Requer:   DATABASE_URL no .env (Neon/Postgres)
+// server.js — API de Postes + BI de Ordem de Venda (robusto p/ "indicadores")
+// Execução: node server.js  |  ENV: DATABASE_URL (Neon/Postgres)
 
 import express from "express";
 import cors from "cors";
@@ -18,7 +16,6 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// Static (ajuste se sua pasta pública tiver outro nome)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "public")));
@@ -28,21 +25,33 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// -------- Utils ----------
+// ---------- Utils ----------
 async function hasRelation(name) {
-  const q = `select to_regclass($1) ok`;
-  const r = await pool.query(q, [name]);
+  const r = await pool.query(`select to_regclass($1) ok`, [name]);
   return !!r.rows?.[0]?.ok;
 }
 async function resolveFirstExisting(names = []) {
-  for (const t of names) {
-    if (await hasRelation(t)) return t;
-  }
+  for (const t of names) if (await hasRelation(t)) return t;
   return null;
 }
+function q(id) {
+  return `"${String(id).replace(/"/g, '""')}"`;
+}
+function splitSchemaTable(rel) {
+  if (!rel) return { schema: "public", table: null };
+  const parts = String(rel).split(".");
+  if (parts.length === 1) return { schema: "public", table: parts[0] };
+  return { schema: parts[0], table: parts[1] };
+}
+function normalizeKey(s) {
+  return String(s)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // sem acento
+    .toLowerCase()
+    .replace(/[^\w]+/g, "_") // espaço/traço -> _
+    .replace(/^_+|_+$/g, "");
+}
 
-// ========================= ROTAS EXISTENTES ==========================
-// GET /api/postes
+// ========================= POSTES =========================
 app.get("/api/postes", async (req, res) => {
   try {
     const { north, south, east, west, limit } = req.query;
@@ -77,10 +86,8 @@ app.get("/api/postes", async (req, res) => {
       return res.json(r.rows);
     }
 
-    const haveDados = await hasRelation("dados_poste");
-    if (!haveDados) {
+    if (!(await hasRelation("dados_poste")))
       return res.status(500).json({ error: "Nenhuma view/tabela de postes encontrada." });
-    }
 
     const params = [];
     let where = "";
@@ -110,13 +117,11 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
-// POST /api/postes/report  -> Excel (ids[])
 app.post("/api/postes/report", async (req, res) => {
   try {
     const { ids } = req.body || {};
-    if (!Array.isArray(ids) || !ids.length) {
+    if (!Array.isArray(ids) || !ids.length)
       return res.status(400).json({ error: "Envie { ids: [] }" });
-    }
 
     const table = (await hasRelation("indicadores_v_ocupacao"))
       ? "indicadores_v_ocupacao"
@@ -134,7 +139,6 @@ app.post("/api/postes/report", async (req, res) => {
       WHERE id = ANY($1::text[])
     `;
     const r = await pool.query(sql, [ids.map(String)]);
-
     const rows = r.rows.map(x => ({
       "ID POSTE": x.id,
       Município: x.nome_municipio,
@@ -145,8 +149,7 @@ app.post("/api/postes/report", async (req, res) => {
     }));
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, "Postes");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Postes");
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -158,7 +161,6 @@ app.post("/api/postes/report", async (req, res) => {
   }
 });
 
-// GET /api/censo (stub)
 app.get("/api/censo", async (_req, res) => {
   try {
     if (await hasRelation("censo_municipio")) {
@@ -172,188 +174,213 @@ app.get("/api/censo", async (_req, res) => {
   }
 });
 
-// POST /api/auth/logout
 app.post("/api/auth/logout", (_req, res) => {
   res.clearCookie("auth_token", { path: "/" });
   res.json({ ok: true });
 });
 
-// ====================== BI DE ORDEM DE VENDA =========================
-
-// Tabelas/Views candidatas (inclui as do seu print)
+// ====================== ORDENS DE VENDA ======================
 const TABLE_OV_CANDIDATES = [
-  "ocupacoes_postes_sumario",
-  "ocupacoes_postes",
-  "indicadores",
-  "indicadores_ocupacao",
-  "indicadores_v_ocupacao",
+  "indicadores",                 // <-- a sua
   "ordem_de_venda",
   "ordem_venda",
-  "ordem_de_venda_asc"
+  "ordem_de_venda_asc",
+  "indicadores_ocupacao",
+  "indicadores_v_ocupacao",
+  "public.indicadores",
 ];
 
 async function resolveOvTable() {
   const tbl = await resolveFirstExisting(TABLE_OV_CANDIDATES);
-  if (!tbl) throw new Error("Tabela/view de OVs não encontrada — ajuste TABLE_OV_CANDIDATES.");
-  return tbl;
+  if (!tbl) throw new Error("Tabela/view de OVs não encontrada. Ajuste TABLE_OV_CANDIDATES.");
+  // descobrir schema/table reais via information_schema
+  const { schema, table } = splitSchemaTable(tbl);
+  const meta = await pool.query(
+    `select table_schema, table_name
+     from information_schema.tables
+     where (table_schema = $1 and table_name = $2)
+        or (table_schema = 'public' and table_name = $3)
+     limit 1`,
+    [schema, table, tbl]
+  );
+  const row = meta.rows?.[0];
+  return {
+    schema: row?.table_schema || schema || "public",
+    table : row?.table_name  || table,
+  };
 }
 
-// SQL base normalizado (resolve nomes com acentos/espaços)
-function baseOvSql(tbl) {
-  return `
-    SELECT
-      COALESCE(empresa, "Empresa") AS empresa,
-      COALESCE(municipio, "Município") AS municipio,
-      COALESCE("STATUS DA OCUPAÇÃO", status_da_ocupacao, status, '') AS status,
-      COALESCE("Postes", postes, 0)::int AS postes,
-      COALESCE(ordem_venda, "Carta", "Parecer", '') AS ordem_venda,
-      COALESCE("Data envio Carta", data_envio_carta, data) AS data_envio_carta,
-      "Carta" AS carta
-    FROM ${tbl}
-  `;
+async function getOvColumns() {
+  const { schema, table } = await resolveOvTable();
+
+  const cols = await pool.query(
+    `select column_name from information_schema.columns
+     where table_schema = $1 and table_name = $2`,
+    [schema, table]
+  );
+
+  const byNorm = new Map();
+  cols.rows.forEach(r => byNorm.set(normalizeKey(r.column_name), r.column_name));
+
+  function pick(cands) {
+    for (const c of cands) {
+      const k = normalizeKey(c);
+      if (byNorm.has(k)) return byNorm.get(k);
+      // tentar variantes:
+      const k2 = normalizeKey(c.replace(/ /g, "_"));
+      if (byNorm.has(k2)) return byNorm.get(k2);
+    }
+    return null;
+  }
+
+  const empresa = pick(["empresa","cliente","cliente_empresa","cliente/empresa"]);
+  const municipio = pick(["municipio","município"]);
+  const status = pick(["status_da_ocupacao","status","status da ocupacao","status da ocupação","status_ocupacao","status_da_ocupação"]);
+  const postes = pick(["postes","qt_postes","postes_totais","qtd_postes"]);
+  const ov = pick(["ordem_venda","ov","ordem","carta"]);
+  const data = pick(["data_envio_carta","data","data_envio","data envio carta","data da carta"]);
+
+  if (!empresa || !municipio || !status || !postes || !ov) {
+    throw new Error(
+      `Não localizei todas as colunas: empresa(${empresa}), municipio(${municipio}), status(${status}), postes(${postes}), ov(${ov}), data(${data}).`
+    );
+  }
+
+  return { schema, table, empresa, municipio, status, postes, ov, data };
 }
 
-// --------- ROTA RAW esperada pelo front: /api/ov (e aliases) ---------
-async function handlerOVRaw(_req, res) {
+// -------- /api/ov  (compatível com o script.js atual) --------
+app.get("/api/ov", async (_req, res) => {
   try {
-    const tbl = await resolveOvTable();
+    const c = await getOvColumns();
+    const fqn = `${q(c.schema)}.${q(c.table)}`;
     const sql = `
-      WITH base AS (${baseOvSql(tbl)})
       SELECT
-        empresa,
-        municipio,
-        ordem_venda AS ordem,
-        status,
-        postes,
-        data_envio_carta AS data
-      FROM base
+        ${q(c.empresa)}   as empresa,
+        ${q(c.municipio)} as municipio,
+        ${q(c.status)}    as status,
+        ${q(c.postes)}::int as postes,
+        ${q(c.ov)}        as ordem_venda,
+        ${c.data ? q(c.data) + " as data_envio_carta" : "NULL::timestamp as data_envio_carta"}
+      FROM ${fqn}
+      LIMIT 200000
     `;
     const r = await pool.query(sql);
-    res.setHeader('Cache-Control', 'no-store');
-    res.json(r.rows ?? []);
+    res.json(r.rows);
   } catch (e) {
-    console.error("Erro /api/ov:", e);
-    res.status(500).json({ error: "Falha ao consultar OV" });
-  }
-}
-app.get("/api/ov", handlerOVRaw);
-app.get("/api/ordens-venda", handlerOVRaw);
-app.get("/api/ordensvenda", handlerOVRaw);
-
-// ------------------------- KPIs + quebras ----------------------------
-app.get("/api/ov/kpis", async (req, res) => {
-  try {
-    const { ov, empresa } = req.query;
-    const tbl = await resolveOvTable();
-
-    const params = [];
-    const where = [];
-    if (ov)       { params.push(ov); where.push(`ordem_venda = $${params.length}`); }
-    if (empresa)  { params.push(`%${empresa}%`); where.push(`upper(empresa) like upper($${params.length})`); }
-    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-
-    const base = baseOvSql(tbl);
-
-    const kpisSql = `
-      WITH base AS (${base})
-      SELECT
-        (SELECT COALESCE(SUM(postes),0) FROM base ${whereSql}) AS total_postes,
-        (SELECT COUNT(DISTINCT empresa)  FROM base ${whereSql}) AS total_empresas,
-        (SELECT COUNT(DISTINCT municipio)FROM base ${whereSql}) AS total_municipios
-    `;
-    const statusSql = `
-      WITH base AS (${base})
-      SELECT status, SUM(postes)::int AS total
-      FROM base
-      ${whereSql}
-      GROUP BY status
-      ORDER BY total DESC
-    `;
-    const topEmpresasSql = `
-      WITH base AS (${base})
-      SELECT empresa, SUM(postes)::int AS total
-      FROM base
-      ${whereSql}
-      GROUP BY empresa
-      ORDER BY total DESC
-      LIMIT 10
-    `;
-    const porMunicipioSql = `
-      WITH base AS (${base})
-      SELECT municipio, SUM(postes)::int AS total
-      FROM base
-      ${whereSql}
-      GROUP BY municipio
-      ORDER BY total DESC
-      LIMIT 20
-    `;
-
-    const [kpis, status, empresas, municipios] = await Promise.all([
-      pool.query(kpisSql, params),
-      pool.query(statusSql, params),
-      pool.query(topEmpresasSql, params),
-      pool.query(porMunicipioSql, params),
-    ]);
-
-    res.json({
-      ok: true,
-      filters: { ov: ov || null, empresa: empresa || null },
-      kpis: kpis.rows?.[0] || { total_postes: 0, total_empresas: 0, total_municipios: 0 },
-      status: status.rows,
-      topEmpresas: empresas.rows,
-      porMunicipio: municipios.rows,
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ ok: false, error: e.message });
+    console.error("OV /api/ov error:", e);
+    res.status(500).json({ error: e.message });
   }
 });
 
-// --------------------------- Grid detalhado --------------------------
+// -------- /api/ov/list (com filtros) --------
 app.get("/api/ov/list", async (req, res) => {
   try {
-    const tbl = await resolveOvTable();
     const { ov, empresa, municipio, status, limit = 100, page = 1 } = req.query;
+    const c = await getOvColumns();
+    const fqn = `${q(c.schema)}.${q(c.table)}`;
 
     const params = [];
     const where = [];
-    if (ov)        { params.push(ov); where.push(`ordem_venda = $${params.length}`); }
-    if (empresa)   { params.push(`%${empresa}%`); where.push(`upper(empresa) like upper($${params.length})`); }
-    if (municipio) { params.push(`%${municipio}%`); where.push(`upper(municipio) like upper($${params.length})`); }
-    if (status)    { params.push(`%${status}%`); where.push(`upper(status) like upper($${params.length})`); }
-
+    if (ov)        { params.push(ov); where.push(`${q(c.ov)} = $${params.length}`); }
+    if (empresa)   { params.push(`%${empresa}%`); where.push(`upper(${q(c.empresa)}) like upper($${params.length})`); }
+    if (municipio) { params.push(`%${municipio}%`); where.push(`upper(${q(c.municipio)}) like upper($${params.length})`); }
+    if (status)    { params.push(`%${status}%`); where.push(`upper(${q(c.status)}) like upper($${params.length})`); }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const lim = Math.min(parseInt(limit) || 100, 1000);
     const off = (Math.max(parseInt(page) || 1, 1) - 1) * lim;
 
     const sql = `
-      WITH base AS (${baseOvSql(tbl)})
       SELECT
-        ordem_venda,
-        empresa,
-        municipio,
-        status,
-        COALESCE(postes,0)::int AS postes,
-        data_envio_carta,
-        carta
-      FROM base
+        ${q(c.ov)}          as ordem_venda,
+        ${q(c.empresa)}     as empresa,
+        ${q(c.municipio)}   as municipio,
+        ${q(c.status)}      as status,
+        ${q(c.postes)}::int as postes,
+        ${c.data ? q(c.data) + " as data_envio_carta" : "NULL::timestamp as data_envio_carta"}
+      FROM ${fqn}
       ${whereSql}
-      ORDER BY COALESCE(postes,0) DESC
+      ORDER BY ${q(c.postes)}::int DESC NULLS LAST
       LIMIT ${lim} OFFSET ${off}
     `;
     const r = await pool.query(sql, params);
     res.json({ ok: true, rows: r.rows });
   } catch (e) {
-    console.error(e);
+    console.error("OV /api/ov/list error:", e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ============================ ROOT ===================================
+// -------- /api/ov/kpis (agregados p/ gráficos) --------
+app.get("/api/ov/kpis", async (req, res) => {
+  try {
+    const { ov, empresa } = req.query;
+    const c = await getOvColumns();
+    const fqn = `${q(c.schema)}.${q(c.table)}`;
+
+    const params = [];
+    const where = [];
+    if (ov)       { params.push(ov); where.push(`${q(c.ov)} = $${params.length}`); }
+    if (empresa)  { params.push(`%${empresa}%`); where.push(`upper(${q(c.empresa)}) like upper($${params.length})`); }
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const baseSql = `
+      SELECT
+        ${q(c.empresa)}   as empresa,
+        ${q(c.municipio)} as municipio,
+        ${q(c.status)}    as status,
+        (${q(c.postes)}::int) as postes
+      FROM ${fqn}
+      ${whereSql}
+    `;
+
+    const kpisSql = `
+      WITH base AS (${baseSql})
+      SELECT
+        (SELECT COALESCE(SUM(postes),0) FROM base) AS total_postes,
+        (SELECT COUNT(DISTINCT empresa)  FROM base) AS total_empresas,
+        (SELECT COUNT(DISTINCT municipio)FROM base) AS total_municipios
+    `;
+    const statusSql = `
+      WITH base AS (${baseSql})
+      SELECT status, SUM(postes)::int AS total
+      FROM base GROUP BY status ORDER BY total DESC
+    `;
+    const topEmpSql = `
+      WITH base AS (${baseSql})
+      SELECT empresa, SUM(postes)::int AS total
+      FROM base GROUP BY empresa ORDER BY total DESC LIMIT 10
+    `;
+    const porMunSql = `
+      WITH base AS (${baseSql})
+      SELECT municipio, SUM(postes)::int AS total
+      FROM base GROUP BY municipio ORDER BY total DESC LIMIT 20
+    `;
+
+    const [kpis, statusRows, empRows, munRows] = await Promise.all([
+      pool.query(kpisSql, params),
+      pool.query(statusSql, params),
+      pool.query(topEmpSql, params),
+      pool.query(porMunSql, params),
+    ]);
+
+    res.json({
+      ok: true,
+      kpis: kpis.rows?.[0] || { total_postes: 0, total_empresas: 0, total_municipios: 0 },
+      status: statusRows.rows,
+      topEmpresas: empRows.rows,
+      porMunicipio: munRows.rows,
+    });
+  } catch (e) {
+    console.error("OV /api/ov/kpis error:", e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ============================ ROOT =========================
 app.get("/", (_req, res) => {
   res.send("API de Postes + BI de OV rodando 🚀");
 });
 
-// ============================ START ==================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`> Server on http://localhost:${PORT}`));
