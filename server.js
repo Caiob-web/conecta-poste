@@ -45,9 +45,9 @@ function splitSchemaTable(rel) {
 }
 function normalizeKey(s) {
   return String(s)
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // sem acento
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^\w]+/g, "_") // espaço/traço -> _
+    .replace(/[^\w]+/g, "_")
     .replace(/^_+|_+$/g, "");
 }
 
@@ -180,20 +180,25 @@ app.post("/api/auth/logout", (_req, res) => {
 });
 
 // ====================== ORDENS DE VENDA ======================
+// Nomes totalmente qualificados no schema "indicadores"
 const TABLE_OV_CANDIDATES = [
-  "indicadores",                 // <-- a sua
+  "indicadores.ocupacoes_postes_sumario",
+  "indicadores.v_ocupacoes_postes_sumario",
+  "indicadores.ocupacoes_postes",
+  "indicadores.v_ocupacoes_postes",
+
+  // Fallbacks
   "ordem_de_venda",
   "ordem_venda",
   "ordem_de_venda_asc",
   "indicadores_ocupacao",
   "indicadores_v_ocupacao",
-  "public.indicadores",
+  "public.indicadores"
 ];
 
 async function resolveOvTable() {
   const tbl = await resolveFirstExisting(TABLE_OV_CANDIDATES);
   if (!tbl) throw new Error("Tabela/view de OVs não encontrada. Ajuste TABLE_OV_CANDIDATES.");
-  // descobrir schema/table reais via information_schema
   const { schema, table } = splitSchemaTable(tbl);
   const meta = await pool.query(
     `select table_schema, table_name
@@ -226,19 +231,18 @@ async function getOvColumns() {
     for (const c of cands) {
       const k = normalizeKey(c);
       if (byNorm.has(k)) return byNorm.get(k);
-      // tentar variantes:
       const k2 = normalizeKey(c.replace(/ /g, "_"));
       if (byNorm.has(k2)) return byNorm.get(k2);
     }
     return null;
   }
 
-  const empresa = pick(["empresa","cliente","cliente_empresa","cliente/empresa"]);
+  const empresa   = pick(["empresa","cliente","cliente_empresa","cliente/empresa"]);
   const municipio = pick(["municipio","município"]);
-  const status = pick(["status_da_ocupacao","status","status da ocupacao","status da ocupação","status_ocupacao","status_da_ocupação"]);
-  const postes = pick(["postes","qt_postes","postes_totais","qtd_postes"]);
-  const ov = pick(["ordem_venda","ov","ordem","carta"]);
-  const data = pick(["data_envio_carta","data","data_envio","data envio carta","data da carta"]);
+  const status    = pick(["status_da_ocupacao","status","status da ocupacao","status da ocupação","status_ocupacao","status_da_ocupação"]);
+  const postes    = pick(["postes","qt_postes","postes_totais","qtd_postes"]);
+  const ov        = pick(["ordem_venda","ov","ordem","carta"]);
+  const data      = pick(["data_envio_carta","data","data_envio","data envio carta","data da carta"]);
 
   if (!empresa || !municipio || !status || !postes || !ov) {
     throw new Error(
@@ -249,7 +253,7 @@ async function getOvColumns() {
   return { schema, table, empresa, municipio, status, postes, ov, data };
 }
 
-// -------- /api/ov  (compatível com o script.js atual) --------
+// /api/ov — retorno bruto (compatível com o front atual)
 app.get("/api/ov", async (_req, res) => {
   try {
     const c = await getOvColumns();
@@ -273,7 +277,7 @@ app.get("/api/ov", async (_req, res) => {
   }
 });
 
-// -------- /api/ov/list (com filtros) --------
+// /api/ov/list — filtrado/paginado (opcional)
 app.get("/api/ov/list", async (req, res) => {
   try {
     const { ov, empresa, municipio, status, limit = 100, page = 1 } = req.query;
@@ -311,7 +315,7 @@ app.get("/api/ov/list", async (req, res) => {
   }
 });
 
-// -------- /api/ov/kpis (agregados p/ gráficos) --------
+// /api/ov/kpis — agregados para gráficos (opcional)
 app.get("/api/ov/kpis", async (req, res) => {
   try {
     const { ov, empresa } = req.query;
