@@ -14,9 +14,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// NADA de app.listen() em serverless e nada de servir estático aqui.
-// Vercel serve os arquivos estáticos diretamente.
-
 /* ============================ DB Pool ============================ */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -93,7 +90,7 @@ app.get("/api/postes", async (req, res) => {
       if ([north, south, east, west].every((v) => v !== undefined)) {
         params.push(south, north, west, east);
         where = `WHERE latitude BETWEEN $1 AND $2 AND longitude BETWEEN $3 AND $4`;
-        }
+      }
       const sql = `
         SELECT
           id,
@@ -187,10 +184,11 @@ app.post("/api/postes/report", async (req, res) => {
 });
 
 /* ====================== Ordens de Venda / Indicadores ================ */
-/* ALTERAÇÃO: priorizar public.ocupacoes_postes_stage na lista de candidatas */
+/* (ADICIONADO: candidate table "ocupacoes_postes_stage" para procurar a tabela que você subiu em public) */
 const TABLE_OV_CANDIDATES = [
-  "public.ocupacoes_postes_stage", // <-- ADICIONADA/PRIORIZADA aqui
-  "indicadores",              // sua tabela
+  "ocupacoes_postes_stage",                // ADICIONADO (procura em public)
+  "public.ocupacoes_postes_stage",         // ADICIONADO (FQN)
+  "indicadores",                           // sua tabela antiga
   "public.indicadores",
   "ordem_de_venda",
   "ordem_venda",
@@ -236,12 +234,12 @@ async function getOvColumns() {
     return null;
   }
 
-  const empresa   = pick(["empresa","cliente","cliente_empresa","cliente/empresa"]);
-  const municipio = pick(["municipio","município"]);
+  const empresa   = pick(["empresa","cliente","cliente_empresa","cliente/empresa","Empresa"]);
+  const municipio = pick(["municipio","município","Municipio"]);
   const status    = pick(["status_da_ocupacao","status","status da ocupacao","status da ocupação","status_ocupacao","status_da_ocupação"]);
   const postes    = pick(["postes","qt_postes","postes_totais","qtd_postes"]);
-  const ov        = pick(["ordem_venda","ov","ordem","carta"]);
-  const data      = pick(["data_envio_carta","data","data_envio","data envio carta","data da carta"]);
+  const ov        = pick(["ordem_venda","ov","ordem","carta","ordem_venda"]);
+  const data      = pick(["data_envio_carta","data","data_envio","data envio carta","data da carta","data_envio_carta"]);
 
   if (!empresa || !municipio || !status || !postes || !ov) {
     throw new Error(
@@ -251,6 +249,21 @@ async function getOvColumns() {
 
   return { schema, table, empresa, municipio, status, postes, ov, data };
 }
+
+/* ----------------- Endpoint de teste/health para debug rápido ----------------- */
+/* (ADICIONADO) */
+app.get("/api/ov/health", async (_req, res) => {
+  try {
+    const tbl = await resolveFirstExisting(TABLE_OV_CANDIDATES);
+    if (!tbl) return res.status(404).json({ ok: false, error: "Nenhuma tabela OV encontrada", candidates: TABLE_OV_CANDIDATES });
+    const { schema, table } = splitSchemaTable(tbl);
+    return res.json({ ok: true, table: `${schema}.${table}` });
+  } catch (e) {
+    console.error("OV health error:", e);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+/* --------------------------------------------------------------------------- */
 
 app.get("/api/ov", async (_req, res) => {
   try {
@@ -373,25 +386,6 @@ app.get("/api/ov/kpis", async (req, res) => {
     });
   } catch (e) {
     console.error("OV /api/ov/kpis error:", e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-/* ============================ Test endpoint =========================== */
-/*
-  Endpoint de debug / teste para confirmar que a tabela public.ocupacoes_postes_stage
-  está visível e retornando dados. Use: GET /api/test/ocupacoes
-*/
-app.get("/api/test/ocupacoes", async (req, res) => {
-  try {
-    const r = await pool.query(`
-      SELECT ordem_venda, empresa, municipio, data_envio_carta, postes, status_da_ocupacao
-      FROM public.ocupacoes_postes_stage
-      LIMIT 20
-    `);
-    res.json({ ok: true, count: r.rowCount, rows: r.rows });
-  } catch (e) {
-    console.error("Erro /api/test/ocupacoes:", e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
