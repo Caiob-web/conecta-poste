@@ -1,5 +1,7 @@
-// server.js — API de Postes + BI de Ordem de Venda (robusto p/ "indicadores")
-// Execução: node server.js  |  ENV: DATABASE_URL (Neon/Postgres)
+// server.js — API de Postes + BI de Ordem de Venda (compatível c/ “indicadores”)
+// Execução local:  node server.js
+// Requer: DATABASE_URL no .env (Neon/Postgres)
+// Opcional: APP_USERS="admin:admin,oper:123" (para login simples)
 
 import express from "express";
 import cors from "cors";
@@ -10,12 +12,14 @@ import XLSX from "xlsx";
 import pkg from "pg";
 const { Pool } = pkg;
 
-// ---------- Infra ----------
+/* ============================= Infra ================================== */
 const app = express();
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true })); // p/ login via formulário
 app.use(cookieParser());
 
+// Static (pasta "public" com index.html, script.js, etc.)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "public")));
@@ -25,7 +29,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// ---------- Utils ----------
+/* ============================ Utils =================================== */
 async function hasRelation(name) {
   const r = await pool.query(`select to_regclass($1) ok`, [name]);
   return !!r.rows?.[0]?.ok;
@@ -35,6 +39,7 @@ async function resolveFirstExisting(names = []) {
   return null;
 }
 function q(id) {
+  // quote identifier "schema"/"colunas" de forma segura
   return `"${String(id).replace(/"/g, '""')}"`;
 }
 function splitSchemaTable(rel) {
@@ -45,18 +50,48 @@ function splitSchemaTable(rel) {
 }
 function normalizeKey(s) {
   return String(s)
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
     .toLowerCase()
-    .replace(/[^\w]+/g, "_")
+    .replace(/[^\w]+/g, "_") // tudo que não é [a-z0-9_] vira _
     .replace(/^_+|_+$/g, "");
 }
 
-// ========================= POSTES =========================
+/* ========================= AUTH (login simples) ======================== */
+// Usuários via env APP_USERS="admin:admin,gerente:123"
+const USERS = (process.env.APP_USERS || "admin:admin")
+  .split(",")
+  .map(s => {
+    const [u, p] = s.split(":");
+    return { u: (u || "").trim(), p: (p || "").trim() };
+  });
+
+app.post("/api/auth/login", (req, res) => {
+  const u = (req.body.usuario || req.body.username || req.body.user || "").toString();
+  const p = (req.body.senha   || req.body.password || "").toString();
+
+  const ok = USERS.some(({ u:U, p:P }) => U === u && P === p);
+  if (!ok) return res.status(401).json({ ok:false, error:"Credenciais inválidas" });
+
+  // cookie “simples” e devolve usuário (front salva no localStorage)
+  res.cookie("auth_token", Buffer.from(`${u}:ok`).toString("base64"), {
+    httpOnly: false, sameSite: "lax", path: "/"
+  });
+  res.json({ ok: true, user: { username: u } });
+});
+
+app.post("/api/auth/logout", (_req, res) => {
+  res.clearCookie("auth_token", { path: "/" });
+  res.json({ ok: true });
+});
+
+/* ============================== POSTES ================================ */
+// GET /api/postes
 app.get("/api/postes", async (req, res) => {
   try {
     const { north, south, east, west, limit } = req.query;
     const max = Math.min(parseInt(limit) || 50000, 100000);
 
+    // tenta view preferida; ajuste os nomes conforme seu banco
     const preferredView = await resolveFirstExisting([
       "indicadores_v_ocupacao",
       "dados_poste_view",
@@ -86,6 +121,7 @@ app.get("/api/postes", async (req, res) => {
       return res.json(r.rows);
     }
 
+    // fallback p/ tabela base
     if (!(await hasRelation("dados_poste")))
       return res.status(500).json({ error: "Nenhuma view/tabela de postes encontrada." });
 
@@ -117,6 +153,7 @@ app.get("/api/postes", async (req, res) => {
   }
 });
 
+// POST /api/postes/report  -> Excel (ids[])
 app.post("/api/postes/report", async (req, res) => {
   try {
     const { ids } = req.body || {};
@@ -161,6 +198,7 @@ app.post("/api/postes/report", async (req, res) => {
   }
 });
 
+// GET /api/censo (stub simples; ajuste para sua origem real)
 app.get("/api/censo", async (_req, res) => {
   try {
     if (await hasRelation("censo_municipio")) {
@@ -174,31 +212,23 @@ app.get("/api/censo", async (_req, res) => {
   }
 });
 
-app.post("/api/auth/logout", (_req, res) => {
-  res.clearCookie("auth_token", { path: "/" });
-  res.json({ ok: true });
-});
-
-// ====================== ORDENS DE VENDA ======================
-// Nomes totalmente qualificados no schema "indicadores"
+/* ===================== ORDENS DE VENDA / INDICADORES =================== */
+// nomes candidatos (primeiro que existir é usado)
 const TABLE_OV_CANDIDATES = [
-  "indicadores.ocupacoes_postes_sumario",
-  "indicadores.v_ocupacoes_postes_sumario",
-  "indicadores.ocupacoes_postes",
-  "indicadores.v_ocupacoes_postes",
-
-  // Fallbacks
+  "indicadores",                 // sua tabela no Neon
+  "public.indicadores",
   "ordem_de_venda",
   "ordem_venda",
   "ordem_de_venda_asc",
   "indicadores_ocupacao",
   "indicadores_v_ocupacao",
-  "public.indicadores"
 ];
 
 async function resolveOvTable() {
   const tbl = await resolveFirstExisting(TABLE_OV_CANDIDATES);
   if (!tbl) throw new Error("Tabela/view de OVs não encontrada. Ajuste TABLE_OV_CANDIDATES.");
+
+  // confirma schema/name reais
   const { schema, table } = splitSchemaTable(tbl);
   const meta = await pool.query(
     `select table_schema, table_name
@@ -253,7 +283,7 @@ async function getOvColumns() {
   return { schema, table, empresa, municipio, status, postes, ov, data };
 }
 
-// /api/ov — retorno bruto (compatível com o front atual)
+// GET /api/ov  -> dump compatível com script.js atual
 app.get("/api/ov", async (_req, res) => {
   try {
     const c = await getOvColumns();
@@ -277,7 +307,7 @@ app.get("/api/ov", async (_req, res) => {
   }
 });
 
-// /api/ov/list — filtrado/paginado (opcional)
+// GET /api/ov/list  -> grid com filtros
 app.get("/api/ov/list", async (req, res) => {
   try {
     const { ov, empresa, municipio, status, limit = 100, page = 1 } = req.query;
@@ -315,7 +345,7 @@ app.get("/api/ov/list", async (req, res) => {
   }
 });
 
-// /api/ov/kpis — agregados para gráficos (opcional)
+// GET /api/ov/kpis  -> agregados p/ gráficos
 app.get("/api/ov/kpis", async (req, res) => {
   try {
     const { ov, empresa } = req.query;
@@ -381,7 +411,7 @@ app.get("/api/ov/kpis", async (req, res) => {
   }
 });
 
-// ============================ ROOT =========================
+/* ============================= ROOT =================================== */
 app.get("/", (_req, res) => {
   res.send("API de Postes + BI de OV rodando 🚀");
 });
