@@ -8,69 +8,99 @@
   const css = `
     /* HUD raiz (caixa externa) */
     #tempo{
-      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
-      border-radius:14px; background:rgba(255,255,255,0.92);
-      box-shadow:0 8px 24px rgba(0,0,0,.12); backdrop-filter:saturate(1.15) blur(2px);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,0.92);
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+      backdrop-filter:saturate(1.15) blur(2px);
     }
     /* Hora */
     #tempo .hora-row{
-      display:flex; align-items:center; gap:8px;
+      display:flex;
+      align-items:center;
+      gap:8px;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#0f172a; font-weight:700;
+      color:#0f172a;
+      font-weight:700;
     }
     #tempo .hora-row .dot{
-      width:10px; height:10px; border-radius:50%;
+      width:10px;height:10px;border-radius:50%;
       background:linear-gradient(180deg,#1e3a8a,#2563eb);
-      box-shadow:0 0 0 2px #e5e7eb inset; display:inline-block;
+      box-shadow:0 0 0 2px #e5e7eb inset;
+      display:inline-block;
     }
+
     /* Cartão do clima + seletor */
     #tempo .weather-card{
-      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
-      border-radius:12px; background:rgba(255,255,255,0.95);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.95);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
       min-width:260px;
     }
-    #tempo .weather-row{ display:flex; align-items:center; gap:10px; min-height:40px; }
+    #tempo .weather-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:40px;
+    }
     #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
     #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
-    #tempo .tempo-text b{ font-weight:700; } #tempo .tempo-text small{ color:#6b7280; }
+    #tempo .tempo-text b{ font-weight:700; }
+    #tempo .tempo-text small{ color:#6b7280; }
+
     /* Linha do seletor de mapa dentro do cartão */
     #tempo .map-row{
-      margin-top:6px; padding-top:8px; border-top:1px dashed rgba(0,0,0,.10);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      margin-top:6px;
+      padding-top:8px;
+      border-top:1px dashed rgba(0,0,0,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
     }
-    #tempo .map-row .lbl{ font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial; letter-spacing:.2px; color:#475569; font-weight:700; }
+    #tempo .map-row .lbl{
+      font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      letter-spacing:.2px;
+      color:#475569;
+      font-weight:700;
+    }
     #tempo .select-wrap{
       position:relative; display:inline-flex; align-items:center; gap:8px;
       padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
-      background:#fff; transition:border-color .15s ease, box-shadow .15s ease;
+      background:#ffffff; transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
     #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
-    #tempo .select-wrap .ico-globe{ width:16px; height:16px; opacity:.75; }
-    #tempo .select-wrap .ico-caret{ position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none; }
-    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui,-apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
+    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; }
+    #tempo .select-wrap .ico-caret{
+      position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none;
+    }
+    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
 
     /* ---- Modal Indicadores (BI) ---- */
-    .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
-    .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
-    .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
-    .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
-    .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
-    .bi-side label{font-size:13px; color:#374151}
-    .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
-    .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
-    .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
-    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
+    .bi-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:4000;background:rgba(0,0,0,.35);}
+    .bi-card{width:min(960px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);font-family:'Segoe UI',system-ui;}
+    .bi-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
+    .bi-head h3{margin:0;font-weight:700;color:#111827;font-size:16px}
+    .bi-close{border:0;background:#f3f4f6;color:#111827;border-radius:8px;padding:6px 10px;cursor:pointer}
+    .bi-body{padding:12px 16px;display:grid;grid-template-columns:1fr 320px;gap:12px;}
+    .bi-side label{font-size:13px;color:#374151}
+    .bi-input{padding:8px;border:1px solid #ddd;border-radius:8px;width:100%}
+    .bi-chk{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#374151;}
+    .bi-resumo{margin-top:8px;font-size:13px;color:#111827;}
+    .bi-btn{margin-top:8px;border:1px solid #ddd;background:#fff;border-radius:8px;padding:8px;cursor:pointer}
     .bi-table-wrap{padding:0 16px 16px 16px;}
-    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
+    .bi-table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:8px;overflow:auto}
     .bi-table thead{background:#f9fafb}
-    .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
+    .bi-table th,.bi-table td{padding:10px;border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
-
-    /* Garante tooltip acima de labels/polylines */
-    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
   `;
   const style = document.createElement("style");
   style.textContent = css;
@@ -83,26 +113,42 @@
 (function injectDockSidebarStyles(){
   const css = `
     :root{ --dock-w: 340px; }
+
     .painel-busca{
-      position: fixed !important; top: 0; right: 0; height: 100vh; width: var(--dock-w);
-      overflow: auto; overflow-x: hidden; border-left: 2px solid var(--ui-border, #19d68f);
-      border-radius: 0 !important; padding: 12px 12px 20px;
+      position: fixed !important;
+      top: 0; right: 0; height: 100vh; width: var(--dock-w);
+      overflow: auto; overflow-x: hidden;
+      border-left: 2px solid var(--ui-border, #19d68f);
+      border-radius: 0 !important;
+      padding: 12px 12px 20px;
       transform: translateX(0%); transition: transform .25s ease;
       z-index: 1000; box-sizing: border-box;
     }
-    .painel-busca .actions{ display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-top: 6px; }
+    .painel-busca .actions{
+      display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important; margin-top: 6px;
+    }
     .painel-busca.collapsed{ transform: translateX(100%); }
+
     #togglePainel{
-      position: fixed !important; top: 50%; right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
-      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important; background: var(--ui-bg, #0f1b2a) !important;
-      border: 1px solid var(--ui-border, #19d68f) !important; box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
+      position: fixed !important; top: 50%;
+      right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
+      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important;
+      background: var(--ui-bg, #0f1b2a) !important;
+      border: 1px solid var(--ui-border, #19d68f) !important;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
       display:flex;align-items:center;justify-content:center;
     }
     body.sidebar-collapsed #togglePainel{ right: 6px !important; }
     #togglePainel i{ transition: transform .2s ease; }
     body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
-    #localizacaoUsuario, #logoutBtn{ position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100; }
+
+    #localizacaoUsuario, #logoutBtn{
+      position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100;
+    }
     body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
+
+    /* HUD acoplado na lateral (logo abaixo das ações) */
     .dock-hud{ margin-top:12px; }
   `;
   const style = document.createElement('style');
@@ -125,7 +171,8 @@
       background:transparent !important; border:none !important; box-shadow:none !important;
       color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
-      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
+      transform: translate(-50%, -50%);
+      user-select:none; pointer-events:auto;
     }
   `;
   const style = document.createElement('style');
@@ -134,24 +181,42 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map").setView([-23.2, -45.9], 12); // SVG (sem preferCanvas)
+const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
 
-// Base layers
+// Rua (OSM)
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
-const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
+// Satélite (Esri)
+const esriSat = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { maxZoom: 19 }
+);
+// Rótulos por cima do satélite
 const labelsPane = map.createPane("labels");
+// FIX: manter rótulos **abaixo** dos tooltips (tooltipPane=650). Antes era 650 e podia cobrir o tooltip.
 labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
-const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", { pane: "labels", maxZoom: 19, subdomains: "abcd" });
+const cartoLabels = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
+  { pane: "labels", maxZoom: 19, subdomains: "abcd" }
+);
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
+
+// Começa com Rua (OSM)
 osm.addTo(map);
 
-// estilo dos pontos
+// === Renderer Canvas + estilo das bolinhas (verde/verm) ===
+const DOT_RENDERER = L.canvas({ padding: 0.5 });
 function dotStyle(qtdEmpresas){
   return {
-    radius: 6, color: "#fff", weight: 1,
+    radius: 6,
+    color: "#fff",
+    weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
-    fillOpacity: 0.95
+    fillOpacity: 0.95,
+    renderer: DOT_RENDERER,
+    // FIX: garantir interatividade do path em Canvas e evitar “propagação” fechar/consumir cliques
+    interactive: true,
+    bubblingMouseEvents: false
   };
 }
 
@@ -175,43 +240,42 @@ const markers = L.markerClusterGroup({
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
+  iconCreateFunction: function (cluster) {
+    return new L.DivIcon({
+      html: String(cluster.getChildCount()),
+      className: "cluster-num-only",
+      iconSize: null
+    });
+  }
 });
-
-// Clique no cluster: spiderfy + abre 1º filho
-markers.off("clusterclick");
-markers.on("clusterclick", (e) => {
+markers.on("clusterclick", (e) => e.layer.spiderfy());
+// failsafe: qualquer layer simples dentro do cluster abre popup
+markers.on("click", (e) => {
+  // FIX: se vier DOM event, não deixa “subir”
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const childs = e.layer.getAllChildMarkers();
-  e.layer.spiderfy();
-  requestAnimationFrame(() => {
-    const first = childs && childs[0];
-    if (first && first.posteData) {
-      try { first.openTooltip?.(); } catch {}
-      abrirPopup(first.posteData);
-      lastTip = { id: keyId(first.posteData.id) };
-      tipPinned = true;
-    }
-  });
+  const l = e.layer;
+  if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
+  if (l && l.posteData) {
+    // tenta também abrir tooltip, se existir
+    try { l.openTooltip?.(); } catch {}
+    abrirPopup(l.posteData);
+  }
 });
-
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
-const idToMarker = new Map();   // cache: id(string) -> L.Layer
+const idToMarker = new Map();   // cache: id -> L.Layer
 let todosCarregados = false;
-function keyId(id){ return String(id); }
+
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
-function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
 
 /* ====================================================================
    Popup fixo: instância única, sem piscar
 ==================================================================== */
 const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
-let popupPinned = false;
-let lastPopup = null;
+let popupPinned = false;                 // true se o usuário não fechou o popup
+let lastPopup = null;                    // {lat, lon, html}
 
 function reabrirPopupFixo(delay = 0){
   if (!popupPinned || !lastPopup) return;
@@ -221,68 +285,40 @@ function reabrirPopupFixo(delay = 0){
   };
   delay ? setTimeout(open, delay) : open();
 }
-map.on("popupclose", (e) => { if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }});
+map.on("popupclose", (e) => {
+  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
+});
 
-/* ====================================================================
-   Tooltip fixo (reabrir após cluster/reset)
-==================================================================== */
-let tipPinned = false;   // true após clique (para manter aberto)
-let lastTip = null;      // { id }
-
-function reabrirTooltipFixo(delay = 0) {
-  if (!lastTip || !tipPinned) return;
-  const open = () => {
-    const layer = idToMarker.get(keyId(lastTip.id));
-    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
-  };
-  delay ? setTimeout(open, delay) : open();
-}
-
-// Cria (ou retorna do cache) o layer do poste
+// Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
 function criarLayerPoste(p){
-  const key = keyId(p.id);
-  if (idToMarker.has(key)) return idToMarker.get(key);
-
-  const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
-  const qtd = empresas.length;
-  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
-
-  const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
-    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
-    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
+  if (idToMarker.has(p.id)) return idToMarker.get(p.id);
+  const layer = L.circleMarker([p.lat, p.lon], dotStyle(p.empresas.length))
+    .bindTooltip(
+      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
+      { direction: "top", sticky: true }
+    )
     .on("click", (e) => {
+      // FIX: impedir que o clique “suba” e garantir abertura
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      lastTip = { id: key }; tipPinned = true;
-      try { layer.openTooltip?.(); } catch {}
+      try { e.target.openTooltip?.(); } catch {}
       abrirPopup(p);
     });
-  layer.posteData = p;
-  idToMarker.set(key, layer);
+  layer.posteData = p; // usado pelo failsafe do cluster
+  idToMarker.set(p.id, layer);
   return layer;
-}
-
-// Reconstrói tudo do zero (modo “cura tudo”)
-function hardReset(){
-  markers.clearLayers();
-  idToMarker.clear();
-  const layers = todosPostes.map(criarLayerPoste);
-  if (layers.length) markers.addLayers(layers);
-  refreshClustersSoon();
 }
 
 // Adiciona 1 poste (usado em filtros, etc.)
 function adicionarMarker(p) {
   const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
+  if (!markers.hasLayer(layer)) markers.addLayer(layer);
 }
 
 // Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
-  if (arr.length) markers.addLayers(arr);
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
+  if (arr.length) markers.addLayers(arr); // usa chunkedLoading
   reabrirPopupFixo(0);
 }
 
@@ -294,10 +330,10 @@ function carregarTodosPostesGradualmente() {
   function addChunk() {
     const slice = todosPostes.slice(i, i + lote);
     const layers = slice.map(criarLayerPoste);
-    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
+    if (layers.length) markers.addLayers(layers);
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
+    else { todosCarregados = true; reabrirPopupFixo(0); }
   }
   scheduleIdle(addChunk);
 }
@@ -313,9 +349,6 @@ const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
 
-// >>> CHANGED <<<: variáveis para empresas permitidas de OV (vêm do backend)
-let allowedOvCompanies = null; // array de strings (empresas permitidas pela tabela ocupacoes_postes_stage)
-
 // Spinner overlay
 const overlay = document.getElementById("carregando");
 if (overlay) overlay.style.display = "flex";
@@ -326,10 +359,14 @@ if (overlay) overlay.style.display = "flex";
   const painel = document.querySelector(".painel-busca");
   if (!hud || !painel) return;
 
+  // move o HUD para o painel, logo abaixo do .actions (lado direito)
   const actions = painel.querySelector(".actions");
   hud.classList.add("dock-hud");
-  if (actions && actions.parentNode === painel) painel.insertBefore(hud, actions.nextSibling);
-  else painel.appendChild(hud);
+  if (actions && actions.parentNode === painel) {
+    painel.insertBefore(hud, actions.nextSibling);
+  } else {
+    painel.appendChild(hud);
+  }
 
   hud.innerHTML = "";
 
@@ -344,7 +381,9 @@ if (overlay) overlay.style.display = "flex";
     <div class="weather-row">
       <img alt="Clima" src="" />
       <div class="tempo-text">
-        <b>Carregando…</b><span> </span><small> </small>
+        <b>Carregando…</b>
+        <span> </span>
+        <small> </small>
       </div>
     </div>
     <div class="map-row">
@@ -353,7 +392,8 @@ if (overlay) overlay.style.display = "flex";
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
-          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="#111827" stroke-width="2"/>
+          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20"
+                fill="none" stroke="#111827" stroke-width="2"/>
         </svg>
         <select id="select-base">
           <option value="rua">Rua</option>
@@ -419,8 +459,6 @@ fetch("/api/postes", { credentials: "include" })
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
-    if (!dl) return;
-    dl.innerHTML = "";
     Array.from(set).sort().forEach((v) => {
       const o = document.createElement("option");
       o.value = v; dl.appendChild(o);
@@ -429,67 +467,25 @@ function preencherListas() {
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
-  // lista-empresas — atenção: preenche com contagem local, mas OV / indicador usa allowedOvCompanies
   const dlEmp = document.getElementById("lista-empresas");
-  if (dlEmp) {
-    dlEmp.innerHTML = "";
-    Object.keys(empresasContagem).sort().forEach((e) => {
-      const o = document.createElement("option");
-      o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
-    });
-  }
+  Object.keys(empresasContagem).sort().forEach((e) => {
+    const o = document.createElement("option");
+    o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
+  });
 }
 
-/* ====================================================================
-   >>> CHANGED <<<: carregar empresas válidas para ORDENS DE VENDA
-   O backend expõe /api/indicadores/ocupacoes_postes_stage que retorna:
-   [{ empresa: "VIVO" }, { empresa: "CLARO" }, ...]
-==================================================================== */
-async function loadAllowedOvCompanies() {
-  try {
-    const res = await fetch("/api/indicadores/ocupacoes_postes_stage", { credentials: "include" });
-    if (!res.ok) { allowedOvCompanies = null; return; }
-    const arr = await res.json();
-    if (!Array.isArray(arr)) { allowedOvCompanies = null; return; }
-    allowedOvCompanies = arr.map(r => String(r.empresa || r || "").trim()).filter(Boolean).sort();
-    // atualizar datalist global de empresas também para refletir (opcional):
-    const dl = document.getElementById("lista-empresas");
-    if (dl && allowedOvCompanies) {
-      // mantemos as opções existentes + colocamos as permitidas no topo
-      const existing = new Set(Array.from(dl.querySelectorAll("option")).map(o => o.value));
-      // limpar e remontar priorizando allowedOvCompanies
-      dl.innerHTML = "";
-      allowedOvCompanies.forEach(c => {
-        const o = document.createElement("option"); o.value = c; dl.appendChild(o);
-      });
-      // adicionar as demais (que não estejam nas allowed)
-      Object.keys(empresasContagem).sort().forEach(e => {
-        if (!allowedOvCompanies.includes(e)) {
-          const o = document.createElement("option"); o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dl.appendChild(o);
-        }
-      });
-    }
-  } catch (e) {
-    console.warn("Não foi possível carregar allowedOvCompanies:", e);
-    allowedOvCompanies = null;
-  }
-}
-// chama já (não precisa aguardar postes)
-loadAllowedOvCompanies();
-
-/* ====================================================================
-   Geração de Excel no cliente via SheetJS
-==================================================================== */
+// ---------------------------------------------------------------------
+// Geração de Excel no cliente via SheetJS
+// ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
-  const idSet = new Set((filtroIds || []).map(keyId));
   const dadosParaExcel = todosPostes
-    .filter((p) => idSet.has(keyId(p.id)))
+    .filter((p) => filtroIds.includes(p.id))
     .map((p) => ({
       "ID POSTE": p.id,
       Município: p.nome_municipio,
       Bairro: p.nome_bairro,
       Logradouro: p.nome_logradouro,
-      Empresas: (Array.isArray(p.empresas) ? p.empresas : []).join(", "),
+      Empresas: p.empresas.join(", "),
       Coordenadas: p.coordenadas,
     }));
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
@@ -504,8 +500,7 @@ function gerarExcelCliente(filtroIds) {
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
-  refreshClustersSoon();
-  if (!censoMode) { exibirTodosPostes(); reabrirTooltipFixo(0); reabrirPopupFixo(0); return; }
+  if (!censoMode) { exibirTodosPostes(); reabrirPopupFixo(0); return; }
 
   if (!censoIds) {
     try {
@@ -515,22 +510,21 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       censoIds = new Set(arr.map((i) => String(i.poste)));
     } catch {
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false; exibirTodosPostes(); reabrirTooltipFixo(0); reabrirPopupFixo(0); return;
+      censoMode = false; exibirTodosPostes(); reabrirPopupFixo(0); return;
     }
   }
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
-      const c = L.circleMarker([poste.lat, poste.lon], { radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8 })
-        .bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
-      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-        lastTip = { id: keyId(poste.id) }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
+      const c = L.circleMarker([poste.lat, poste.lon], {
+        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
+        // FIX: garantir clique no Canvas e não deixar subir
+        interactive: true, bubblingMouseEvents: false
+      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
+      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{c.openTooltip?.();}catch{} abrirPopup(poste); });
       c.posteData = poste;
       markers.addLayer(c);
     });
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 });
 
@@ -539,7 +533,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // ---------------------------------------------------------------------
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
-  const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
+  const p = todosPostes.find((x) => x.id === id);
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], 18);
   abrirPopup(p);
@@ -561,17 +555,17 @@ function filtrarLocal() {
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
       (!bai || p.nome_bairro.toLowerCase() === bai) &&
       (!log || p.nome_logradouro.toLowerCase() === log) &&
-      (!emp || (Array.isArray(p.empresas) ? p.empresas : []).join(", ").toLowerCase().includes(emp))
+      (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
-  markers.clearLayers(); refreshClustersSoon();
+  markers.clearLayers();
 
   filtro.forEach(adicionarMarker);
-  refreshClustersSoon();
-  reabrirTooltipFixo(0); reabrirPopupFixo(0);
+  reabrirPopupFixo(0);
 
   fetch("/api/postes/report", {
-    method: "POST", credentials: "include",
+    method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
   })
@@ -590,21 +584,19 @@ function filtrarLocal() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
+    .catch((e) => {
+      console.error("Erro exportar filtro:", e);
+      alert("Falha ao gerar Excel backend:\n" + e.message);
+    });
 
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-function resetarMapa() {
-  // hard reset para curar qualquer estado de evento perdido
-  popupPinned = false; lastPopup = null; tipPinned = false; lastTip = null;
-  hardReset();
-  reabrirTooltipFixo(0); reabrirPopupFixo(0);
-}
+function resetarMapa() { exibirTodosPostes(); reabrirPopupFixo(0); }
 
-// ---------------------------------------------------------------------
-// ÍCONES 48px — poste fotorealista + halo de disponibilidade
-// ---------------------------------------------------------------------
+/* ====================================================================
+   ÍCONES 48px — poste fotorealista + halo de disponibilidade
+==================================================================== */
 function makePolePhoto48(glowHex) {
   const svg = `
   <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
@@ -644,18 +636,29 @@ function makePolePhoto48(glowHex) {
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
-const ICON_GREEN_48 = L.icon({ iconUrl: makePolePhoto48("#24a148"), iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22] });
-const ICON_RED_48   = L.icon({ iconUrl: makePolePhoto48("#d64545"), iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22] });
+
+const ICON_GREEN_48 = L.icon({
+  iconUrl: makePolePhoto48("#24a148"),
+  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
+});
+const ICON_RED_48 = L.icon({
+  iconUrl: makePolePhoto48("#d64545"),
+  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
+});
 function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
 function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
-// Street View (link público)
-// ---------------------------------------------------------------------
-function buildGoogleMapsPanoURL(lat, lng) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`; }
+// === Street View gratuito (link público) =============================
+function buildGoogleMapsPanoURL(lat, lng) {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+}
 function googleButtonHTML(lat, lng, label = "Abrir no Google Street View") {
   const url = buildGoogleMapsPanoURL(lat, lng);
-  return `<button onclick="window.open('${url}','_blank','noopener')" style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">${label}</button>`;
+  return `<button onclick="window.open('${url}','_blank','noopener')"
+    style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
+    ${label}
+  </button>`;
 }
 function streetImageryBlockHTML(lat, lng) {
   return `
@@ -667,6 +670,7 @@ function streetImageryBlockHTML(lat, lng) {
     </small>
   `.trim();
 }
+
 (function addStreetViewControl() {
   if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
   const Control = L.Control.extend({
@@ -692,8 +696,7 @@ function streetImageryBlockHTML(lat, lng) {
 // Abre popup (usa a instância única mainPopup)
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
-  const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
-  const list = empresas.length ? empresas.map((e) => `<li>${e}</li>`).join("") : `<li><i>Disponível (sem empresas)</i></li>`;
+  const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
   const html = `
     <b>ID:</b> ${p.id}<br>
     <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
@@ -753,6 +756,7 @@ function preencherClimaUI(data) {
     t.innerHTML = `<b>Erro ao obter clima</b>`;
   }
 }
+
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
   fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
@@ -763,8 +767,10 @@ function obterPrevisaoDoTempo(lat, lon) {
       if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
     });
 }
+
+// tenta pegar geo; se falhar, usa SP
 (function initWeather() {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
   if (!navigator.geolocation) return fallback();
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
@@ -786,12 +792,12 @@ setInterval(() => {
 function consultarIDsEmMassa() {
   const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
-  markers.clearLayers(); refreshClustersSoon();
+  markers.clearLayers();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids.map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id))).filter(Boolean);
+  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
@@ -801,26 +807,25 @@ function consultarIDsEmMassa() {
     const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
     if (d > 50) {
       todosPostes
-        .filter((p) => !ids.includes(keyId(p.id)))
+        .filter((p) => !ids.includes(p.id))
         .filter((p) =>
           getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
           getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
-          const empresasStr = (Array.isArray(p.empresas) ? p.empresas : []).join(", ");
-          const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
-            .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
-            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-              lastTip = { id: keyId(p.id) }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
+          const m = L.circleMarker([p.lat, p.lon], {
+            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
+            // FIX: interativo e sem bubbling
+            interactive: true, bubblingMouseEvents: false
+          }).bindTooltip(`ID: ${p.id}<br>Empresas: ${p.empresas.join(", ")}`, { direction: "top", sticky: true })
+            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{m.openTooltip?.();}catch{} abrirPopup(p); })
             .addTo(map);
           m.posteData = p;
           window.intermediarios.push(m);
         });
     }
   });
-  map.addLayer(markers); refreshClustersSoon();
-
+  map.addLayer(markers);
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
@@ -831,29 +836,27 @@ function consultarIDsEmMassa() {
 
   window.ultimoResumoPostes = {
     total: ids.length,
-    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
-    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
-    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
+    disponiveis: encontrados.filter((p) => p.empresas.length <= 4).length,
+    ocupados: encontrados.filter((p) => p.empresas.length >= 5).length,
+    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
     intermediarios: window.intermediarios.length,
   };
 
-  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 }
 
 // Adiciona marcador numerado (usa o mesmo abrirPopup)
 function adicionarNumerado(p, num) {
-  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 5 ? "red" : "green";
-  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
+  const cor = p.empresas.length >= 5 ? "red" : "green";
+  const html = `<div style="
+      background:${cor};color:white;width:22px;height:22px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white
+    ">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
-  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-    lastTip = { id: keyId(p.id) }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
+  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
-  refreshClustersSoon();
   window.numeroMarkers.push(mk);
 }
 
@@ -884,7 +887,9 @@ function gerarPDFComMapa() {
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -900,7 +905,8 @@ function limparTudo() {
 // Exporta Excel genérico
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
-    method: "POST", credentials: "include",
+    method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
@@ -909,7 +915,10 @@ function exportarExcel(ids) {
         window.location.href = "/login.html";
         throw new Error("Não autorizado");
       }
-      if (!res.ok) { let err; try { err = (await res.json()).error; } catch {} throw new Error(err || `HTTP ${res.status}`); }
+      if (!res.ok) {
+        let err; try { err = (await res.json()).error; } catch {}
+        throw new Error(err || `HTTP ${res.status}`);
+      }
       return res.blob();
     })
     .then((b) => {
@@ -919,7 +928,10 @@ function exportarExcel(ids) {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
+    .catch((e) => {
+      console.error("Erro Excel:", e);
+      alert("Falha ao gerar Excel:\n" + e.message);
+    });
 }
 
 // Botão Excel
@@ -939,24 +951,37 @@ document.getElementById("togglePainel").addEventListener("click", () => {
   p.addEventListener("transitionend", onEnd);
 });
 
-// Logout
+// Logout (ATUALIZADO: robusto a offline e rota opcional)
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   try {
+    // limpa credenciais locais sempre
     localStorage.removeItem("auth_token");
     sessionStorage.removeItem("auth_token");
     document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
   } catch {}
-  if (navigator.onLine) { try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {} }
+
+  // tenta avisar o servidor apenas se estiver online; ignora falhas
+  if (navigator.onLine) {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {}
+  }
+
+  // usa replace para não voltar com back
   window.location.replace("/login.html");
 });
 
 /* --------------------------------------------------------------------
-   === Indicadores (BI)
+   === Indicadores (BI) — injeção automática de botão + modal ===
 -------------------------------------------------------------------- */
+
+// Agregação por município, com filtros
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
-  const mapa = new Map(); let total = 0;
+
+  const mapa = new Map();
+  let total = 0;
 
   for (const p of todosPostes) {
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
@@ -969,33 +994,37 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
     total++;
   }
 
-  const rows = Array.from(mapa.entries()).map(([municipio, qtd]) => ({ municipio, qtd })).sort((a, b) => b.qtd - a.qtd);
+  const rows = Array.from(mapa.entries())
+    .map(([municipio, qtd]) => ({ municipio, qtd }))
+    .sort((a, b) => b.qtd - a.qtd);
+
   return { rows, total };
 }
+
+// CSV
 function rowsToCSV(rows) {
   const header = "Municipio,Quantidade\n";
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
+
+// Injeta botão "Indicadores"
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
-  // se botão não existe, cria (mantido comportamento anterior)
   if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
     btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
+    btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
   }
-  // >>> CHANGED <<<: garante que o listener seja anexado mesmo que o botão já exista no HTML
-  const btnExist = document.getElementById("btnIndicadores");
-  if (btnExist && !btnExist.dataset.listenerBi) {
-    btnExist.addEventListener("click", abrirIndicadores);
-    btnExist.dataset.listenerBi = "1";
-  }
 })();
+
+// Modal de BI
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
+
   const backdrop = document.createElement("div");
   backdrop.className = "bi-backdrop";
   backdrop.id = "modalIndicadores";
@@ -1010,7 +1039,9 @@ function ensureBIModal() {
         <div class="bi-side">
           <label>Filtrar por empresa (opcional)</label>
           <input id="filtroEmpresaBI" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
-          <label class="bi-chk"><input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa</label>
+          <label class="bi-chk">
+            <input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa
+          </label>
           <div id="resumoBI" class="bi-resumo"></div>
           <button id="exportarCsvBI" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
         </div>
@@ -1018,7 +1049,9 @@ function ensureBIModal() {
       <div class="bi-table-wrap">
         <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
           <table id="tabelaMunicipios" class="bi-table">
-            <thead><tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr></thead>
+            <thead>
+              <tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr>
+            </thead>
             <tbody></tbody>
           </table>
         </div>
@@ -1033,9 +1066,12 @@ function ensureBIModal() {
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
     const onlyView = document.getElementById("apenasVisiveisBI");
-    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) atualizarIndicadores();
+    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
+      atualizarIndicadores();
+    }
   });
 }
+
 function abrirIndicadores() {
   ensureBIModal();
   const modal = document.getElementById("modalIndicadores");
@@ -1049,15 +1085,18 @@ function abrirIndicadores() {
   } else { proceed(); }
 }
 function fecharIndicadores() { const m = document.getElementById("modalIndicadores"); if (m) m.style.display = "none"; }
+
 function atualizarIndicadores() {
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
+
   const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
 
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
-    tb.innerHTML = rows.map(r => `<tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`).join("")
-      || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+    tb.innerHTML = rows.map(r => `
+      <tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>
+    `).join("") || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
   }
 
   const resumo = document.getElementById("resumoBI");
@@ -1080,7 +1119,11 @@ function atualizarIndicadores() {
       chartMunicipiosRef = new Chart(ctx, {
         type: "bar",
         data: { labels, datasets: [{ label: "Postes por município", data }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } } }
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } }
+        }
       });
     }
   }
@@ -1091,7 +1134,8 @@ function atualizarIndicadores() {
       const csv = rowsToCSV(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url;
+      const a = document.createElement("a");
+      a.href = url;
       const sufixo = empresa ? `_${empresa.replace(/\W+/g,'_')}` : "";
       a.download = `postes_por_municipio${sufixo}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -1101,300 +1145,50 @@ function atualizarIndicadores() {
 }
 
 /* ====================================================================
-   Reabertura do tooltip/popup após reconstrução do cluster
+   TEMA ESCURO – PALETA DO PRINT
 ==================================================================== */
-markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
-
-/* =====================================================================
-   ORDENS DE VENDA — Ranking + filtros (empresa, município, período)
-===================================================================== */
-
-(function injectOVButton(){
-  const actions = document.querySelector(".painel-busca .actions");
-  if (!actions) return;
-  if (!document.getElementById("btnOV")) {
-    const btn = document.createElement("button");
-    btn.id = "btnOV";
-    btn.innerHTML = '<i class="fa fa-briefcase"></i> Ordens de Venda';
-    actions.appendChild(btn);
-  }
-  // >>> CHANGED <<<: garante que o listener seja anexado mesmo que o botão já exista no HTML
-  const btnOV = document.getElementById("btnOV");
-  if (btnOV && !btnOV.dataset.listenerOv) {
-    btnOV.addEventListener("click", abrirOV);
-    btnOV.dataset.listenerOv = "1";
-  }
-})();
-
-let ovCache = null;     // cache bruto do backend
-let ovModalChart = null;
-
-function ensureOVModal(){
-  if (document.getElementById("modalOV")) return;
-
+(function injectDarkPanelStyles(){
   const css = `
-    .ov-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4300; background:rgba(0,0,0,.35);}
-    .ov-card{width:min(1100px,96vw); max-height:92vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-    .ov-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
-    .ov-head h3{margin:0; font-weight:800; color:#111827; font-size:16px; letter-spacing:.2px;}
-    .ov-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
-    .ov-body{display:grid; grid-template-columns:1fr 340px; gap:12px; padding:12px 16px;}
-    .ov-right label{display:block; font-size:13px; color:#374151; margin-top:6px;}
-    .ov-input, .ov-date{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
-    .ov-chk{display:flex; gap:8px; align-items:center; font-size:13px; color:#374151; margin-top:6px;}
-    .ov-small{font-size:12px; color:#6b7280}
-    .ov-actions{margin-top:8px;}
-    .ov-btn{border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
-    .ov-table-wrap{padding:0 16px 16px 16px;}
-    .ov-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee;}
-    .ov-table thead{background:#f9fafb}
-    .ov-table th,.ov-table td{padding:10px; border-bottom:1px solid #eee}
-    .ov-table td.num{text-align:right}
+  :root{
+    --ui-bg:#0f1b2a; --ui-elev:#132235; --ui-text:#e6edf7; --ui-muted:#9fb3c8;
+    --ui-border:#19d68f; --ui-border-dim:#134e37; --ui-accent:#18c77f; --ui-accent-2:#0fb171; --ui-danger:#ef4444;
+  }
+  .painel-busca{
+    color:var(--ui-text); background:var(--ui-bg); border:1px solid var(--ui-border);
+    border-radius:14px; box-shadow:0 8px 28px rgba(0,0,0,.25); padding:12px;
+  }
+  .painel-busca h2, .painel-busca h3{ margin:0 0 8px 0; font-weight:800; letter-spacing:.3px; color:var(--ui-text); }
+  .painel-busca input, .painel-busca select, .painel-busca textarea{
+    width:100%; background:var(--ui-elev); color:var(--ui-text); border:1px solid var(--ui-border);
+    border-radius:10px; padding:8px 10px; outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .painel-busca input::placeholder, .painel-busca textarea::placeholder{ color:#89a2b7; }
+  .painel-busca input:focus, .painel-busca select:focus, .painel-busca textarea:focus{
+    border-color:var(--ui-accent); box-shadow:0 0 0 3px rgba(24,199,127,.25);
+  }
+  .painel-busca button, .painel-busca .actions button{
+    background:var(--ui-accent); color:#031d12; font-weight:800; border:1px solid var(--ui-border);
+    border-radius:10px; padding:8px 10px; cursor:pointer;
+    transition:transform .12s ease, background .15s ease, border-color .15s ease;
+  }
+  .painel-busca button:hover{ background:var(--ui-accent-2); transform:translateY(-1px); }
+  .painel-busca button:disabled{ opacity:.6; cursor:not-allowed; }
+
+  #tempo{
+    background:rgba(10,20,32,.9) !important; color:var(--ui-text) !important; border:1px solid var(--ui-border);
+  }
+  #tempo .hora-row{ color:var(--ui-text) !important; }
+  #tempo .hora-row .dot{ background:radial-gradient(circle at 40% 40%, var(--ui-accent), #0b6a45); box-shadow:0 0 0 2px rgba(24,199,127,.25) inset; }
+  #tempo .weather-card{ background:rgba(15,27,42,.92) !important; border:1px solid var(--ui-border); }
+  #tempo .tempo-text{ color:var(--ui-text) !important; }
+  #tempo .tempo-text small{ color:var(--ui-muted) !important; }
+  #tempo .map-row{ border-top:1px dashed rgba(25,214,143,.35) !important; }
+  #tempo .select-wrap{ background:#0d1a2b !important; color:var(--ui-text); border-color:var(--ui-border) !important; }
+  #tempo select{ color:var(--ui-text) !important; }
+  #tempo .select-wrap:focus-within{ box-shadow:0 0 0 3px rgba(24,199,127,.22) !important; border-color:var(--ui-accent) !important; }
   `;
-  const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
-
-  const backdrop = document.createElement("div");
-  backdrop.className = "ov-backdrop"; backdrop.id = "modalOV";
-  backdrop.innerHTML = `
-    <div class="ov-card">
-      <div class="ov-head">
-        <h3>Ordens de Venda</h3>
-        <button class="ov-close" id="fecharOV">Fechar</button>
-      </div>
-      <div class="ov-body">
-        <div style="min-height:180px">
-          <canvas id="ovChart" height="160"></canvas>
-        </div>
-        <div class="ov-right">
-          <label>Filtrar por empresa (opcional)</label>
-          <input id="ovEmpresa" class="ov-input" list="lista-empresas" placeholder="Ex.: VIVO, CLARO...">
-
-          <label>Filtrar por município (opcional)</label>
-          <input id="ovMunicipio" class="ov-input" list="lista-municipios" placeholder="Ex.: SÃO JOSÉ DOS CAMPOS">
-
-          <label class="ov-chk"><input type="checkbox" id="ovApenasVisiveis"> Considerar somente municípios visíveis no mapa</label>
-
-          <label>Período (opcional)</label>
-          <input id="ovDataIni" class="ov-date" type="date">
-          <input id="ovDataFim" class="ov-date" type="date">
-          <div class="ov-small">Dica: use só “Data inicial” para filtrar por mês/ano (ex.: 2025-01-01 a 2025-01-31).</div>
-
-          <div class="ov-actions">
-            <button id="ovCsv" class="ov-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="ov-table-wrap">
-        <div style="overflow:auto; border:1px solid #eee; border-radius:8px;">
-          <table class="ov-table" id="ovTabela">
-            <thead>
-              <tr>
-                <th style="text-align:left;">Empresa</th>
-                <th class="num">Ordens</th>
-                <th class="num">Postes Totais</th>
-                <th class="num">Ocupação Nova (postes)</th>
-                <th class="num">Regularização (postes)</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(backdrop);
-
-  document.getElementById("fecharOV")?.addEventListener("click", () => fecharOV());
-  ["ovEmpresa","ovMunicipio","ovDataIni","ovDataFim"].forEach(id =>
-    document.getElementById(id)?.addEventListener("input", atualizarOV)
-  );
-  document.getElementById("ovApenasVisiveis")?.addEventListener("change", atualizarOV);
-  document.getElementById("ovCsv")?.addEventListener("click", exportarOVCsv);
-
-  map.on("moveend zoomend", () => {
-    const modal = document.getElementById("modalOV");
-    const onlyView = document.getElementById("ovApenasVisiveis");
-    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) atualizarOV();
-  });
-}
-
-function abrirOV(){
-  ensureOVModal();
-  const modal = document.getElementById("modalOV");
-  const proceed = () => {
-    // >>> CHANGED <<<: ao abrir o modal, se allowedOvCompanies estiver disponível, populamos o datalist/placeholder
-    try {
-      const ovEmpresa = document.getElementById("ovEmpresa");
-      const dl = document.getElementById("lista-empresas");
-      if (dl && allowedOvCompanies && allowedOvCompanies.length) {
-        // limpar e preencher com allowed
-        dl.innerHTML = "";
-        allowedOvCompanies.forEach(c => {
-          const o = document.createElement("option"); o.value = c; dl.appendChild(o);
-        });
-        // se ovEmpresa está vazio, podemos sugerir o primeiro
-        if (ovEmpresa && !ovEmpresa.value) ovEmpresa.placeholder = `Ex.: ${allowedOvCompanies.slice(0,3).join(", ")}`;
-      }
-    } catch(e) { console.warn("Erro ao setar datalist OV:", e); }
-
-    modal.style.display = "flex";
-    atualizarOV();
-  };
-  if (typeof Chart === "undefined") {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
-    s.onload = proceed; s.onerror = proceed; document.head.appendChild(s);
-  } else { proceed(); }
-}
-function fecharOV(){ const m = document.getElementById("modalOV"); if (m) m.style.display = "none"; }
-
-/* -------------------------- Fetch + normalização ------------------- */
-async function fetchOV(){
-  if (ovCache) return ovCache;
-
-  const endpoints = ["/api/ov","/api/ordens-venda","/api/ordensvenda"];
-  let lastErr;
-  for (const url of endpoints) {
-    try {
-      const r = await fetch(url, { credentials:"include", cache:"no-store" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const raw = await r.json();
-      ovCache = raw.map(normalizaOV).filter(Boolean);
-      return ovCache;
-    } catch(e){ lastErr = e; }
-  }
-  console.error("Falha ao carregar Ordens de Venda:", lastErr);
-  ovCache = [];
-  return ovCache;
-}
-function normalizaOV(row){
-  if (!row || typeof row !== "object") return null;
-  const pick = (...names) => {
-    for (const n of names) {
-      const k = Object.keys(row).find(x => x && x.toString().toLowerCase() === n.toLowerCase());
-      if (k) return row[k];
-    } return undefined;
-  };
-  const empresa  = pick("empresa","cliente","cliente/empresa","cliente_empresa") || "—";
-  const municipio= pick("municipio","município") || "—";
-  const ordem    = pick("ordem_venda","ov","ordem") || "";
-  const status   = String(pick("status","status_ocupacao","status da ocupação") || "").toUpperCase();
-  const postes   = Number(pick("postes","qt_postes") || 0) || 0;
-
-  let data = pick("data","data_envio","data_envio_carta","data envio carta");
-  if (typeof data === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
-    const [d,m,a] = data.split("/").map(Number);
-    data = new Date(a, m-1, d).toISOString();
-  } else if (data) {
-    try { data = new Date(data).toISOString(); } catch { data = null; }
-  }
-
-  return { empresa, municipio, ordem, status, postes, dataISO: data };
-}
-
-/* -------------------------- Filtros + agregação -------------------- */
-function municipiosVisiveisSet(){
-  const s = new Set();
-  const b = map.getBounds();
-  for (const p of todosPostes) {
-    if (b.contains([p.lat, p.lon])) s.add(p.nome_municipio);
-  }
-  return s;
-}
-function aplicaFiltros(ov){
-  const emp = (document.getElementById("ovEmpresa")?.value || "").trim().toLowerCase();
-  const mun = (document.getElementById("ovMunicipio")?.value || "").trim().toLowerCase();
-  const ini = document.getElementById("ovDataIni")?.value || "";
-  const fim = document.getElementById("ovDataFim")?.value || "";
-  const onlyVis = !!document.getElementById("ovApenasVisiveis")?.checked;
-
-  let setVis = null;
-  if (onlyVis) setVis = municipiosVisiveisSet();
-
-  return ov.filter(r => {
-    // >>> CHANGED <<<: se allowedOvCompanies estiver definido, forçamos filtro apenas para empresas permitidas
-    if (allowedOvCompanies && Array.isArray(allowedOvCompanies) && allowedOvCompanies.length) {
-      if (!allowedOvCompanies.some(a => String(a).toLowerCase() === String(r.empresa || "").toLowerCase())) return false;
-    }
-
-    if (emp && !String(r.empresa).toLowerCase().includes(emp)) return false;
-    if (mun && String(r.municipio).toLowerCase() !== mun) return false;
-    if (onlyVis && !setVis.has(r.municipio)) return false;
-
-    if (ini || fim) {
-      if (!r.dataISO) return false;
-      const t = new Date(r.dataISO).getTime();
-      if (ini) { const ti = new Date(ini + "T00:00:00").getTime(); if (t < ti) return false; }
-      if (fim) { const tf = new Date(fim + "T23:59:59").getTime(); if (t > tf) return false; }
-    }
-    return true;
-  });
-}
-function agregaPorEmpresa(rows){
-  const m = new Map();
-  for (const r of rows) {
-    const key = r.empresa || "—";
-    const x = m.get(key) || { empresa:key, ordens:0, postes:0, ocnova:0, regular:0 };
-    x.ordens += 1;
-    x.postes += r.postes || 0;
-    const s = r.status || "";
-    if (s.includes("OCUPAÇÃO")) x.ocnova += r.postes || 0;
-    else if (s.includes("REGULARIZA")) x.regular += r.postes || 0;
-    m.set(key, x);
-  }
-  const arr = Array.from(m.values())
-    .sort((a,b) => b.postes - a.postes);
-  return arr;
-}
-
-/* -------------------------- UI update + chart ---------------------- */
-async function atualizarOV(){
-  const all = await fetchOV();
-  const rows = aplicaFiltros(all);
-  const agg  = agregaPorEmpresa(rows);
-
-  const tb = document.querySelector("#ovTabela tbody");
-  if (tb) {
-    tb.innerHTML = agg.map(r => `
-      <tr>
-        <td>${r.empresa}</td>
-        <td class="num">${r.ordens.toLocaleString("pt-BR")}</td>
-        <td class="num">${r.postes.toLocaleString("pt-BR")}</td>
-        <td class="num">${r.ocnova.toLocaleString("pt-BR")}</td>
-        <td class="num">${r.regular.toLocaleString("pt-BR")}</td>
-      </tr>`).join("") || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
-  }
-
-  const labels = agg.slice(0,15).map(r => r.empresa);
-  const data   = agg.slice(0,15).map(r => r.postes);
-  const ctx = document.getElementById("ovChart");
-  if (typeof Chart !== "undefined" && ctx) {
-    if (ovModalChart) {
-      ovModalChart.data.labels = labels;
-      ovModalChart.data.datasets[0].data = data;
-      ovModalChart.update();
-    } else {
-      ovModalChart = new Chart(ctx, {
-        type: "bar",
-        data: { labels, datasets: [{ label: "Postes em OV por empresa", data }] },
-        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0 } }, y:{ beginAtZero:true } } }
-      });
-    }
-  }
-}
-
-function exportarOVCsv(){
-  const header = "Empresa,Ordens,Postes Totais,Ocupação Nova,Regularização\n";
-  const rows = Array.from(document.querySelectorAll("#ovTabela tbody tr")).map(tr =>
-    Array.from(tr.children).map(td => `"${td.textContent.replace(/"/g,'""')}"`).join(",")
-  ).join("\n");
-  const csv = header + rows + "\n";
-  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = "ov_ranking.csv";
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+  const style = document.createElement('style');
+  style.id = 'dark-poste-theme';
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
