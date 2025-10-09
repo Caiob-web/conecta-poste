@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "IDs inválidos" });
   }
   // Limite de segurança para evitar carga exagerada
-  const MAX_IDS = 20000;
+  const MAX_IDS = 600000;
   if (clean.length > MAX_IDS) {
     return res.status(413).json({ error: `Quantidade de IDs excede o limite (${MAX_IDS}).` });
   }
