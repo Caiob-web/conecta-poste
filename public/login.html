@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <title>Login</title>
+
+    <!-- Favicon -->
+    <link
+      rel="icon"
+      href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/OIP.webp?v=1750376922471"
+      type="image/webp"
+    />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: "Roboto", sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        background: url("https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/7668651-alta-voltagem-polo-e-linhas-de-transmissao-ao-por-do-sol-com-ceu-laranja-e-vermelho-e-nuvens-arquitetura-silhueta-eletricidade-piloes-durante-por-do-sol-energia-e-energia-conservacao-de-energia-gratis-f%20(1).jpeg?v=1750365689665")
+          no-repeat center/cover;
+      }
+      body::before {
+        content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.25); z-index: 0;
+      }
+
+      /* Logo no topo */
+      .edp-logo-top {
+        position: absolute; top: 16px; left: 16px; z-index: 1;
+        width: 120px; opacity: .9; transition: opacity .3s;
+        filter: drop-shadow(0 2px 6px rgba(0,0,0,.25));
+      }
+      .edp-logo-top:hover { opacity: 1; }
+
+      .login-box {
+        position: relative; z-index: 1; width: 340px;
+        padding: 40px 32px; border-radius: 10px;
+        box-shadow: 0 12px 30px rgba(0,0,0,.25);
+        text-align: center; overflow: hidden;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: saturate(1.1) blur(2px);
+      }
+      .login-box::before {
+        content: ""; position: absolute; top: 50%; left: 50%;
+        width: 200px; height: 200px;
+        background: url("https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/edp%20logo.avif?v=1750365835690")
+          no-repeat center/contain;
+        opacity: .08; transform: translate(-50%,-50%); pointer-events: none;
+      }
+
+      .login-box h2 { margin-bottom: 24px; font-weight: 300; color: #333; }
+
+      .field {
+        text-align: left; margin-bottom: 14px; position: relative;
+      }
+      .label { font-size: 13px; color: #444; margin-bottom: 6px; display: block; }
+
+      .input {
+        width: 100%; padding: 12px 14px; padding-right: 44px;
+        border: 1px solid #cfcfcf; border-radius: 6px; font-size: 14px;
+        transition: border-color .2s, box-shadow .2s; background: #fff;
+      }
+      .input:focus {
+        border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,.15); outline: none;
+      }
+
+      .toggle-pass {
+        position: absolute; right: 8px; top: 32px;
+        border: none; background: transparent; cursor: pointer;
+        font-size: 12px; color: #007bff; padding: 6px; line-height: 1;
+      }
+
+      .hint {
+        font-size: 12px; color: #888; margin-top: 6px;
+      }
+      .caps {
+        display: none; color: #d35400; font-size: 12px; margin-top: 6px;
+      }
+
+      .login-box label.check {
+        display: flex; align-items: center; gap: 8px; font-size: 14px; color: #555;
+        margin: 10px 0 16px; text-align: left; position: relative; z-index: 1;
+      }
+      .login-box label.check input { transform: scale(1.1); }
+
+      .login-box a { color: #007bff; text-decoration: none; position: relative; z-index: 1; }
+      .login-box a:hover { text-decoration: underline; }
+
+      .btn {
+        width: 100%; padding: 12px; background: #007bff; color: #fff;
+        border: none; border-radius: 6px; font-size: 16px; font-weight: 500;
+        cursor: pointer; transition: transform .05s ease, background .2s;
+      }
+      .btn:disabled { background: #a9a9a9; cursor: not-allowed; }
+      .btn:active { transform: translateY(1px); }
+      .btn:hover:not(:disabled) { background: #0056b3; }
+
+      #error {
+        margin-top: 12px; font-size: 14px; color: #d9534f; display: none; z-index: 1;
+      }
+      #loading { margin-top: 10px; font-size: 13px; color: #555; display: none; }
+
+      .links { margin-top: 16px; font-size: 14px; z-index: 1; position: relative; }
+
+      .footer-text {
+        position: absolute; bottom: 0; left: 0; width: 100%;
+        background: rgba(0,0,0,.8); color: #fff; text-align: center;
+        padding: 8px 0; font-size: 12px; z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <img
+      src="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/edp%20logo.avif?v=1750365835690"
+      alt="EDP Logo"
+      class="edp-logo-top"
+    />
+
+    <div class="login-box" role="main" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">Entrar</h2>
+
+      <form id="loginForm" autocomplete="off" autocapitalize="none" spellcheck="false" novalidate>
+        <div class="field">
+          <label class="label" for="username">Usuário</label>
+          <input
+            id="username"
+            name="username"
+            class="input"
+            type="text"
+            placeholder="seu.usuario@empresa"
+            required
+            inputmode="email"
+            autocomplete="username"
+            autocapitalize="none"
+          />
+          <div class="hint">Use seu usuário cadastrado</div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="password">Senha</label>
+          <input
+            id="password"
+            name="password"
+            class="input"
+            type="password"
+            placeholder="••••••••"
+            required
+            autocomplete="current-password"
+          />
+          <button type="button" id="togglePass" class="toggle-pass" aria-label="Mostrar/ocultar senha">mostrar</button>
+          <div id="capsHint" class="caps">Caps Lock ativo</div>
+        </div>
+
+        <label class="check" for="lgpdCheck">
+          <input type="checkbox" id="lgpdCheck" />
+          Aceito a <a href="/lgpd/privacy.html" target="_blank" rel="noopener">Política de Privacidade</a>
+        </label>
+
+        <button type="submit" id="btnLogin" class="btn" disabled>Login</button>
+      </form>
+
+      <div id="error" role="alert">Credenciais inválidas</div>
+      <div id="loading" aria-live="polite">Validando…</div>
+
+      <div class="links" aria-live="polite">
+        Ainda não tem conta? <a href="/register.html">Registre-se</a>
+      </div>
+    </div>
+
+    <div class="footer-text">
+      Desenvolvido por Caio Henrique Faria Gouveia - Setor Compartilhantes - EDP 2025
+    </div>
+
+    <script>
+      const form = document.getElementById("loginForm");
+      const btnLogin = document.getElementById("btnLogin");
+      const lgpdCheck = document.getElementById("lgpdCheck");
+      const errorDiv = document.getElementById("error");
+      const loadingTxt = document.getElementById("loading");
+      const pass = document.getElementById("password");
+      const user = document.getElementById("username");
+      const togglePass = document.getElementById("togglePass");
+      const capsHint = document.getElementById("capsHint");
+
+      // Se já estiver logado, pula a tela
+      (async function checkSession() {
+        try {
+          const r = await fetch("/api/auth/me", { credentials: "include" });
+          if (r.ok) {
+            const j = await r.json();
+            if (j && j.ok) window.location.href = "/";
+          }
+        } catch(_) {}
+      })();
+
+      // Limpa possíveis "fantasmas" de login armazenados localmente
+      (function forceFreshLogin() {
+        try {
+          localStorage.removeItem("auth_token");
+          sessionStorage.removeItem("auth_token");
+          document.cookie = "auth_token=; Max-Age=0; Path=/; SameSite=Lax";
+        } catch (_) {}
+        if (pass) {
+          pass.value = "";
+          pass.setAttribute("autocomplete", "new-password");
+        }
+        window.addEventListener("pageshow", () => form.reset());
+      })();
+
+      // Habilita botão somente com LGPD
+      lgpdCheck.addEventListener("change", () => {
+        btnLogin.disabled = !lgpdCheck.checked;
+      });
+
+      // Mostrar/ocultar senha
+      togglePass.addEventListener("click", () => {
+        const isPwd = pass.getAttribute("type") === "password";
+        pass.setAttribute("type", isPwd ? "text" : "password");
+        togglePass.textContent = isPwd ? "ocultar" : "mostrar";
+        pass.focus({ preventScroll: true });
+      });
+
+      // Aviso de Caps Lock
+      function handleCaps(e) {
+        const caps = e.getModifierState && e.getModifierState("CapsLock");
+        capsHint.style.display = caps ? "block" : "none";
+      }
+      pass.addEventListener("keydown", handleCaps);
+      pass.addEventListener("keyup", handleCaps);
+
+      // Evita enter automático sem LGPD
+      form.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !lgpdCheck.checked) e.preventDefault();
+      });
+
+      // Submit
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorDiv.style.display = "none";
+
+        // validações simples
+        const username = user.value.trim();
+        const password = pass.value;
+        if (!username || !password) {
+          errorDiv.textContent = "Informe usuário e senha.";
+          errorDiv.style.display = "block";
+          return;
+        }
+        if (!lgpdCheck.checked) {
+          errorDiv.textContent = "Você precisa aceitar a Política de Privacidade.";
+          errorDiv.style.display = "block";
+          return;
+        }
+
+        // Bloqueia reenvio
+        btnLogin.disabled = true;
+        loadingTxt.style.display = "block";
+
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ username, password })
+          });
+
+          if (res.ok) {
+            // sucesso -> home
+            window.location.href = "/";
+            return;
+          }
+
+          // Trata erros comuns
+          if (res.status === 401) {
+            errorDiv.textContent = "Credenciais inválidas";
+          } else if (res.status === 400) {
+            const data = await res.json().catch(() => ({}));
+            errorDiv.textContent = data.error || "Dados inválidos";
+          } else if (res.status === 405) {
+            errorDiv.textContent = "Método não permitido (a rota deve aceitar POST).";
+          } else {
+            const data = await res.json().catch(() => ({}));
+            errorDiv.textContent = data.error || `Erro ${res.status}`;
+          }
+          errorDiv.style.display = "block";
+        } catch (err) {
+          errorDiv.textContent = "Falha de rede. Verifique sua conexão e tente novamente.";
+          errorDiv.style.display = "block";
+        } finally {
+          loadingTxt.style.display = "none";
+          // reabilita só se LGPD marcada
+          btnLogin.disabled = !lgpdCheck.checked;
+        }
+      });
+    </script>
+  </body>
+</html>
