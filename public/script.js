@@ -1,6 +1,7 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
+//  Ajustado para carregamento paginado (limit/cursor) com fallback
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
@@ -410,68 +411,149 @@ if (overlay) overlay.style.display = "flex";
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
-// ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
-// ---------------------------------------------------------------------
-fetch("/api/postes", { credentials: "include" })
-  .then((res) => {
+/* ====================================================================
+   Loader seguro de /api/postes (paginado se disponível)
+   - Tenta /api/postes?limit=2000&cursor=...
+   - Se vier array direto, usa como fallback
+==================================================================== */
+async function carregarPostesSeguro() {
+  let cursor = null;
+  const limit = 2000;              // tamanho de página sugerido (ajuste conforme backend)
+  const maxPages = 250;            // hard cap para evitar loop infinito
+  let page = 0;
+  let totalRecebidos = 0;
+  let usouPaginacao = false;
+
+  try {
+    while (page < maxPages) {
+      const qs = new URLSearchParams();
+      qs.set("limit", String(limit));
+      if (cursor) qs.set("cursor", cursor);
+
+      const res = await fetch(`/api/postes?${qs.toString()}`, { credentials: "include" });
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+        throw new Error("Não autorizado");
+      }
+      if (!res.ok) {
+        // Se o backend não aceitar limit/cursor e retornar erro, cai no fallback
+        if (page === 0) break;
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      // Fallback: backend antigo — array direto
+      if (Array.isArray(data)) {
+        processarLoteBruto(data);
+        totalRecebidos += data.length;
+        break; // tudo de uma vez
+      }
+
+      // Backend novo — { items: [...], nextCursor }
+      const { items = [], nextCursor = null } = data || {};
+      usouPaginacao = true;
+      processarLoteBruto(items);
+      totalRecebidos += items.length;
+      cursor = nextCursor;
+      page++;
+
+      if (!cursor || items.length === 0) break;
+      // alivia a UI
+      await new Promise(r => setTimeout(r, 10));
+    }
+  } catch (e) {
+    console.error("Falha no carregamento paginado, tentando fallback simples…", e);
+    await carregarPostesFallbackSimples();
+    return;
+  } finally {
+    if (overlay) overlay.style.display = "none";
+  }
+
+  preencherListas();
+  carregarTodosPostesGradualmente();
+  if (usouPaginacao) {
+    console.log(`[postes] paginado: ${totalRecebidos} registros recebidos em ${page} páginas`);
+  } else {
+    console.log(`[postes] formato antigo: ${totalRecebidos} registros`);
+  }
+}
+
+// Fallback simples: tenta GET /api/postes e tratar array
+async function carregarPostesFallbackSimples() {
+  try {
+    const res = await fetch("/api/postes", { credentials: "include" });
     if (res.status === 401) {
       window.location.href = "/login.html";
       throw new Error("Não autorizado");
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-  .then((data) => {
-    if (overlay) overlay.style.display = "none";
-    const agrupado = {};
-    data.forEach((p) => {
-      if (!p.coordenadas) return;
-      const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
-      if (isNaN(lat) || isNaN(lon)) return;
-      if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
-      if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
-        agrupado[p.id].empresas.add(p.empresa);
-    });
-    const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
-
-    postsArray.forEach((poste) => {
-      todosPostes.push(poste);
-      municipiosSet.add(poste.nome_municipio);
-      bairrosSet.add(poste.nome_bairro);
-      logradourosSet.add(poste.nome_logradouro);
-      poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
-    });
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("Resposta inesperada do backend");
+    processarLoteBruto(data);
     preencherListas();
-
     carregarTodosPostesGradualmente();
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error("Erro ao carregar postes:", err);
     if (overlay) overlay.style.display = "none";
     if (err.message !== "Não autorizado")
       alert("Erro ao carregar dados dos postes.");
-  });
+  }
+}
 
-// ---------------------------------------------------------------------
-// Preenche datalists de autocomplete
-// ---------------------------------------------------------------------
+// Normaliza um lote bruto (array do backend) em nosso modelo local (agrupado por id + empresas[])
+function processarLoteBruto(data) {
+  const agrupado = {};
+  for (const p of data) {
+    if (!p || !p.coordenadas) continue;
+    const [lat, lon] = String(p.coordenadas).split(/,\s*/).map(Number);
+    if (isNaN(lat) || isNaN(lon)) continue;
+    if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
+    if (p.empresa && String(p.empresa).toUpperCase() !== "DISPONÍVEL") {
+      agrupado[p.id].empresas.add(p.empresa);
+    }
+  }
+  const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
+
+  // alimenta caches globais
+  postsArray.forEach((poste) => {
+    todosPostes.push(poste);
+    municipiosSet.add(poste.nome_municipio);
+    bairrosSet.add(poste.nome_bairro);
+    logradourosSet.add(poste.nome_logradouro);
+    poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
+  });
+}
+
+// Dispara o carregamento seguro
+carregarPostesSeguro();
+
+/* ---------------------------------------------------------------------
+   Preenche datalists de autocomplete
+--------------------------------------------------------------------- */
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
+    if (!dl) return;
+    // evita duplicar
+    if (dl.dataset.filled === "1") return;
     Array.from(set).sort().forEach((v) => {
       const o = document.createElement("option");
       o.value = v; dl.appendChild(o);
     });
+    dl.dataset.filled = "1";
   };
   mount(municipiosSet, "lista-municipios");
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem).sort().forEach((e) => {
-    const o = document.createElement("option");
-    o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
-  });
+  if (dlEmp && !dlEmp.dataset.filled) {
+    Object.keys(empresasContagem).sort().forEach((e) => {
+      const o = document.createElement("option");
+      o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
+    });
+    dlEmp.dataset.filled = "1";
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -518,7 +600,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
         radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
-        // FIX: garantir clique no Canvas e não deixar subir
+        // FIX: interativo e sem bubbling
         interactive: true, bubblingMouseEvents: false
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{c.openTooltip?.();}catch{} abrirPopup(poste); });
@@ -552,10 +634,10 @@ function filtrarLocal() {
   const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
   const filtro = todosPostes.filter(
     (p) =>
-      (!mun || p.nome_municipio.toLowerCase() === mun) &&
-      (!bai || p.nome_bairro.toLowerCase() === bai) &&
-      (!log || p.nome_logradouro.toLowerCase() === log) &&
-      (!emp || p.empresas.join(", ").toLowerCase().includes(emp))
+      (!mun || (p.nome_municipio||"").toLowerCase() === mun) &&
+      (!bai || (p.nome_bairro||"").toLowerCase() === bai) &&
+      (!log || (p.nome_logradouro||"").toLowerCase() === log) &&
+      (!emp || (p.empresas||[]).join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers();
@@ -696,13 +778,13 @@ function streetImageryBlockHTML(lat, lng) {
 // Abre popup (usa a instância única mainPopup)
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
-  const list = p.empresas.map((e) => `<li>${e}</li>`).join("");
+  const list = (p.empresas||[]).map((e) => `<li>${e}</li>`).join("");
   const html = `
     <b>ID:</b> ${p.id}<br>
     <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
-    <b>Município:</b> ${p.nome_municipio}<br>
-    <b>Bairro:</b> ${p.nome_bairro}<br>
-    <b>Logradouro:</b> ${p.nome_logradouro}<br>
+    <b>Município:</b> ${p.nome_municipio||""}<br>
+    <b>Bairro:</b> ${p.nome_bairro||""}<br>
+    <b>Logradouro:</b> ${p.nome_logradouro||""}<br>
     <b>Empresas:</b><ul>${list}</ul>
     ${streetImageryBlockHTML(p.lat, p.lon)}
   `;
@@ -898,7 +980,7 @@ function limparTudo() {
   if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
-    .forEach((id) => { document.getElementById(id).value = ""; });
+    .forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
   resetarMapa();
 }
 
@@ -945,6 +1027,7 @@ document.getElementById("btnGerarExcel").addEventListener("click", () => {
 document.getElementById("togglePainel").addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
   const body = document.body;
+  if (!p) return;
   p.classList.toggle("collapsed");
   body.classList.toggle("sidebar-collapsed", p.classList.contains("collapsed"));
   const onEnd = () => { map.invalidateSize(); p.removeEventListener("transitionend", onEnd); };
@@ -986,7 +1069,7 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   for (const p of todosPostes) {
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
     if (empresaNorm) {
-      const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
+      const hit = (p.empresas||[]).some(e => (e || "").toLowerCase().includes(empresaNorm));
       if (!hit) continue;
     }
     const key = p.nome_municipio || "—";
