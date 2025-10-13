@@ -1,6 +1,7 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
+//  *** ATUALIZADO: carregamento NDJSON/paginado p/ evitar RangeError ***
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
@@ -367,48 +368,156 @@ if (overlay) overlay.style.display = "flex";
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
-// ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
-// ---------------------------------------------------------------------
-fetch("/api/postes", { credentials: "include" })
-  .then((res) => {
-    if (res.status === 401) {
-      window.location.href = "/login.html";
-      throw new Error("Não autorizado");
+/* ---------------------------------------------------------------------
+   CARREGAMENTO DE DADOS /api/postes
+   Estratégia:
+   1) Tenta NDJSON: GET /api/postes?format=ndjson  (Content-Type: application/x-ndjson)
+   2) Senão, paginação: GET /api/postes?limit=5000&cursor=...
+   3) Fallback: GET /api/postes (JSON completo)
+--------------------------------------------------------------------- */
+
+const agrupado = Object.create(null);
+
+function processarRowBruta(p) {
+  if (!p) return;
+
+  // Normaliza coordenadas: aceita "coordenadas": "lat, lon" OU lat/lon separados
+  let lat, lon;
+  if (p.coordenadas) {
+    const tmp = String(p.coordenadas).split(/,\s*/).map(Number);
+    lat = tmp[0]; lon = tmp[1];
+  } else if (p.lat != null && p.lon != null) {
+    lat = Number(p.lat); lon = Number(p.lon);
+  } else if (p.latitude != null && p.longitude != null) {
+    lat = Number(p.latitude); lon = Number(p.longitude);
+  }
+  if (isNaN(lat) || isNaN(lon)) return;
+
+  const id = p.id ?? p.id_poste ?? p.poste ?? p.poste_id;
+  if (id == null) return;
+
+  const key = String(id);
+  const emp = (p.empresa || p.nome_empresa || "").toString().trim();
+  if (!agrupado[key]) {
+    agrupado[key] = {
+      id: id,
+      coordenadas: p.coordenadas ?? `${lat}, ${lon}`,
+      lat, lon,
+      nome_municipio: p.nome_municipio ?? p.municipio ?? "",
+      nome_bairro: p.nome_bairro ?? p.bairro ?? "",
+      nome_logradouro: p.nome_logradouro ?? p.logradouro ?? "",
+      empresas: new Set()
+    };
+  }
+  if (emp && emp.toUpperCase() !== "DISPONÍVEL") agrupado[key].empresas.add(emp);
+}
+
+async function tryNdjson() {
+  const res = await fetch("/api/postes?format=ndjson", { credentials: "include" });
+  if (res.status === 401) { window.location.href = "/login.html"; throw new Error("Não autorizado"); }
+  const ctype = (res.headers.get("content-type") || "").toLowerCase();
+  if (!res.ok || !ctype.includes("application/x-ndjson")) return false;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let gotAny = false;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, idx).trim();
+      buf = buf.slice(idx + 1);
+      if (!line) continue;
+      try {
+        const row = JSON.parse(line);
+        processarRowBruta(row);
+        if (!gotAny && overlay) { overlay.style.display = "none"; gotAny = true; }
+      } catch { /* ignora linha ruim */ }
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-  .then((data) => {
-    if (overlay) overlay.style.display = "none";
-    const agrupado = {};
-    data.forEach((p) => {
-      if (!p.coordenadas) return;
-      const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
-      if (isNaN(lat) || isNaN(lon)) return;
-      if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
-      if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
-        agrupado[p.id].empresas.add(p.empresa);
-    });
-    const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
+  }
+  if (!gotAny && overlay) overlay.style.display = "none";
+  return true;
+}
 
-    postsArray.forEach((poste) => {
-      todosPostes.push(poste);
-      municipiosSet.add(poste.nome_municipio);
-      bairrosSet.add(poste.nome_bairro);
-      logradourosSet.add(poste.nome_logradouro);
-      poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
-    });
-    preencherListas();
+async function tryPaginated(limit = 5000) {
+  let cursor = "";
+  let page = 0;
+  let gotAny = false;
 
-    carregarTodosPostesGradualmente();
-  })
-  .catch((err) => {
+  while (true) {
+    const url = `/api/postes?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    const res = await fetch(url, { credentials: "include" });
+    if (res.status === 401) { window.location.href = "/login.html"; throw new Error("Não autorizado"); }
+    if (!res.ok) return false;
+    const ctype = (res.headers.get("content-type") || "").toLowerCase();
+    if (!ctype.includes("application/json")) return false;
+    const body = await res.json();
+    const rows = body.rows || body.data || [];
+    for (const r of rows) { processarRowBruta(r); gotAny = true; }
+    if (!gotAny && rows.length > 0 && overlay) overlay.style.display = "none";
+    if (!body.next && !body.next_cursor) break;
+    cursor = body.next || body.next_cursor || "";
+    page++;
+    // pequena folga pro main thread
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  if (overlay) overlay.style.display = "none";
+  return gotAny;
+}
+
+async function tryWholeJson() {
+  const res = await fetch("/api/postes", { credentials: "include" });
+  if (res.status === 401) {
+    window.location.href = "/login.html";
+    throw new Error("Não autorizado");
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  let gotAny = false;
+  data.forEach(processarRowBruta);
+  if (overlay) overlay.style.display = "none";
+  return true;
+}
+
+async function carregarPostesSmart() {
+  try {
+    // 1) NDJSON streaming
+    if (await tryNdjson()) finalizeCarregamento();
+    // 2) Paginação
+    else if (await tryPaginated(5000)) finalizeCarregamento();
+    // 3) JSON inteiro (último recurso)
+    else if (await tryWholeJson()) finalizeCarregamento();
+    else throw new Error("Nenhum modo de carregamento funcionou.");
+  } catch (err) {
     console.error("Erro ao carregar postes:", err);
     if (overlay) overlay.style.display = "none";
-    if (err.message !== "Não autorizado")
+    if (String(err.message) !== "Não autorizado")
       alert("Erro ao carregar dados dos postes.");
+  }
+}
+
+function finalizeCarregamento() {
+  const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
+
+  postsArray.forEach((poste) => {
+    todosPostes.push(poste);
+    municipiosSet.add(poste.nome_municipio);
+    bairrosSet.add(poste.nome_bairro);
+    logradourosSet.add(poste.nome_logradouro);
+    poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
   });
+  preencherListas();
+
+  carregarTodosPostesGradualmente();
+}
+
+// Dispara o carregamento inteligente
+carregarPostesSmart();
 
 // ---------------------------------------------------------------------
 // Preenche datalists de autocomplete
@@ -416,6 +525,8 @@ fetch("/api/postes", { credentials: "include" })
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = "";
     Array.from(set).sort().forEach((v) => {
       const o = document.createElement("option");
       o.value = v; dl.appendChild(o);
@@ -425,10 +536,13 @@ function preencherListas() {
   mount(bairrosSet, "lista-bairros");
   mount(logradourosSet, "lista-logradouros");
   const dlEmp = document.getElementById("lista-empresas");
-  Object.keys(empresasContagem).sort().forEach((e) => {
-    const o = document.createElement("option");
-    o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
-  });
+  if (dlEmp) {
+    dlEmp.innerHTML = "";
+    Object.keys(empresasContagem).sort().forEach((e) => {
+      const o = document.createElement("option");
+      o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -455,7 +569,7 @@ function gerarExcelCliente(filtroIds) {
 // ---------------------------------------------------------------------
 // Modo Censo
 // ---------------------------------------------------------------------
-document.getElementById("btnCenso").addEventListener("click", async () => {
+document.getElementById("btnCenso")?.addEventListener("click", async () => {
   censoMode = !censoMode;
   markers.clearLayers();
   refreshClustersSoon();
@@ -478,7 +592,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       const c = L.circleMarker([poste.lat, poste.lon], { radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8 })
         .bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
       c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
-      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e);
         lastTip = { id: keyId(poste.id) }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
       c.posteData = poste;
       markers.addLayer(c);
@@ -512,9 +626,9 @@ function filtrarLocal() {
   const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
   const filtro = todosPostes.filter(
     (p) =>
-      (!mun || p.nome_municipio.toLowerCase() === mun) &&
-      (!bai || p.nome_bairro.toLowerCase() === bai) &&
-      (!log || p.nome_logradouro.toLowerCase() === log) &&
+      (!mun || (p.nome_municipio||"").toLowerCase() === mun) &&
+      (!bai || (p.nome_bairro||"").toLowerCase() === bai) &&
+      (!log || (p.nome_logradouro||"").toLowerCase() === log) &&
       (!emp || (Array.isArray(p.empresas) ? p.empresas : []).join(", ").toLowerCase().includes(emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
@@ -666,7 +780,7 @@ function abrirPopup(p) {
 // ---------------------------------------------------------------------
 // Minha localização
 // ---------------------------------------------------------------------
-document.getElementById("localizacaoUsuario").addEventListener("click", () => {
+document.getElementById("localizacaoUsuario")?.addEventListener("click", () => {
   if (!navigator.geolocation) return alert("Geolocalização não suportada.");
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
@@ -765,7 +879,7 @@ function consultarIDsEmMassa() {
           const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
             .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
-            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e);
               lastTip = { id: keyId(p.id) }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
             .addTo(map);
           m.posteData = p;
@@ -803,7 +917,7 @@ function adicionarNumerado(p, num) {
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
   mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
-  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e);
     lastTip = { id: keyId(p.id) }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
@@ -847,7 +961,7 @@ function limparTudo() {
   if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
-    .forEach((id) => { document.getElementById(id).value = ""; });
+    .forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
   resetarMapa();
 }
 
@@ -877,15 +991,16 @@ function exportarExcel(ids) {
 }
 
 // Botão Excel
-document.getElementById("btnGerarExcel").addEventListener("click", () => {
+document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Informe ao menos um ID.");
   exportarExcel(ids);
 });
 
 // Toggle painel
-document.getElementById("togglePainel").addEventListener("click", () => {
+document.getElementById("togglePainel")?.addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
+  if (!p) return;
   const body = document.body;
   p.classList.toggle("collapsed");
   body.classList.toggle("sidebar-collapsed", p.classList.contains("collapsed"));
@@ -894,7 +1009,7 @@ document.getElementById("togglePainel").addEventListener("click", () => {
 });
 
 // Logout
-document.getElementById("logoutBtn").addEventListener("click", async () => {
+document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   try {
     localStorage.removeItem("auth_token");
     sessionStorage.removeItem("auth_token");
