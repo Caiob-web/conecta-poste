@@ -33,7 +33,52 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// ---------------------------------------------------------------------
+// Helpers gerais
+// ---------------------------------------------------------------------
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const SAFE_BYTE_LIMIT = 3_500_000; // ~3.5MB
+
+function fitJsonWithinLimit(payload) {
+  // tenta do jeito atual
+  let bytes;
+  try {
+    bytes = Buffer.byteLength(JSON.stringify(payload), "utf8");
+    if (bytes <= SAFE_BYTE_LIMIT) return payload;
+  } catch {
+    // se falhar stringify, segue para cortes
+  }
+
+  if (payload && Array.isArray(payload.items)) {
+    let lo = 0, hi = payload.items.length;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const test = { ...payload, items: payload.items.slice(0, mid) };
+      try {
+        const sz = Buffer.byteLength(JSON.stringify(test), "utf8");
+        if (sz <= SAFE_BYTE_LIMIT) lo = mid + 1;
+        else hi = mid;
+      } catch {
+        // se stringify falhar, reduz hi
+        hi = mid;
+      }
+    }
+    const finalItems = payload.items.slice(0, Math.max(0, lo - 1));
+    const nextCursor =
+      finalItems.length > 0 ? finalItems[finalItems.length - 1].id : payload.nextCursor || null;
+    const trimmed = { ...payload, items: finalItems, nextCursor };
+    try {
+      const finalBytes = Buffer.byteLength(JSON.stringify(trimmed), "utf8");
+      if (finalBytes <= SAFE_BYTE_LIMIT) return trimmed;
+    } catch {}
+    return { items: [], nextCursor: payload.nextCursor || null };
+  }
+  return { items: [], nextCursor: null };
+}
+
+// ---------------------------------------------------------------------
 // Rotas de autenticação
+// ---------------------------------------------------------------------
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -82,12 +127,33 @@ app.post("/logout", (req, res) => {
   });
 });
 
+// Compat com seu front: POST /api/auth/logout (mesmo efeito do /logout)
+app.post("/api/auth/logout", (req, res) => {
+  if (req.session) {
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid", { path: "/" });
+      res.sendStatus(200);
+    });
+  } else {
+    res.sendStatus(200);
+  }
+});
+
+// ---------------------------------------------------------------------
 // Middleware de proteção de rotas
+// ---------------------------------------------------------------------
 app.use((req, res, next) => {
-  const openPaths = ["/login", "/register", "/login.html", "/register.html", "/lgpd/"];
+  const openPaths = [
+    "/login",
+    "/register",
+    "/login.html",
+    "/register.html",
+    "/lgpd/",
+    "/api/auth/logout" // liberar logout de compat
+  ];
   if (
     openPaths.some(p => req.path.startsWith(p)) ||
-    req.path.match(/\.(html|css|js|png|ico|avif)$/)
+    req.path.match(/\.(html|css|js|png|ico|avif|jpg|jpeg|svg|webp)$/)
   ) return next();
 
   if (req.path.startsWith("/api/")) {
@@ -99,40 +165,128 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---------------------------------------------------------------------
 // Serve arquivos estáticos (public)
+// ---------------------------------------------------------------------
 app.use(express.static(path.join(__dirname, "public")));
 
-// Cache para /api/postes
-let cachePostes = null;
-let cacheTimestamp = 0;
-const CACHE_TTL = 10 * 60 * 1000;
-
-// GET /api/postes
+// ---------------------------------------------------------------------
+// GET /api/postes  (PAGINADO + BBOX + shape=flat|agg)
+// Retorna: { items: [...], nextCursor }
+// Query:
+//   - limit (100..5000), default 1000
+//   - cursor (id > cursor)
+//   - bbox = lonMin,latMin,lonMax,latMax   [opcional mas recomendado]
+//   - shape = flat | agg
+// ---------------------------------------------------------------------
 app.get("/api/postes", async (req, res) => {
-  const now = Date.now();
-  if (cachePostes && now - cacheTimestamp < CACHE_TTL) {
-    return res.json(cachePostes);
+  const shape = String(req.query.shape || "flat").toLowerCase(); // "flat" | "agg"
+  const bbox = typeof req.query.bbox === "string"
+    ? req.query.bbox.split(",").map(n => Number(n))
+    : null;
+
+  const limitParam = parseInt(String(req.query.limit || "1000"), 10);
+  const limit = clamp(isNaN(limitParam) ? 1000 : limitParam, 100, 5000);
+  const cursor = typeof req.query.cursor === "string" && req.query.cursor.trim() !== ""
+    ? req.query.cursor.trim()
+    : null;
+
+  const where = ["d.coordenadas IS NOT NULL", "TRIM(d.coordenadas) <> ''"];
+  const params = [];
+
+  // BBOX: lonMin,latMin,lonMax,latMax  (coordenadas: "lat,lon")
+  if (bbox && bbox.length === 4 && bbox.every(Number.isFinite)) {
+    const [lonMin, latMin, lonMax, latMax] = bbox;
+    where.push(
+      `split_part(d.coordenadas, ',', 1)::float BETWEEN $${params.length + 1} AND $${params.length + 2}`
+    );
+    params.push(Math.min(latMin, latMax), Math.max(latMin, latMax));
+    where.push(
+      `split_part(d.coordenadas, ',', 2)::float BETWEEN $${params.length + 1} AND $${params.length + 2}`
+    );
+    params.push(Math.min(lonMin, lonMax), Math.max(lonMin, lonMax));
   }
-  const sql = `
-    SELECT d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
-           d.material, d.altura, d.tensao_mecanica, d.coordenadas,
-           ep.empresa
-    FROM dados_poste d
-    LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
-    WHERE d.coordenadas IS NOT NULL AND TRIM(d.coordenadas)<>''  
-  `;
+
+  // Cursor por id (usa ::text; se id for numérico, pode trocar por ::bigint)
+  if (cursor) {
+    where.push(`d.id::text > $${params.length + 1}`);
+    params.push(cursor);
+  }
+
   try {
-    const { rows } = await pool.query(sql);
-    cachePostes = rows;
-    cacheTimestamp = now;
-    res.json(rows);
+    let rows;
+    if (shape === "agg") {
+      // Uma linha por poste (empresas agregadas/distintas)
+      const sql = `
+        SELECT
+          d.id::text AS id,
+          d.nome_municipio,
+          d.nome_bairro,
+          d.nome_logradouro,
+          -- info extra opcional (comente se pesar)
+          d.material,
+          d.altura,
+          d.tensao_mecanica,
+          d.coordenadas,
+          split_part(d.coordenadas, ',', 1)::float AS lat,
+          split_part(d.coordenadas, ',', 2)::float AS lon,
+          COALESCE(
+            ARRAY_AGG(DISTINCT ep.empresa)
+              FILTER (WHERE ep.empresa IS NOT NULL AND UPPER(ep.empresa) <> 'DISPONÍVEL'),
+            '{}'
+          ) AS empresas,
+          COALESCE(
+            COUNT(DISTINCT ep.empresa)
+              FILTER (WHERE ep.empresa IS NOT NULL AND UPPER(ep.empresa) <> 'DISPONÍVEL'),
+            0
+          )::int AS qtd_empresas
+        FROM dados_poste d
+        LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
+        WHERE ${where.join(" AND ")}
+        GROUP BY d.id, d.nome_municipio, d.nome_bairro, d.nome_logradouro,
+                 d.material, d.altura, d.tensao_mecanica, d.coordenadas
+        ORDER BY d.id
+        LIMIT $${params.length + 1}
+      `;
+      ({ rows } = await pool.query(sql, [...params, limit]));
+    } else {
+      // Formato flat: várias linhas por poste (uma por empresa) — enxuto
+      const sql = `
+        SELECT
+          d.id::text AS id,
+          d.nome_municipio,
+          d.nome_bairro,
+          d.nome_logradouro,
+          d.coordenadas,
+          split_part(d.coordenadas, ',', 1)::float AS lat,
+          split_part(d.coordenadas, ',', 2)::float AS lon,
+          ep.empresa
+        FROM dados_poste d
+        LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
+        WHERE ${where.join(" AND ")}
+        ORDER BY d.id
+        LIMIT $${params.length + 1}
+      `;
+      ({ rows } = await pool.query(sql, [...params, limit]));
+    }
+
+    const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
+
+    let payload = { items: rows, nextCursor };
+    payload = fitJsonWithinLimit(payload);
+
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return res.status(200).end(JSON.stringify(payload));
   } catch (err) {
     console.error("Erro em /api/postes:", err);
-    res.status(500).json({ error: "Erro no servidor" });
+    return res.status(500).json({ error: "Erro no servidor" });
   }
 });
 
-// GET /api/censo
+// ---------------------------------------------------------------------
+// GET /api/censo  (inalterado)
+// ---------------------------------------------------------------------
 app.get("/api/censo", async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -147,7 +301,9 @@ app.get("/api/censo", async (req, res) => {
   }
 });
 
-// POST /api/postes/report
+// ---------------------------------------------------------------------
+// POST /api/postes/report  (inalterado, gera Excel)
+// ---------------------------------------------------------------------
 app.post("/api/postes/report", async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
