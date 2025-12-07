@@ -10,7 +10,7 @@
     #tempo{
       display:flex; flex-direction:column; gap:10px; padding:12px 14px;
       border-radius:14px; background:rgba(255,255,255,0.92);
-      box-shadow:0 8px 24px rgba(0,0,0,.12); backdrop-filter:saturate(1.15) blur(2px);
+      box-shadow:0 8px 24px rgba(0,0,0,0.12); backdrop-filter:saturate(1.15) blur(2px);
     }
     /* Hora */
     #tempo .hora-row{
@@ -702,16 +702,31 @@ function preencherListas() {
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
   const idSet = new Set((filtroIds || []).map(keyId));
-  const dadosParaExcel = todosPostes
+  const dadosParaExcel = [];
+
+  todosPostes
     .filter((p) => idSet.has(keyId(p.id)))
-    .map((p) => ({
-      "ID POSTE": p.id,
-      Município: p.nome_municipio,
-      Bairro: p.nome_bairro,
-      Logradouro: p.nome_logradouro,
-      Empresas: empresasToString(p),
-      Coordenadas: p.coordenadas,
-    }));
+    .forEach((p) => {
+      const detalhes = Array.isArray(p.empresas) && p.empresas.length
+        ? p.empresas
+        : [{ nome: "", id_insercao: "" }];
+
+      detalhes.forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
+
+        dadosParaExcel.push({
+          "ID POSTE": p.id,
+          Município: p.nome_municipio,
+          Bairro: p.nome_bairro,
+          Logradouro: p.nome_logradouro,
+          Empresa: nome,
+          "ID INSERÇÃO": idIns,
+          Coordenadas: p.coordenadas,
+        });
+      });
+    });
+
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Filtro");
