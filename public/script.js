@@ -78,7 +78,7 @@
 })();
 
 /* ====================================================================
-   Estilos do popup tipo “card” (modelo que você mandou)
+   Estilos do popup tipo “card”
 ==================================================================== */
 (function injectPopupCardStyles() {
   const css = `
@@ -110,7 +110,7 @@
       color: #777;
     }
     .mp-local {
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
     .mp-local-principal {
       font-weight: 500;
@@ -121,16 +121,52 @@
       font-size: 11px;
       color: #666;
     }
+
+    /* Linhas com botão de copiar */
+    .mp-copy-line{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:11px;
+      margin:2px 0;
+    }
+    .mp-copy-label{
+      font-weight:600;
+      min-width:48px;
+    }
+    .mp-copy-value{
+      flex:1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .mp-copy-btn{
+      border:none;
+      background:#e5f0ff;
+      border-radius:999px;
+      padding:3px 6px;
+      cursor:pointer;
+      font-size:11px;
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+    .mp-copy-btn i{
+      font-size:11px;
+    }
+
     .mp-empresas-lista {
       border-radius: 6px;
       overflow: hidden;
       border: 1px solid #e6e6e6;
+      margin-top:6px;
     }
     .mp-empresa-item {
       display: flex;
       align-items: center;
       padding: 6px 8px;
       background: #fdfdfd;
+      cursor:pointer;
     }
     .mp-empresa-item + .mp-empresa-item {
       border-top: 1px solid #eee;
@@ -162,15 +198,31 @@
       font-size: 12px;
       font-weight: 500;
     }
-    .mp-empresa-id {
-      font-size: 10px;
-      color: #777;
+    .mp-empresa-extra{
+      display:none;
+      font-size:10px;
+      color:#555;
+      margin-top:2px;
+    }
+    .mp-empresa-item.open .mp-empresa-extra{
+      display:block;
     }
     .mp-empresa-arrow {
       font-size: 14px;
       color: #999;
       margin-left: 6px;
+      transition: transform .15s ease;
     }
+    .mp-empresa-item.open .mp-empresa-arrow{
+      transform: rotate(90deg);
+    }
+    .mp-empresa-empty{
+      padding:8px 10px;
+      font-size:11px;
+      color:#6b7280;
+      background:#f9fafb;
+    }
+
     .mp-btn-street {
       margin-top: 8px;
       width: 100%;
@@ -447,6 +499,49 @@ function hasEmpresaNome(p, buscaLower) {
   return getEmpresasNomesArray(p).some((nome) =>
     (nome || "").toLowerCase().includes(buscaLower)
   );
+}
+
+// --------------- Helpers gerais (escape / copiar / toggle empresa) ---
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function escapeAttr(str) {
+  return escapeHtml(str);
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (_) {}
+  document.body.removeChild(ta);
+}
+function copyBtnHandler(btn) {
+  const txt = btn.getAttribute("data-copy") || "";
+  if (!txt) return;
+  copyToClipboard(txt);
+}
+
+// abre/fecha extra da empresa (id_insercao)
+function toggleEmpresaExtra(row) {
+  row.classList.toggle("open");
 }
 
 // Spinner overlay
@@ -812,7 +907,7 @@ function streetImageryBlockHTML(lat, lng, label = "Abrir no Google Street View")
 })();
 
 // ---------------------------------------------------------------------
-// Popup em formato de card (modelo que você mandou)
+// Popup em formato de card com id_insercao + botões de copiar
 // ---------------------------------------------------------------------
 function montarPopupModeloCard(p) {
   const nomesEmpresas = getEmpresasNomesArray(p);
@@ -826,46 +921,85 @@ function montarPopupModeloCard(p) {
     : total === 1 ? "1 Empresa neste poste"
     : `${total} Empresas neste poste`;
 
+  const idPoste = String(p.id ?? "");
+  const rua = (p.nome_logradouro || "-").toString();
+  const bairro = (p.nome_bairro || "-").toString();
+  const cidade = (p.nome_municipio || "-").toString();
+  const coordsText = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+
   const linhasEmpresas = detalhes.length
     ? detalhes.map((e) => {
         const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
         const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
         return `
-          <div class="mp-empresa-item">
+          <div class="mp-empresa-item" onclick="toggleEmpresaExtra(this)">
             <div class="mp-empresa-status">
               <span class="mp-status-badge"></span>
             </div>
             <div class="mp-empresa-textos">
-              <div class="mp-empresa-nome">${nome}</div>
-              ${idIns ? `<div class="mp-empresa-id">ID inserção: ${idIns}</div>` : ``}
+              <div class="mp-empresa-nome">${escapeHtml(nome)}</div>
+              <div class="mp-empresa-extra">
+                ID inserção: <b>${escapeHtml(idIns || "—")}</b>
+              </div>
             </div>
             <div class="mp-empresa-arrow">›</div>
           </div>
         `;
       }).join("")
     : `
-      <div class="mp-empresa-item">
-        <div class="mp-empresa-textos">
-          <div class="mp-empresa-nome"><i>Disponível (sem empresas)</i></div>
-        </div>
+      <div class="mp-empresa-empty">
+        <i>Disponível (sem empresas)</i>
       </div>
     `;
 
   return `
     <div class="mp-card">
       <div class="mp-header">
-        <div class="mp-header-title">${tituloEmpresas}</div>
-        <div class="mp-header-sub">ID poste: ${p.id}</div>
+        <div class="mp-header-title">${escapeHtml(tituloEmpresas)}</div>
+        <div class="mp-header-sub">ID poste: ${escapeHtml(idPoste)}</div>
       </div>
 
       <div class="mp-local">
-        <div class="mp-local-principal">${p.nome_logradouro || "-"}</div>
+        <div class="mp-local-principal">${escapeHtml(rua)}</div>
         <div class="mp-local-secundario">
-          ${(p.nome_bairro || "-")} · ${(p.nome_municipio || "-")}
+          ${escapeHtml(bairro)} · ${escapeHtml(cidade)}
         </div>
         <div class="mp-local-coord">
-          Coord: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}
+          Coord: ${coordsText}
         </div>
+      </div>
+
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">ID</span>
+        <span class="mp-copy-value">${escapeHtml(idPoste)}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(idPoste)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar ID do poste">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
+
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">Rua</span>
+        <span class="mp-copy-value">${escapeHtml(rua)}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(rua)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar rua">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
+
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">Coord.</span>
+        <span class="mp-copy-value">${coordsText}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(coordsText)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar coordenadas">
+          <i class="fa fa-copy"></i>
+        </button>
       </div>
 
       <div class="mp-empresas-lista">
