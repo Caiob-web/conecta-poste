@@ -78,6 +78,126 @@
 })();
 
 /* ====================================================================
+   Estilos do popup tipo “card” (modelo que você mandou)
+==================================================================== */
+(function injectPopupCardStyles() {
+  const css = `
+    .leaflet-popup-content {
+      margin: 0;
+      padding: 0;
+    }
+    .mp-card {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      padding: 10px 12px;
+      min-width: 220px;
+      max-width: 280px;
+    }
+    .mp-header {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }
+    .mp-header-title {
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .mp-header-sub {
+      font-size: 11px;
+      color: #777;
+    }
+    .mp-local {
+      margin-bottom: 8px;
+    }
+    .mp-local-principal {
+      font-weight: 500;
+      font-size: 12px;
+    }
+    .mp-local-secundario,
+    .mp-local-coord {
+      font-size: 11px;
+      color: #666;
+    }
+    .mp-empresas-lista {
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #e6e6e6;
+    }
+    .mp-empresa-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      background: #fdfdfd;
+    }
+    .mp-empresa-item + .mp-empresa-item {
+      border-top: 1px solid #eee;
+    }
+    .mp-empresa-status {
+      margin-right: 8px;
+    }
+    .mp-status-badge {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #18c167;
+      position: relative;
+    }
+    .mp-status-badge::after {
+      content: "✔";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -57%);
+      font-size: 11px;
+      color: #fff;
+    }
+    .mp-empresa-textos {
+      flex: 1;
+    }
+    .mp-empresa-nome {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .mp-empresa-id {
+      font-size: 10px;
+      color: #777;
+    }
+    .mp-empresa-arrow {
+      font-size: 14px;
+      color: #999;
+      margin-left: 6px;
+    }
+    .mp-btn-street {
+      margin-top: 8px;
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #0078ff;
+      color: #fff;
+    }
+    .mp-btn-street:hover {
+      opacity: 0.9;
+    }
+    .mp-street-note {
+      margin-top: 4px;
+      color: #777;
+      font-size: 10px;
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+/* ====================================================================
    Sidebar fixa + botão recolher
 ==================================================================== */
 (function injectDockSidebarStyles(){
@@ -243,8 +363,7 @@ function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
 
-  const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
-  const qtd = empresas.length;
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
 
   const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
@@ -312,6 +431,23 @@ const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
+
+// Helpers pra lidar com empresas (nome + id_insercao)
+function getEmpresasNomesArray(p) {
+  if (!Array.isArray(p.empresas)) return [];
+  return p.empresas.map((e) =>
+    typeof e === "string" ? e : (e.nome || e.empresa || "")
+  );
+}
+function empresasToString(p) {
+  return getEmpresasNomesArray(p).filter(Boolean).join(", ");
+}
+function hasEmpresaNome(p, buscaLower) {
+  if (!buscaLower) return true;
+  return getEmpresasNomesArray(p).some((nome) =>
+    (nome || "").toLowerCase().includes(buscaLower)
+  );
+}
 
 // Spinner overlay
 const overlay = document.getElementById("carregando");
@@ -386,18 +522,53 @@ fetch("/api/postes", { credentials: "include" })
       if (!p.coordenadas) return;
       const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
       if (isNaN(lat) || isNaN(lon)) return;
-      if (!agrupado[p.id]) agrupado[p.id] = { ...p, empresas: new Set(), lat, lon };
-      if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL")
-        agrupado[p.id].empresas.add(p.empresa);
+
+      if (!agrupado[p.id]) {
+        agrupado[p.id] = {
+          ...p,
+          empresas: [],
+          lat,
+          lon
+        };
+      }
+
+      const nomeEmpresa = p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL"
+        ? p.empresa
+        : null;
+
+      if (nomeEmpresa) {
+        agrupado[p.id].empresas.push({
+          id_insercao: p.id_insercao ?? null,
+          nome: nomeEmpresa
+        });
+      }
     });
-    const postsArray = Object.values(agrupado).map((p) => ({ ...p, empresas: [...p.empresas] }));
+
+    const postsArray = Object.values(agrupado).map((p) => {
+      const seen = new Set();
+      const empresasUniq = [];
+      (p.empresas || []).forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? e.id_insercao ?? "" : "";
+        const key = `${nome}|${idIns}`;
+        if (nome && !seen.has(key)) {
+          seen.add(key);
+          empresasUniq.push({ id_insercao: idIns || null, nome });
+        }
+      });
+      return { ...p, empresas: empresasUniq };
+    });
 
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
       logradourosSet.add(poste.nome_logradouro);
-      poste.empresas.forEach((e) => (empresasContagem[e] = (empresasContagem[e] || 0) + 1));
+      poste.empresas.forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        if (!nome) return;
+        empresasContagem[nome] = (empresasContagem[nome] || 0) + 1;
+      });
     });
     preencherListas();
 
@@ -443,7 +614,7 @@ function gerarExcelCliente(filtroIds) {
       Município: p.nome_municipio,
       Bairro: p.nome_bairro,
       Logradouro: p.nome_logradouro,
-      Empresas: (Array.isArray(p.empresas) ? p.empresas : []).join(", "),
+      Empresas: empresasToString(p),
       Coordenadas: p.coordenadas,
     }));
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
@@ -515,7 +686,7 @@ function filtrarLocal() {
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
       (!bai || p.nome_bairro.toLowerCase() === bai) &&
       (!log || p.nome_logradouro.toLowerCase() === log) &&
-      (!emp || (Array.isArray(p.empresas) ? p.empresas : []).join(", ").toLowerCase().includes(emp))
+      (!emp || hasEmpresaNome(p, emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
   markers.clearLayers(); refreshClustersSoon();
@@ -607,18 +778,16 @@ function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 // Street View (link público)
 // ---------------------------------------------------------------------
 function buildGoogleMapsPanoURL(lat, lng) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`; }
-function googleButtonHTML(lat, lng, label = "Abrir no Google Street View") {
+
+function streetImageryBlockHTML(lat, lng, label = "Abrir no Google Street View") {
   const url = buildGoogleMapsPanoURL(lat, lng);
-  return `<button onclick="window.open('${url}','_blank','noopener')" style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">${label}</button>`;
-}
-function streetImageryBlockHTML(lat, lng) {
   return `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      ${googleButtonHTML(lat, lng)}
-    </div>
-    <small style="color:#777;display:block;margin-top:4px">
+    <button class="mp-btn-street" type="button" onclick="window.open('${url}','_blank','noopener')">
+      ${label}
+    </button>
+    <div class="mp-street-note">
       *Se não houver cobertura exata no ponto, o Google aproxima para a vista mais próxima.
-    </small>
+    </div>
   `.trim();
 }
 (function addStreetViewControl() {
@@ -643,20 +812,76 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
+// Popup em formato de card (modelo que você mandou)
+// ---------------------------------------------------------------------
+function montarPopupModeloCard(p) {
+  const nomesEmpresas = getEmpresasNomesArray(p);
+  const detalhes = Array.isArray(p.empresas) && p.empresas.length
+    ? p.empresas
+    : nomesEmpresas.map((nome) => ({ id_insercao: null, nome }));
+
+  const total = detalhes.length;
+  const tituloEmpresas =
+    total === 0 ? "Nenhuma empresa cadastrada"
+    : total === 1 ? "1 Empresa neste poste"
+    : `${total} Empresas neste poste`;
+
+  const linhasEmpresas = detalhes.length
+    ? detalhes.map((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
+        return `
+          <div class="mp-empresa-item">
+            <div class="mp-empresa-status">
+              <span class="mp-status-badge"></span>
+            </div>
+            <div class="mp-empresa-textos">
+              <div class="mp-empresa-nome">${nome}</div>
+              ${idIns ? `<div class="mp-empresa-id">ID inserção: ${idIns}</div>` : ``}
+            </div>
+            <div class="mp-empresa-arrow">›</div>
+          </div>
+        `;
+      }).join("")
+    : `
+      <div class="mp-empresa-item">
+        <div class="mp-empresa-textos">
+          <div class="mp-empresa-nome"><i>Disponível (sem empresas)</i></div>
+        </div>
+      </div>
+    `;
+
+  return `
+    <div class="mp-card">
+      <div class="mp-header">
+        <div class="mp-header-title">${tituloEmpresas}</div>
+        <div class="mp-header-sub">ID poste: ${p.id}</div>
+      </div>
+
+      <div class="mp-local">
+        <div class="mp-local-principal">${p.nome_logradouro || "-"}</div>
+        <div class="mp-local-secundario">
+          ${(p.nome_bairro || "-")} · ${(p.nome_municipio || "-")}
+        </div>
+        <div class="mp-local-coord">
+          Coord: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}
+        </div>
+      </div>
+
+      <div class="mp-empresas-lista">
+        ${linhasEmpresas}
+      </div>
+
+      ${streetImageryBlockHTML(p.lat, p.lon)}
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------------------
 // Abre popup (usa a instância única mainPopup)
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
-  const empresas = Array.isArray(p.empresas) ? p.empresas.filter(Boolean) : [];
-  const list = empresas.length ? empresas.map((e) => `<li>${e}</li>`).join("") : `<li><i>Disponível (sem empresas)</i></li>`;
-  const html = `
-    <b>ID:</b> ${p.id}<br>
-    <b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
-    <b>Município:</b> ${p.nome_municipio}<br>
-    <b>Bairro:</b> ${p.nome_bairro}<br>
-    <b>Logradouro:</b> ${p.nome_logradouro}<br>
-    <b>Empresas:</b><ul>${list}</ul>
-    ${streetImageryBlockHTML(p.lat, p.lon)}
-  `;
+  const html = montarPopupModeloCard(p);
   lastPopup = { lat: p.lat, lon: p.lon, html };
   popupPinned = true;
   mainPopup.setLatLng([p.lat, p.lon]).setContent(html);
@@ -761,9 +986,9 @@ function consultarIDsEmMassa() {
           getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
-          const empresasStr = (Array.isArray(p.empresas) ? p.empresas : []).join(", ");
+          const empresasStr = empresasToString(p) || "Disponível";
           const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr || "Disponível"}`, { direction: "top", sticky: true })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
             .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
               lastTip = { id: keyId(p.id) }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
@@ -914,10 +1139,7 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
 
   for (const p of todosPostes) {
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
-    if (empresaNorm) {
-      const hit = p.empresas?.some(e => (e || "").toLowerCase().includes(empresaNorm));
-      if (!hit) continue;
-    }
+    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
     const key = p.nome_municipio || "—";
     mapa.set(key, (mapa.get(key) || 0) + 1);
     total++;
