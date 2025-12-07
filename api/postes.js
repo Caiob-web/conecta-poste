@@ -63,9 +63,15 @@ export default async function handler(req, res) {
           split_part(d.coordenadas, ',', 1)::float AS lat,
           split_part(d.coordenadas, ',', 2)::float AS lon,
           COALESCE(
-            ARRAY_AGG(ep.empresa) FILTER (WHERE ep.empresa IS NOT NULL AND UPPER(ep.empresa) <> 'DISPONÍVEL'),
+            ARRAY_AGG(ep.empresa)
+              FILTER (WHERE ep.empresa IS NOT NULL AND UPPER(ep.empresa) <> 'DISPONÍVEL'),
             '{}'
           ) AS empresas,
+          COALESCE(
+            ARRAY_AGG(ep.id_insercao)
+              FILTER (WHERE ep.empresa IS NOT NULL AND UPPER(ep.empresa) <> 'DISPONÍVEL'),
+            '{}'
+          ) AS ids_insercao,
           COALESCE(
             COUNT(*) FILTER (WHERE ep.empresa IS NOT NULL AND UPPER(ep.empresa) <> 'DISPONÍVEL'),
             0
@@ -78,7 +84,7 @@ export default async function handler(req, res) {
       `;
       ({ rows } = await pool.query(sql, params));
     } else {
-      // Formato atual: várias linhas por poste (uma por empresa)
+      // Formato "flat": várias linhas por poste (uma por empresa)
       const sql = `
         SELECT
           d.id,
@@ -89,7 +95,8 @@ export default async function handler(req, res) {
           d.altura,
           d.tensao_mecanica,
           d.coordenadas,
-          ep.empresa
+          ep.empresa,
+          ep.id_insercao
         FROM dados_poste d
         LEFT JOIN empresa_poste ep ON d.id::text = ep.id_poste
         WHERE ${where.join(" AND ")}
