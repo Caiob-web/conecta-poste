@@ -8,103 +8,241 @@
   const css = `
     /* HUD raiz (caixa externa) */
     #tempo{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:14px;
-      background:rgba(255,255,255,0.92);
-      box-shadow:0 8px 24px rgba(0,0,0,.12);
-      backdrop-filter:saturate(1.15) blur(2px);
+      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
+      border-radius:14px; background:rgba(255,255,255,0.92);
+      box-shadow:0 8px 24px rgba(0,0,0,.12); backdrop-filter:saturate(1.15) blur(2px);
     }
     /* Hora */
     #tempo .hora-row{
-      display:flex;
-      align-items:center;
-      gap:8px;
+      display:flex; align-items:center; gap:8px;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#0f172a;
-      font-weight:700;
+      color:#0f172a; font-weight:700;
     }
     #tempo .hora-row .dot{
-      width:10px;height:10px;border-radius:50%;
+      width:10px; height:10px; border-radius:50%;
       background:linear-gradient(180deg,#1e3a8a,#2563eb);
-      box-shadow:0 0 0 2px #e5e7eb inset;
-      display:inline-block;
+      box-shadow:0 0 0 2px #e5e7eb inset; display:inline-block;
     }
-
     /* Cartão do clima + seletor */
     #tempo .weather-card{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.95);
+      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
+      border-radius:12px; background:rgba(255,255,255,0.95);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
       min-width:260px;
     }
-    #tempo .weather-row{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-height:40px;
-    }
+    #tempo .weather-row{ display:flex; align-items:center; gap:10px; min-height:40px; }
     #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
     #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
-    #tempo .tempo-text b{ font-weight:700; }
-    #tempo .tempo-text small{ color:#6b7280; }
-
+    #tempo .tempo-text b{ font-weight:700; } #tempo .tempo-text small{ color:#6b7280; }
     /* Linha do seletor de mapa dentro do cartão */
     #tempo .map-row{
-      margin-top:6px;
-      padding-top:8px;
-      border-top:1px dashed rgba(0,0,0,.10);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      margin-top:6px; padding-top:8px; border-top:1px dashed rgba(0,0,0,.10);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
     }
-    #tempo .map-row .lbl{
-      font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      letter-spacing:.2px;
-      color:#475569;
-      font-weight:700;
-    }
+    #tempo .map-row .lbl{ font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial; letter-spacing:.2px; color:#475569; font-weight:700; }
     #tempo .select-wrap{
       position:relative; display:inline-flex; align-items:center; gap:8px;
       padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
-      background:#ffffff; transition:border-color .15s ease, box-shadow .15s ease;
+      background:#fff; transition:border-color .15s ease, box-shadow .15s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
     }
     #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
-    #tempo .select-wrap .ico-globe{ width:16px;height:16px;opacity:.75; }
-    #tempo .select-wrap .ico-caret{
-      position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none;
-    }
-    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
+    #tempo .select-wrap .ico-globe{ width:16px; height:16px; opacity:.75; }
+    #tempo .select-wrap .ico-caret{ position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none; }
+    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui,-apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
 
     /* ---- Modal Indicadores (BI) ---- */
-    .bi-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:4000;background:rgba(0,0,0,.35);}
-    .bi-card{width:min(960px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);font-family:'Segoe UI',system-ui;}
-    .bi-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
-    .bi-head h3{margin:0;font-weight:700;color:#111827;font-size:16px}
-    .bi-close{border:0;background:#f3f4f6;color:#111827;border-radius:8px;padding:6px 10px;cursor:pointer}
-    .bi-body{padding:12px 16px;display:grid;grid-template-columns:1fr 320px;gap:12px;}
-    .bi-side label{font-size:13px;color:#374151}
-    .bi-input{padding:8px;border:1px solid #ddd;border-radius:8px;width:100%}
-    .bi-chk{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#374151;}
-    .bi-resumo{margin-top:8px;font-size:13px;color:#111827;}
-    .bi-btn{margin-top:8px;border:1px solid #ddd;background:#fff;border-radius:8px;padding:8px;cursor:pointer}
+    .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
+    .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
+    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
+    .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
+    .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
+    .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
+    .bi-side label{font-size:13px; color:#374151}
+    .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
+    .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
+    .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
+    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
     .bi-table-wrap{padding:0 16px 16px 16px;}
-    .bi-table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:8px;overflow:auto}
+    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
     .bi-table thead{background:#f9fafb}
-    .bi-table th,.bi-table td{padding:10px;border-bottom:1px solid #eee}
+    .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
 
-    /* ===== FIX TOOLTIP SEMPRE ACIMA ===== */
-    .leaflet-tooltip-pane{ z-index: 700 !important; } /* maior que labels (640) e marker (600) */
-    .leaflet-tooltip{ pointer-events: none; }         /* evita bloquear hover/click atrás */
+    /* Garante tooltip acima de labels/polylines */
+    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+/* ====================================================================
+   Estilos do popup tipo “card”
+==================================================================== */
+(function injectPopupCardStyles() {
+  const css = `
+    .leaflet-popup-content {
+      margin: 0;
+      padding: 0;
+    }
+    .mp-card {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      padding: 10px 12px;
+      min-width: 220px;
+      max-width: 280px;
+    }
+    .mp-header {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }
+    .mp-header-title {
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .mp-header-sub {
+      font-size: 11px;
+      color: #777;
+    }
+    .mp-local {
+      margin-bottom: 4px;
+    }
+    .mp-local-principal {
+      font-weight: 500;
+      font-size: 12px;
+    }
+    .mp-local-secundario,
+    .mp-local-coord {
+      font-size: 11px;
+      color: #666;
+    }
+
+    /* Linhas com botão de copiar */
+    .mp-copy-line{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:11px;
+      margin:2px 0;
+    }
+    .mp-copy-label{
+      font-weight:600;
+      min-width:48px;
+    }
+    .mp-copy-value{
+      flex:1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .mp-copy-btn{
+      border:none;
+      background:#e5f0ff;
+      border-radius:999px;
+      padding:3px 6px;
+      cursor:pointer;
+      font-size:11px;
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+    .mp-copy-btn i{
+      font-size:11px;
+    }
+
+    .mp-empresas-lista {
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #e6e6e6;
+      margin-top:6px;
+    }
+    .mp-empresa-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      background: #fdfdfd;
+      cursor:pointer;
+    }
+    .mp-empresa-item + .mp-empresa-item {
+      border-top: 1px solid #eee;
+    }
+    .mp-empresa-status {
+      margin-right: 8px;
+    }
+    .mp-status-badge {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #18c167;
+      position: relative;
+    }
+    .mp-status-badge::after {
+      content: "✔";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -57%);
+      font-size: 11px;
+      color: #fff;
+    }
+    .mp-empresa-textos {
+      flex: 1;
+    }
+    .mp-empresa-nome {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .mp-empresa-extra{
+      display:none;
+      font-size:10px;
+      color:#555;
+      margin-top:2px;
+    }
+    .mp-empresa-item.open .mp-empresa-extra{
+      display:block;
+    }
+    .mp-empresa-arrow {
+      font-size: 14px;
+      color: #999;
+      margin-left: 6px;
+      transition: transform .15s ease;
+    }
+    .mp-empresa-item.open .mp-empresa-arrow{
+      transform: rotate(90deg);
+    }
+    .mp-empresa-empty{
+      padding:8px 10px;
+      font-size:11px;
+      color:#6b7280;
+      background:#f9fafb;
+    }
+
+    .mp-btn-street {
+      margin-top: 8px;
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #0078ff;
+      color: #fff;
+    }
+    .mp-btn-street:hover {
+      opacity: 0.9;
+    }
+    .mp-street-note {
+      margin-top: 4px;
+      color: #777;
+      font-size: 10px;
+    }
   `;
   const style = document.createElement("style");
   style.textContent = css;
@@ -117,42 +255,26 @@
 (function injectDockSidebarStyles(){
   const css = `
     :root{ --dock-w: 340px; }
-
     .painel-busca{
-      position: fixed !important;
-      top: 0; right: 0; height: 100vh; width: var(--dock-w);
-      overflow: auto; overflow-x: hidden;
-      border-left: 2px solid var(--ui-border, #19d68f);
-      border-radius: 0 !important;
-      padding: 12px 12px 20px;
+      position: fixed !important; top: 0; right: 0; height: 100vh; width: var(--dock-w);
+      overflow: auto; overflow-x: hidden; border-left: 2px solid var(--ui-border, #19d68f);
+      border-radius: 0 !important; padding: 12px 12px 20px;
       transform: translateX(0%); transition: transform .25s ease;
       z-index: 1000; box-sizing: border-box;
     }
-    .painel-busca .actions{
-      display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
-      gap: 10px !important; margin-top: 6px;
-    }
+    .painel-busca .actions{ display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-top: 6px; }
     .painel-busca.collapsed{ transform: translateX(100%); }
-
     #togglePainel{
-      position: fixed !important; top: 50%;
-      right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
-      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important;
-      background: var(--ui-bg, #0f1b2a) !important;
-      border: 1px solid var(--ui-border, #19d68f) !important;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
+      position: fixed !important; top: 50%; right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
+      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important; background: var(--ui-bg, #0f1b2a) !important;
+      border: 1px solid var(--ui-border, #19d68f) !important; box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
       display:flex;align-items:center;justify-content:center;
     }
     body.sidebar-collapsed #togglePainel{ right: 6px !important; }
     #togglePainel i{ transition: transform .2s ease; }
     body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
-
-    #localizacaoUsuario, #logoutBtn{
-      position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100;
-    }
+    #localizacaoUsuario, #logoutBtn{ position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100; }
     body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
-
-    /* HUD acoplado na lateral (logo abaixo das ações) */
     .dock-hud{ margin-top:12px; }
   `;
   const style = document.createElement('style');
@@ -175,8 +297,7 @@
       background:transparent !important; border:none !important; box-shadow:none !important;
       color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
-      transform: translate(-50%, -50%);
-      user-select:none; pointer-events:auto;
+      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
     }
   `;
   const style = document.createElement('style');
@@ -185,42 +306,24 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
+const map = L.map("map").setView([-23.2, -45.9], 12); // SVG (sem preferCanvas)
 
-// Rua (OSM)
+// Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
-// Satélite (Esri)
-const esriSat = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom: 19 }
-);
-// Rótulos por cima do satélite
+const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
 const labelsPane = map.createPane("labels");
-// FIX: manter rótulos **abaixo** dos tooltips (tooltipPane=650). Antes era 650 e podia cobrir o tooltip.
 labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
-const cartoLabels = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
-  { pane: "labels", maxZoom: 19, subdomains: "abcd" }
-);
+const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", { pane: "labels", maxZoom: 19, subdomains: "abcd" });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
-
-// Começa com Rua (OSM)
 osm.addTo(map);
 
-// === Renderer Canvas + estilo das bolinhas (verde/verm) ===
-const DOT_RENDERER = L.canvas({ padding: 0.5 });
+// estilo dos pontos
 function dotStyle(qtdEmpresas){
   return {
-    radius: 6,
-    color: "#fff",
-    weight: 1,
+    radius: 6, color: "#fff", weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
-    fillOpacity: 0.95,
-    renderer: DOT_RENDERER,
-    // FIX: garantir interatividade do path em Canvas e evitar “propagação” fechar/consumir cliques
-    interactive: true,
-    bubblingMouseEvents: false
+    fillOpacity: 0.95
   };
 }
 
@@ -244,41 +347,43 @@ const markers = L.markerClusterGroup({
   chunkedLoading: true,
   chunkDelay: 5,
   chunkInterval: 50,
-  iconCreateFunction: function (cluster) {
-    return new L.DivIcon({
-      html: String(cluster.getChildCount()),
-      className: "cluster-num-only",
-      iconSize: null
-    });
-  }
+  iconCreateFunction: (cluster) =>
+    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
-markers.on("clusterclick", (e) => e.layer.spiderfy());
-// failsafe: qualquer layer simples dentro do cluster abre popup
-markers.on("click", (e) => {
-  // FIX: se vier DOM event, não deixa “subir”
+
+// Clique no cluster: spiderfy + abre 1º filho
+markers.off("clusterclick");
+markers.on("clusterclick", (e) => {
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const l = e.layer;
-  if (l && typeof l.getAllChildMarkers === "function") return; // é um cluster
-  if (l && l.posteData) {
-    try { l.openTooltip?.(); } catch {}
-    abrirPopup(l.posteData);
-  }
+  const childs = e.layer.getAllChildMarkers();
+  e.layer.spiderfy();
+  requestAnimationFrame(() => {
+    const first = childs && childs[0];
+    if (first && first.posteData) {
+      try { first.openTooltip?.(); } catch {}
+      abrirPopup(first.posteData);
+      lastTip = { id: keyId(first.posteData.id) };
+      tipPinned = true;
+    }
+  });
 });
+
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
-const idToMarker = new Map();   // cache: id -> L.Layer
+const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
-
+function keyId(id){ return String(id); }
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
+function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
 
 /* ====================================================================
    Popup fixo: instância única, sem piscar
 ==================================================================== */
 const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
-let popupPinned = false;                 // true se o usuário não fechou o popup
-let lastPopup = null;                    // {lat, lon, html}
+let popupPinned = false;
+let lastPopup = null;
 
 function reabrirPopupFixo(delay = 0){
   if (!popupPinned || !lastPopup) return;
@@ -288,49 +393,67 @@ function reabrirPopupFixo(delay = 0){
   };
   delay ? setTimeout(open, delay) : open();
 }
-map.on("popupclose", (e) => {
-  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
-});
+map.on("popupclose", (e) => { if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }});
 
-// Utilitário: garante hover estável de tooltip em qualquer marker
-function armarHoverTooltip(layer){
-  if (!layer) return;
-  layer.on("mouseover", (ev) => { try { ev.target.openTooltip?.(); } catch {} });
-  layer.on("mouseout",  (ev) => { try { ev.target.closeTooltip?.(); } catch {} });
+/* ====================================================================
+   Tooltip fixo (reabrir após cluster/reset)
+==================================================================== */
+let tipPinned = false;   // true após clique (para manter aberto)
+let lastTip = null;      // { id }
+
+function reabrirTooltipFixo(delay = 0) {
+  if (!lastTip || !tipPinned) return;
+  const open = () => {
+    const layer = idToMarker.get(keyId(lastTip.id));
+    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
+  };
+  delay ? setTimeout(open, delay) : open();
 }
 
-// Cria (ou retorna do cache) o layer do poste, SEM adicioná-lo
+// Cria (ou retorna do cache) o layer do poste
 function criarLayerPoste(p){
-  if (idToMarker.has(p.id)) return idToMarker.get(p.id);
-  const layer = L.circleMarker([p.lat, p.lon], dotStyle(p.empresas.length))
-    .bindTooltip(
-      `ID: ${p.id} — ${p.empresas.length} ${p.empresas.length === 1 ? "empresa" : "empresas"}`,
-      { direction: "top", sticky: true }
-    )
+  const key = keyId(p.id);
+  if (idToMarker.has(key)) return idToMarker.get(key);
+
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
+
+  const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
+    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
+    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
-      // FIX: impedir que o clique “suba” e garantir abertura
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      try { e.target.openTooltip?.(); } catch {}
+      lastTip = { id: key }; tipPinned = true;
+      try { layer.openTooltip?.(); } catch {}
       abrirPopup(p);
     });
-  armarHoverTooltip(layer);       // <— garante hover pós-reset/spiderfy
-  layer.posteData = p;            // usado pelo failsafe do cluster
-  idToMarker.set(p.id, layer);
+  layer.posteData = p;
+  idToMarker.set(key, layer);
   return layer;
+}
+
+// Reconstrói tudo do zero (modo “cura tudo”)
+function hardReset(){
+  markers.clearLayers();
+  idToMarker.clear();
+  const layers = todosPostes.map(criarLayerPoste);
+  if (layers.length) markers.addLayers(layers);
+  refreshClustersSoon();
 }
 
 // Adiciona 1 poste (usado em filtros, etc.)
 function adicionarMarker(p) {
   const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) markers.addLayer(layer);
+  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
 }
 
 // Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
-  if (arr.length) markers.addLayers(arr); // usa chunkedLoading
-  markers.refreshClusters();              // <— garante consistência visual
+  if (arr.length) markers.addLayers(arr);
+  refreshClustersSoon();
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 }
 
@@ -342,10 +465,10 @@ function carregarTodosPostesGradualmente() {
   function addChunk() {
     const slice = todosPostes.slice(i, i + lote);
     const layers = slice.map(criarLayerPoste);
-    if (layers.length) markers.addLayers(layers);
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
     i += lote;
     if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; reabrirPopupFixo(0); }
+    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
   }
   scheduleIdle(addChunk);
 }
@@ -361,12 +484,64 @@ const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
 
-// Helper: retorna apenas nomes das empresas do poste
-function getEmpresasNomes(p) {
-  if (!p || !Array.isArray(p.empresas)) return [];
-  return p.empresas
-    .map((e) => (e && typeof e === "object" ? e.nome : e))
-    .filter(Boolean);
+// Helpers pra lidar com empresas (nome + id_insercao)
+function getEmpresasNomesArray(p) {
+  if (!Array.isArray(p.empresas)) return [];
+  return p.empresas.map((e) =>
+    typeof e === "string" ? e : (e.nome || e.empresa || "")
+  );
+}
+function empresasToString(p) {
+  return getEmpresasNomesArray(p).filter(Boolean).join(", ");
+}
+function hasEmpresaNome(p, buscaLower) {
+  if (!buscaLower) return true;
+  return getEmpresasNomesArray(p).some((nome) =>
+    (nome || "").toLowerCase().includes(buscaLower)
+  );
+}
+
+// --------------- Helpers gerais (escape / copiar / toggle empresa) ---
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function escapeAttr(str) {
+  return escapeHtml(str);
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (_) {}
+  document.body.removeChild(ta);
+}
+function copyBtnHandler(btn) {
+  const txt = btn.getAttribute("data-copy") || "";
+  if (!txt) return;
+  copyToClipboard(txt);
+}
+
+// abre/fecha extra da empresa (id_insercao)
+function toggleEmpresaExtra(row) {
+  row.classList.toggle("open");
 }
 
 // Spinner overlay
@@ -379,14 +554,10 @@ if (overlay) overlay.style.display = "flex";
   const painel = document.querySelector(".painel-busca");
   if (!hud || !painel) return;
 
-  // move o HUD para o painel, logo abaixo do .actions (lado direito)
   const actions = painel.querySelector(".actions");
   hud.classList.add("dock-hud");
-  if (actions && actions.parentNode === painel) {
-    painel.insertBefore(hud, actions.nextSibling);
-  } else {
-    painel.appendChild(hud);
-  }
+  if (actions && actions.parentNode === painel) painel.insertBefore(hud, actions.nextSibling);
+  else painel.appendChild(hud);
 
   hud.innerHTML = "";
 
@@ -401,9 +572,7 @@ if (overlay) overlay.style.display = "flex";
     <div class="weather-row">
       <img alt="Clima" src="" />
       <div class="tempo-text">
-        <b>Carregando…</b>
-        <span> </span>
-        <small> </small>
+        <b>Carregando…</b><span> </span><small> </small>
       </div>
     </div>
     <div class="map-row">
@@ -412,8 +581,7 @@ if (overlay) overlay.style.display = "flex";
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
-          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20"
-                fill="none" stroke="#111827" stroke-width="2"/>
+          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="#111827" stroke-width="2"/>
         </svg>
         <select id="select-base">
           <option value="rua">Rua</option>
@@ -444,7 +612,6 @@ fetch("/api/postes", { credentials: "include" })
   })
   .then((data) => {
     if (overlay) overlay.style.display = "none";
-
     const agrupado = {};
     data.forEach((p) => {
       if (!p.coordenadas) return;
@@ -452,29 +619,48 @@ fetch("/api/postes", { credentials: "include" })
       if (isNaN(lat) || isNaN(lon)) return;
 
       if (!agrupado[p.id]) {
-        // empresas vira array de objetos { nome, idInsercao }
-        agrupado[p.id] = { ...p, empresas: [], lat, lon };
+        agrupado[p.id] = {
+          ...p,
+          empresas: [],
+          lat,
+          lon
+        };
       }
 
-      if (p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL") {
+      const nomeEmpresa = p.empresa && p.empresa.toUpperCase() !== "DISPONÍVEL"
+        ? p.empresa
+        : null;
+
+      if (nomeEmpresa) {
         agrupado[p.id].empresas.push({
-          nome: p.empresa,
-          // tenta vários nomes de campo, caso você tenha usado outro no backend
-          idInsercao: p.id_insercao || p.id_insercao_empresa || p.id_insercao_poste || null
+          id_insercao: p.id_insercao ?? null,
+          nome: nomeEmpresa
         });
       }
     });
 
-    const postsArray = Object.values(agrupado);
+    const postsArray = Object.values(agrupado).map((p) => {
+      const seen = new Set();
+      const empresasUniq = [];
+      (p.empresas || []).forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? e.id_insercao ?? "" : "";
+        const key = `${nome}|${idIns}`;
+        if (nome && !seen.has(key)) {
+          seen.add(key);
+          empresasUniq.push({ id_insercao: idIns || null, nome });
+        }
+      });
+      return { ...p, empresas: empresasUniq };
+    });
 
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
       logradourosSet.add(poste.nome_logradouro);
-
       poste.empresas.forEach((e) => {
-        const nome = e && typeof e === "object" ? e.nome : e;
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
         if (!nome) return;
         empresasContagem[nome] = (empresasContagem[nome] || 0) + 1;
       });
@@ -515,14 +701,15 @@ function preencherListas() {
 // Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
+  const idSet = new Set((filtroIds || []).map(keyId));
   const dadosParaExcel = todosPostes
-    .filter((p) => filtroIds.includes(p.id))
+    .filter((p) => idSet.has(keyId(p.id)))
     .map((p) => ({
       "ID POSTE": p.id,
       Município: p.nome_municipio,
       Bairro: p.nome_bairro,
       Logradouro: p.nome_logradouro,
-      Empresas: getEmpresasNomes(p).join(", "),
+      Empresas: empresasToString(p),
       Coordenadas: p.coordenadas,
     }));
   const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
@@ -536,15 +723,9 @@ function gerarExcelCliente(filtroIds) {
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso").addEventListener("click", async () => {
   censoMode = !censoMode;
-  // LIMPA camadas auxiliares para não bloquear hover
-  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
-  window.intermediarios?.forEach((m) => map.removeLayer(m));
-  window.intermediarios = [];
-  window.numeroMarkers?.forEach((m) => markers.removeLayer(m));
-  window.numeroMarkers = [];
-
   markers.clearLayers();
-  if (!censoMode) { exibirTodosPostes(); reabrirPopupFixo(0); return; }
+  refreshClustersSoon();
+  if (!censoMode) { exibirTodosPostes(); reabrirTooltipFixo(0); reabrirPopupFixo(0); return; }
 
   if (!censoIds) {
     try {
@@ -554,21 +735,22 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
       censoIds = new Set(arr.map((i) => String(i.poste)));
     } catch {
       alert("Não foi possível carregar dados do censo.");
-      censoMode = false; exibirTodosPostes(); reabrirPopupFixo(0); return;
+      censoMode = false; exibirTodosPostes(); reabrirTooltipFixo(0); reabrirPopupFixo(0); return;
     }
   }
   todosPostes
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
-      const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8, renderer: DOT_RENDERER,
-        interactive: true, bubblingMouseEvents: false
-      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
-      armarHoverTooltip(c);
-      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{c.openTooltip?.();}catch{} abrirPopup(poste); });
+      const c = L.circleMarker([poste.lat, poste.lon], { radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8 })
+        .bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
+      c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
+      c.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+        lastTip = { id: keyId(poste.id) }; tipPinned = true; try{c.openTooltip?.();}catch{} abrirPopup(poste); });
       c.posteData = poste;
       markers.addLayer(c);
     });
+  refreshClustersSoon();
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 });
 
@@ -577,7 +759,7 @@ document.getElementById("btnCenso").addEventListener("click", async () => {
 // ---------------------------------------------------------------------
 function buscarID() {
   const id = document.getElementById("busca-id").value.trim();
-  const p = todosPostes.find((x) => x.id === id);
+  const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
   if (!p) return alert("Poste não encontrado.");
   map.setView([p.lat, p.lon], 18);
   abrirPopup(p);
@@ -599,23 +781,17 @@ function filtrarLocal() {
       (!mun || p.nome_municipio.toLowerCase() === mun) &&
       (!bai || p.nome_bairro.toLowerCase() === bai) &&
       (!log || p.nome_logradouro.toLowerCase() === log) &&
-      (!emp || getEmpresasNomes(p).join(", ").toLowerCase().includes(emp))
+      (!emp || hasEmpresaNome(p, emp))
   );
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
-  // LIMPE auxiliares antes de aplicar filtro (protege hover)
-  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
-  window.intermediarios?.forEach((m) => map.removeLayer(m));
-  window.intermediarios = [];
-  window.numeroMarkers?.forEach((m) => markers.removeLayer(m));
-  window.numeroMarkers = [];
+  markers.clearLayers(); refreshClustersSoon();
 
-  markers.clearLayers();
   filtro.forEach(adicionarMarker);
-  reabrirPopupFixo(0);
+  refreshClustersSoon();
+  reabrirTooltipFixo(0); reabrirPopupFixo(0);
 
   fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "include",
+    method: "POST", credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
   })
@@ -634,29 +810,21 @@ function filtrarLocal() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => {
-      console.error("Erro exportar filtro:", e);
-      alert("Falha ao gerar Excel backend:\n" + e.message);
-    });
+    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
 
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
 function resetarMapa() {
-  // LIMPA todas as camadas auxiliares que podem bloquear hover/tooltip
-  if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
-  window.intermediarios?.forEach((m) => map.removeLayer(m));
-  window.intermediarios = [];
-  window.numeroMarkers?.forEach((m) => markers.removeLayer(m));
-  window.numeroMarkers = [];
-
-  exibirTodosPostes();
-  reabrirPopupFixo(0);
+  // hard reset para curar qualquer estado de evento perdido
+  popupPinned = false; lastPopup = null; tipPinned = false; lastTip = null;
+  hardReset();
+  reabrirTooltipFixo(0); reabrirPopupFixo(0);
 }
 
-/* ====================================================================
-   ÍCONES 48px — poste fotorealista + halo de disponibilidade
-==================================================================== */
+// ---------------------------------------------------------------------
+// ÍCONES 48px — poste fotorealista + halo de disponibilidade
+// ---------------------------------------------------------------------
 function makePolePhoto48(glowHex) {
   const svg = `
   <svg width="48" height="48" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
@@ -687,7 +855,7 @@ function makePolePhoto48(glowHex) {
       <rect x="11" y="11.2" width="20" height="2.6" rx="1.3" fill="url(#gSteel)"/>
       <path d="M14.4 13.5 L21 19 M27.6 13.5 L21 19" stroke="#3b4046" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
       <circle cx="15.2" cy="12.6" r="1.2" fill="#cfd6dd"/>
-      <circle cx="21" cy="12.6" r="1.2" fill="#cfd6dd"/>
+      <circle cx="21"   cy="12.6" r="1.2" fill="#cfd6dd"/>
       <circle cx="26.8" cy="12.6" r="1.2" fill="#cfd6dd"/>
       <path d="M11.2 10.6 C 16.5 14.2, 25.5 14.2, 30.8 10.6" fill="none" stroke="#6f757c" stroke-width="1" opacity=".6"/>
       <rect x="23.8" y="17" width="6" height="7.2" rx="1.2" fill="#d9e1e8" stroke="#2f343a" stroke-width="1"/>
@@ -696,41 +864,27 @@ function makePolePhoto48(glowHex) {
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
-
-const ICON_GREEN_48 = L.icon({
-  iconUrl: makePolePhoto48("#24a148"),
-  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
-});
-const ICON_RED_48 = L.icon({
-  iconUrl: makePolePhoto48("#d64545"),
-  iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22]
-});
+const ICON_GREEN_48 = L.icon({ iconUrl: makePolePhoto48("#24a148"), iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22] });
+const ICON_RED_48   = L.icon({ iconUrl: makePolePhoto48("#d64545"), iconSize: [48, 48], iconAnchor: [24, 34], popupAnchor: [0, -22], tooltipAnchor: [0, -22] });
 function poleIcon48(color) { return color === "red" ? ICON_RED_48 : ICON_GREEN_48; }
 function poleColorByEmpresas(qtd) { return (qtd >= 5) ? "red" : "green"; }
 
 // ---------------------------------------------------------------------
-// === Street View gratuito (link público) =============================
-function buildGoogleMapsPanoURL(lat, lng) {
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
-}
-function googleButtonHTML(lat, lng, label = "Abrir no Google Street View") {
+// Street View (link público)
+// ---------------------------------------------------------------------
+function buildGoogleMapsPanoURL(lat, lng) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`; }
+
+function streetImageryBlockHTML(lat, lng, label = "Abrir no Google Street View") {
   const url = buildGoogleMapsPanoURL(lat, lng);
-  return `<button onclick="window.open('${url}','_blank','noopener')"
-    style="padding:6px 10px;border:1px solid #cfcfcf;border-radius:8px;background:#fff;cursor:pointer;font:12px system-ui">
-    ${label}
-  </button>`;
-}
-function streetImageryBlockHTML(lat, lng) {
   return `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      ${googleButtonHTML(lat, lng)}
-    </div>
-    <small style="color:#777;display:block;margin-top:4px">
+    <button class="mp-btn-street" type="button" onclick="window.open('${url}','_blank','noopener')">
+      ${label}
+    </button>
+    <div class="mp-street-note">
       *Se não houver cobertura exata no ponto, o Google aproxima para a vista mais próxima.
-    </small>
+    </div>
   `.trim();
 }
-
 (function addStreetViewControl() {
   if (typeof L === "undefined" || typeof map === "undefined" || !map) return;
   const Control = L.Control.extend({
@@ -753,45 +907,115 @@ function streetImageryBlockHTML(lat, lng) {
 })();
 
 // ---------------------------------------------------------------------
+// Popup em formato de card com id_insercao + botões de copiar
+// ---------------------------------------------------------------------
+function montarPopupModeloCard(p) {
+  const nomesEmpresas = getEmpresasNomesArray(p);
+  const detalhes = Array.isArray(p.empresas) && p.empresas.length
+    ? p.empresas
+    : nomesEmpresas.map((nome) => ({ id_insercao: null, nome }));
+
+  const total = detalhes.length;
+  const tituloEmpresas =
+    total === 0 ? "Nenhuma empresa cadastrada"
+    : total === 1 ? "1 Empresa neste poste"
+    : `${total} Empresas neste poste`;
+
+  const idPoste = String(p.id ?? "");
+  const rua = (p.nome_logradouro || "-").toString();
+  const bairro = (p.nome_bairro || "-").toString();
+  const cidade = (p.nome_municipio || "-").toString();
+  const coordsText = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+
+  const linhasEmpresas = detalhes.length
+    ? detalhes.map((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
+        return `
+          <div class="mp-empresa-item" onclick="toggleEmpresaExtra(this)">
+            <div class="mp-empresa-status">
+              <span class="mp-status-badge"></span>
+            </div>
+            <div class="mp-empresa-textos">
+              <div class="mp-empresa-nome">${escapeHtml(nome)}</div>
+              <div class="mp-empresa-extra">
+                ID inserção: <b>${escapeHtml(idIns || "—")}</b>
+              </div>
+            </div>
+            <div class="mp-empresa-arrow">›</div>
+          </div>
+        `;
+      }).join("")
+    : `
+      <div class="mp-empresa-empty">
+        <i>Disponível (sem empresas)</i>
+      </div>
+    `;
+
+  return `
+    <div class="mp-card">
+      <div class="mp-header">
+        <div class="mp-header-title">${escapeHtml(tituloEmpresas)}</div>
+        <div class="mp-header-sub">ID poste: ${escapeHtml(idPoste)}</div>
+      </div>
+
+      <div class="mp-local">
+        <div class="mp-local-principal">${escapeHtml(rua)}</div>
+        <div class="mp-local-secundario">
+          ${escapeHtml(bairro)} · ${escapeHtml(cidade)}
+        </div>
+        <div class="mp-local-coord">
+          Coord: ${coordsText}
+        </div>
+      </div>
+
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">ID</span>
+        <span class="mp-copy-value">${escapeHtml(idPoste)}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(idPoste)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar ID do poste">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
+
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">Rua</span>
+        <span class="mp-copy-value">${escapeHtml(rua)}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(rua)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar rua">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
+
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">Coord.</span>
+        <span class="mp-copy-value">${coordsText}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(coordsText)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar coordenadas">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
+
+      <div class="mp-empresas-lista">
+        ${linhasEmpresas}
+      </div>
+
+      ${streetImageryBlockHTML(p.lat, p.lon)}
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------------------
 // Abre popup (usa a instância única mainPopup)
 // ---------------------------------------------------------------------
 function abrirPopup(p) {
-  const empresas = Array.isArray(p.empresas) ? p.empresas : [];
-
-  const empresasHTML = empresas.length
-    ? empresas
-        .map((e) => {
-          const nome = e && typeof e === "object" ? e.nome : e;
-          const idIns =
-            e && typeof e === "object"
-              ? (e.idInsercao ?? e.id_insercao ?? "—")
-              : "—";
-          return `
-            <li style="margin-bottom:4px;">
-              <div><strong>${nome || ""}</strong></div>
-              <small style="color:#6b7280;">ID inserção: ${idIns || "—"}</small>
-            </li>`;
-        })
-        .join("")
-    : `<li><em>Nenhuma empresa cadastrada</em></li>`;
-
-  const html = `
-    <div style="font-size:13px;line-height:1.4;">
-      <div><b>ID poste:</b> ${p.id}</div>
-      <div><b>Coord:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
-      <div><b>Município:</b> ${p.nome_municipio}</div>
-      <div><b>Bairro:</b> ${p.nome_bairro}</div>
-      <div><b>Logradouro:</b> ${p.nome_logradouro}</div>
-      <div style="margin-top:6px;"><b>Empresas:</b></div>
-      <ul style="padding-left:18px;margin:4px 0 0 0;">
-        ${empresasHTML}
-      </ul>
-      <div style="margin-top:8px;">
-        ${streetImageryBlockHTML(p.lat, p.lon)}
-      </div>
-    </div>
-  `;
-
+  const html = montarPopupModeloCard(p);
   lastPopup = { lat: p.lat, lon: p.lon, html };
   popupPinned = true;
   mainPopup.setLatLng([p.lat, p.lon]).setContent(html);
@@ -842,7 +1066,6 @@ function preencherClimaUI(data) {
     t.innerHTML = `<b>Erro ao obter clima</b>`;
   }
 }
-
 function obterPrevisaoDoTempo(lat, lon) {
   const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
   fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
@@ -853,10 +1076,8 @@ function obterPrevisaoDoTempo(lat, lon) {
       if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
     });
 }
-
-// tenta pegar geo; se falhar, usa SP
 (function initWeather() {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63); // São Paulo
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
   if (!navigator.geolocation) return fallback();
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
@@ -878,12 +1099,12 @@ setInterval(() => {
 function consultarIDsEmMassa() {
   const ids = document.getElementById("ids-multiplos").value.split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Nenhum ID fornecido.");
-  markers.clearLayers();
+  markers.clearLayers(); refreshClustersSoon();
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
   window.numeroMarkers = [];
 
-  const encontrados = ids.map((id) => todosPostes.find((p) => p.id === id)).filter(Boolean);
+  const encontrados = ids.map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id))).filter(Boolean);
   if (!encontrados.length) return alert("Nenhum poste encontrado.");
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
@@ -893,28 +1114,26 @@ function consultarIDsEmMassa() {
     const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
     if (d > 50) {
       todosPostes
-        .filter((p) => !ids.includes(p.id))
+        .filter((p) => !ids.includes(keyId(p.id)))
         .filter((p) =>
           getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
           getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
         )
         .forEach((p) => {
-          const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8,
-            interactive: true, bubblingMouseEvents: false
-          }).bindTooltip(
-              `ID: ${p.id}<br>Empresas: ${getEmpresasNomes(p).join(", ")}`,
-              { direction: "top", sticky: true }
-            )
-            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{m.openTooltip?.();}catch{} abrirPopup(p); })
+          const empresasStr = empresasToString(p) || "Disponível";
+          const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
+            .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
+            .on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+              lastTip = { id: keyId(p.id) }; tipPinned = true; try{m.openTooltip?.();}catch{} abrirPopup(p); })
             .addTo(map);
-          armarHoverTooltip(m);
           m.posteData = p;
           window.intermediarios.push(m);
         });
     }
   });
-  map.addLayer(markers);
+  map.addLayer(markers); refreshClustersSoon();
+
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
@@ -925,28 +1144,29 @@ function consultarIDsEmMassa() {
 
   window.ultimoResumoPostes = {
     total: ids.length,
-    disponiveis: encontrados.filter((p) => p.empresas.length <= 4).length,
-    ocupados: encontrados.filter((p) => p.empresas.length >= 5).length,
-    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => p.id === id)),
+    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
+    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
+    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
     intermediarios: window.intermediarios.length,
   };
 
+  reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 }
 
 // Adiciona marcador numerado (usa o mesmo abrirPopup)
 function adicionarNumerado(p, num) {
-  const cor = p.empresas.length >= 5 ? "red" : "green";
-  const html = `<div style="
-      background:${cor};color:white;width:22px;height:22px;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white
-    ">${num}</div>`;
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const cor = qtd >= 5 ? "red" : "green";
+  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  armarHoverTooltip(mk);
-  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent); try{mk.openTooltip?.();}catch{} abrirPopup(p); });
+  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
+  mk.on("click", (e) => { if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+    lastTip = { id: keyId(p.id) }; tipPinned = true; try{mk.openTooltip?.();}catch{} abrirPopup(p); });
   mk.posteData = p;
   mk.addTo(markers);
+  refreshClustersSoon();
   window.numeroMarkers.push(mk);
 }
 
@@ -977,9 +1197,7 @@ function gerarPDFComMapa() {
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -987,9 +1205,6 @@ function getDistanciaMetros(lat1, lon1, lat2, lon2) {
 function limparTudo() {
   if (window.tracadoMassivo) { map.removeLayer(window.tracadoMassivo); window.tracadoMassivo = null; }
   window.intermediarios?.forEach((m) => map.removeLayer(m));
-  window.intermediarios = [];
-  window.numeroMarkers?.forEach((m) => markers.removeLayer(m));
-  window.numeroMarkers = [];
   ["ids-multiplos","busca-id","busca-coord","busca-municipio","busca-bairro","busca-logradouro","busca-empresa"]
     .forEach((id) => { document.getElementById(id).value = ""; });
   resetarMapa();
@@ -998,8 +1213,7 @@ function limparTudo() {
 // Exporta Excel genérico
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "include",
+    method: "POST", credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   })
@@ -1008,10 +1222,7 @@ function exportarExcel(ids) {
         window.location.href = "/login.html";
         throw new Error("Não autorizado");
       }
-      if (!res.ok) {
-        let err; try { err = (await res.json()).error; } catch {}
-        throw new Error(err || `HTTP ${res.status}`);
-      }
+      if (!res.ok) { let err; try { err = (await res.json()).error; } catch {} throw new Error(err || `HTTP ${res.status}`); }
       return res.blob();
     })
     .then((b) => {
@@ -1021,10 +1232,7 @@ function exportarExcel(ids) {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => {
-      console.error("Erro Excel:", e);
-      alert("Falha ao gerar Excel:\n" + e.message);
-    });
+    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
 // Botão Excel
@@ -1044,66 +1252,41 @@ document.getElementById("togglePainel").addEventListener("click", () => {
   p.addEventListener("transitionend", onEnd);
 });
 
-// Logout (ATUALIZADO: robusto a offline e rota opcional)
+// Logout
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   try {
-    // limpa credenciais locais sempre
     localStorage.removeItem("auth_token");
     sessionStorage.removeItem("auth_token");
     document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
   } catch {}
-
-  // tenta avisar o servidor apenas se estiver online; ignora falhas
-  if (navigator.onLine) {
-    try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    } catch {}
-  }
-
-  // usa replace para não voltar com back
+  if (navigator.onLine) { try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {} }
   window.location.replace("/login.html");
 });
 
 /* --------------------------------------------------------------------
-   === Indicadores (BI) — injeção automática de botão + modal ===
+   === Indicadores (BI)
 -------------------------------------------------------------------- */
-
-// Agregação por município, com filtros
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
-
-  const mapa = new Map();
-  let total = 0;
+  const mapa = new Map(); let total = 0;
 
   for (const p of todosPostes) {
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
-    if (empresaNorm) {
-      const hit = getEmpresasNomes(p).some(nome =>
-        (nome || "").toLowerCase().includes(empresaNorm)
-      );
-      if (!hit) continue;
-    }
+    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
     const key = p.nome_municipio || "—";
     mapa.set(key, (mapa.get(key) || 0) + 1);
     total++;
   }
 
-  const rows = Array.from(mapa.entries())
-    .map(([municipio, qtd]) => ({ municipio, qtd }))
-    .sort((a, b) => b.qtd - a.qtd);
-
+  const rows = Array.from(mapa.entries()).map(([municipio, qtd]) => ({ municipio, qtd })).sort((a, b) => b.qtd - a.qtd);
   return { rows, total };
 }
-
-// CSV
 function rowsToCSV(rows) {
   const header = "Municipio,Quantidade\n";
   const body = rows.map(r => `"${(r.municipio||"").replace(/"/g,'""')}",${r.qtd}`).join("\n");
   return header + body + "\n";
 }
-
-// Injeta botão "Indicadores"
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -1115,11 +1298,8 @@ function rowsToCSV(rows) {
     actions.appendChild(btn);
   }
 })();
-
-// Modal de BI
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
-
   const backdrop = document.createElement("div");
   backdrop.className = "bi-backdrop";
   backdrop.id = "modalIndicadores";
@@ -1134,9 +1314,7 @@ function ensureBIModal() {
         <div class="bi-side">
           <label>Filtrar por empresa (opcional)</label>
           <input id="filtroEmpresaBI" list="lista-empresas" placeholder="Ex.: VIVO, CLARO..." class="bi-input">
-          <label class="bi-chk">
-            <input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa
-          </label>
+          <label class="bi-chk"><input type="checkbox" id="apenasVisiveisBI"> Considerar apenas os postes visíveis no mapa</label>
           <div id="resumoBI" class="bi-resumo"></div>
           <button id="exportarCsvBI" class="bi-btn"><i class="fa fa-file-csv"></i> Exportar CSV</button>
         </div>
@@ -1144,9 +1322,7 @@ function ensureBIModal() {
       <div class="bi-table-wrap">
         <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
           <table id="tabelaMunicipios" class="bi-table">
-            <thead>
-              <tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr>
-            </thead>
+            <thead><tr><th style="text-align:left;">Município</th><th style="text-align:right;">Qtd. de Postes</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -1161,12 +1337,9 @@ function ensureBIModal() {
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
     const onlyView = document.getElementById("apenasVisiveisBI");
-    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
-      atualizarIndicadores();
-    }
+    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) atualizarIndicadores();
   });
 }
-
 function abrirIndicadores() {
   ensureBIModal();
   const modal = document.getElementById("modalIndicadores");
@@ -1180,18 +1353,15 @@ function abrirIndicadores() {
   } else { proceed(); }
 }
 function fecharIndicadores() { const m = document.getElementById("modalIndicadores"); if (m) m.style.display = "none"; }
-
 function atualizarIndicadores() {
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
-
   const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
 
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
-    tb.innerHTML = rows.map(r => `
-      <tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>
-    `).join("") || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+    tb.innerHTML = rows.map(r => `<tr><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`).join("")
+      || `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
   }
 
   const resumo = document.getElementById("resumoBI");
@@ -1214,11 +1384,7 @@ function atualizarIndicadores() {
       chartMunicipiosRef = new Chart(ctx, {
         type: "bar",
         data: { labels, datasets: [{ label: "Postes por município", data }] },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { autoSkip: true, maxRotation: 0 } }, y: { beginAtZero: true } } }
       });
     }
   }
@@ -1229,8 +1395,7 @@ function atualizarIndicadores() {
       const csv = rowsToCSV(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      const a = document.createElement("a"); a.href = url;
       const sufixo = empresa ? `_${empresa.replace(/\W+/g,'_')}` : "";
       a.download = `postes_por_municipio${sufixo}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -1240,50 +1405,9 @@ function atualizarIndicadores() {
 }
 
 /* ====================================================================
-   TEMA ESCURO – PALETA DO PRINT
+   Reabertura do tooltip/popup após reconstrução do cluster
 ==================================================================== */
-(function injectDarkPanelStyles(){
-  const css = `
-  :root{
-    --ui-bg:#0f1b2a; --ui-elev:#132235; --ui-text:#e6edf7; --ui-muted:#9fb3c8;
-    --ui-border:#19d68f; --ui-border-dim:#134e37; --ui-accent:#18c77f; --ui-accent-2:#0fb171; --ui-danger:#ef4444;
-  }
-  .painel-busca{
-    color:var(--ui-text); background:var(--ui-bg); border:1px solid var(--ui-border);
-    border-radius:14px; box-shadow:0 8px 28px rgba(0,0,0,.25); padding:12px;
-  }
-  .painel-busca h2, .painel-busca h3{ margin:0 0 8px 0; font-weight:800; letter-spacing:.3px; color:var(--ui-text); }
-  .painel-busca input, .painel-busca select, .painel-busca textarea{
-    width:100%; background:var(--ui-elev); color:var(--ui-text); border:1px solid var(--ui-border);
-    border-radius:10px; padding:8px 10px; outline:none; transition:border-color .15s ease, box-shadow .15s ease;
-  }
-  .painel-busca input::placeholder, .painel-busca textarea::placeholder{ color:#89a2b7; }
-  .painel-busca input:focus, .painel-busca select:focus, .painel-busca textarea:focus{
-    border-color:var(--ui-accent); box-shadow:0 0 0 3px rgba(24,199,127,.25);
-  }
-  .painel-busca button, .painel-busca .actions button{
-    background:var(--ui-accent); color:#031d12; font-weight:800; border:1px solid var(--ui-border);
-    border-radius:10px; padding:8px 10px; cursor:pointer;
-    transition:transform .12s ease, background .15s ease, border-color .15s ease;
-  }
-  .painel-busca button:hover{ background:var(--ui-accent-2); transform:translateY(-1px); }
-  .painel-busca button:disabled{ opacity:.6; cursor:not-allowed; }
-
-  #tempo{
-    background:rgba(10,20,32,.9) !important; color:var(--ui-text) !important; border:1px solid var(--ui-border);
-  }
-  #tempo .hora-row{ color:var(--ui-text) !important; }
-  #tempo .hora-row .dot{ background:radial-gradient(circle at 40% 40%, var(--ui-accent), #0b6a45); box-shadow:0 0 0 2px rgba(24,199,127,.25) inset; }
-  #tempo .weather-card{ background:rgba(15,27,42,.92) !important; border:1px solid var(--ui-border); }
-  #tempo .tempo-text{ color:var(--ui-text) !important; }
-  #tempo .tempo-text small{ color:var(--ui-muted) !important; }
-  #tempo .map-row{ border-top:1px dashed rgba(25,214,143,.35) !important; }
-  #tempo .select-wrap{ background:#0d1a2b !important; color:var(--ui-text); border-color:var(--ui-border) !important; }
-  #tempo select{ color:var(--ui-text) !important; }
-  #tempo .select-wrap:focus-within{ box-shadow:0 0 0 3px rgba(24,199,127,.22) !important; border-color:var(--ui-accent) !important; }
-  `;
-  const style = document.createElement('style');
-  style.id = 'dark-poste-theme';
-  style.textContent = css;
-  document.head.appendChild(style);
-})();
+markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
