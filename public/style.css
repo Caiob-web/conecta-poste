@@ -309,3 +309,66 @@ html {
   .painel-busca .actions{ grid-template-columns: 1fr 1fr; }
   #widget-clima{ left:12px; right:auto; }
 }
+/* =========================================================
+   INDICADORES (BI) – Detalhes por Município
+   ========================================================= */
+
+.bi-detalhes{
+  margin-top: 10px;
+  border-top: 1px solid var(--borda);
+  padding-top: 10px;
+  font-size: 12px;
+  background: var(--bg-suave);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.bi-detalhes h4{
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--texto);
+}
+
+.bi-detalhes-resumo{
+  margin-bottom: 6px;
+  color: var(--texto-2);
+}
+
+.bi-detalhes-cols{
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr;
+  gap: 8px;
+}
+
+.bi-detalhes-cols strong{
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--texto-2);
+}
+
+.bi-mini-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bi-mini-table th,
+.bi-mini-table td{
+  padding: 4px 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.bi-mini-table th{
+  text-align: left;
+  background: #f9fafb;
+  color: var(--texto-2);
+}
+
+.bi-mini-table td.num{
+  text-align: right;
+}
+
