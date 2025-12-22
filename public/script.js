@@ -388,6 +388,7 @@ function setBase(mode) {
   else currentBase = osm;
   currentBase.addTo(map);
 }
+
 /* ====================================================================
    ÍCONE TRANSFORMADOR (embutido) — sem arquivo, sem 404
 ==================================================================== */
@@ -468,6 +469,147 @@ window.addEventListener("DOMContentLoaded", () => {
     img.src = TRANSFORMADOR_DATAURI;
   });
 });
+
+/* ====================================================================
+   ✅ TRANSFORMADORES NO MAPA (junto com os postes) — SEM /assets/*
+   - camada própria
+   - pane acima dos postes
+   - toggle chkTransformadores
+==================================================================== */
+const transformadoresLayer = L.layerGroup();
+let transformadoresCache = null;
+let transformadoresCarregados = false;
+
+// Pane acima dos postes (círculos/cluster) e abaixo do tooltip
+const _paneTr = map.getPane("transformadores") || map.createPane("transformadores");
+_paneTr.style.zIndex = 645; // fica “por cima” dos postes
+
+const ICON_TRANSFORMADOR = L.icon({
+  iconUrl: TRANSFORMADOR_DATAURI,
+  iconSize: [38, 38],
+  iconAnchor: [19, 24],
+  tooltipAnchor: [0, -18],
+  popupAnchor: [0, -22],
+});
+
+function montarPopupTransformadorCard(t) {
+  const id = t.ID_transformador ?? t.id_transformador ?? t.id ?? "-";
+  const ref = t.referencia_eletrica ?? t.referencia ?? "-";
+  const muni = t.nome_municipio ?? t.municipio ?? "-";
+  const zona = t.tipo_zona ?? t.zona ?? "-";
+  const config = t.config ?? t.configuracao ?? "-";
+  const cap = t.cap_nominal ?? t.capacidade ?? "-";
+  const oleo = t.tipo_oleo ?? t.oleo ?? "-";
+  const coords = t.coordenadas ?? `${t.lat ?? ""}, ${t.lon ?? ""}`;
+
+  return `
+    <div class="mp-card">
+      <div class="mp-header">
+        <div class="mp-header-title">Transformador</div>
+        <div class="mp-header-sub">ID: ${escapeHtml(id)}</div>
+      </div>
+
+      <div class="mp-local">
+        <div class="mp-local-principal">${escapeHtml(muni)}</div>
+        <div class="mp-local-secundario">${escapeHtml(zona)} · ${escapeHtml(ref)}</div>
+        <div class="mp-local-coord">Coord: ${escapeHtml(coords)}</div>
+      </div>
+
+      <div class="mp-empresas-lista">
+        <div class="mp-empresa-item" style="cursor:default;">
+          <div class="mp-empresa-textos">
+            <div class="mp-empresa-nome">Config: <b>${escapeHtml(config)}</b></div>
+            <div class="mp-empresa-extra" style="display:block;">Cap. nominal: <b>${escapeHtml(cap)}</b></div>
+            <div class="mp-empresa-extra" style="display:block;">Tipo óleo: <b>${escapeHtml(oleo)}</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function abrirPopupTransformador(t) {
+  const html = montarPopupTransformadorCard(t);
+  lastPopup = { lat: t.lat, lon: t.lon, html };
+  popupPinned = true;
+  mainPopup.setLatLng([t.lat, t.lon]).setContent(html);
+  if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
+}
+
+function criarMarkerTransformador(t) {
+  const id = t.ID_transformador ?? t.id_transformador ?? t.id ?? "-";
+
+  const mk = L.marker([t.lat, t.lon], {
+    icon: ICON_TRANSFORMADOR,
+    pane: "transformadores",
+    zIndexOffset: 1000,
+  });
+
+  mk.bindTooltip(`TR: ${id}`, { direction: "top", sticky: true });
+
+  mk.on("click", (e) => {
+    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+    abrirPopupTransformador(t);
+  });
+
+  return mk;
+}
+
+async function carregarTransformadores() {
+  if (transformadoresCarregados && Array.isArray(transformadoresCache)) return;
+
+  try {
+    const res = await fetch("/api/transformadores", { credentials: "include" });
+    if (res.status === 401) {
+      window.location.href = "/login.html";
+      throw new Error("Não autorizado");
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    transformadoresCache = Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("Erro ao carregar transformadores:", err);
+    transformadoresCache = [];
+  } finally {
+    transformadoresCarregados = true;
+  }
+}
+
+function renderizarTransformadores() {
+  transformadoresLayer.clearLayers();
+  if (!Array.isArray(transformadoresCache) || !transformadoresCache.length) return;
+
+  for (const t0 of transformadoresCache) {
+    const coords = String(t0.coordenadas || "").split(/,\s*/).map(Number);
+    const lat = Number.isFinite(coords[0]) ? coords[0] : Number(t0.lat);
+    const lon = Number.isFinite(coords[1]) ? coords[1] : Number(t0.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    const t = { ...t0, lat, lon };
+    transformadoresLayer.addLayer(criarMarkerTransformador(t));
+  }
+}
+
+function syncTransformadoresToggle() {
+  const chk = document.getElementById("chkTransformadores");
+  if (!chk) return;
+
+  const apply = async () => {
+    if (chk.checked) {
+      if (!map.hasLayer(transformadoresLayer)) transformadoresLayer.addTo(map);
+      await carregarTransformadores();
+      renderizarTransformadores();
+    } else {
+      if (map.hasLayer(transformadoresLayer)) map.removeLayer(transformadoresLayer);
+    }
+  };
+
+  chk.addEventListener("change", apply);
+  apply();
+}
+
+window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
+
 // -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
@@ -540,72 +682,6 @@ function reabrirTooltipFixo(delay = 0) {
   };
   delay ? setTimeout(open, delay) : open();
 }
-
-// Cria (ou retorna do cache) o layer do poste
-function criarLayerPoste(p){
-  const key = keyId(p.id);
-  if (idToMarker.has(key)) return idToMarker.get(key);
-
-  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
-
-  const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
-    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
-    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
-    .on("click", (e) => {
-      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      lastTip = { id: key }; tipPinned = true;
-      try { layer.openTooltip?.(); } catch {}
-      abrirPopup(p);
-    });
-  layer.posteData = p;
-  idToMarker.set(key, layer);
-  return layer;
-}
-
-// Reconstrói tudo do zero (modo “cura tudo”)
-function hardReset(){
-  markers.clearLayers();
-  idToMarker.clear();
-  const layers = todosPostes.map(criarLayerPoste);
-  if (layers.length) markers.addLayers(layers);
-  refreshClustersSoon();
-}
-
-// Adiciona 1 poste (usado em filtros, etc.)
-function adicionarMarker(p) {
-  const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
-}
-
-// Exibe TODOS os já criados no cache
-function exibirTodosPostes() {
-  const arr = Array.from(idToMarker.values());
-  markers.clearLayers();
-  if (arr.length) markers.addLayers(arr);
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
-}
-
-// Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
-function carregarTodosPostesGradualmente() {
-  if (todosCarregados) { exibirTodosPostes(); return; }
-  const lote = document.hidden ? 3500 : 1200;
-  let i = 0;
-  function addChunk() {
-    const slice = todosPostes.slice(i, i + lote);
-    const layers = slice.map(criarLayerPoste);
-    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
-    i += lote;
-    if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
-  }
-  scheduleIdle(addChunk);
-}
-
-// ---- Indicadores / BI (refs de gráfico) ----
-let chartMunicipiosRef = null;
 
 // Dados e sets para autocomplete
 const todosPostes = [];
@@ -728,6 +804,73 @@ if (overlay) overlay.style.display = "flex";
   const selectBase = card.querySelector("#select-base");
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
+
+// Cria (ou retorna do cache) o layer do poste
+function criarLayerPoste(p){
+  const key = keyId(p.id);
+  if (idToMarker.has(key)) return idToMarker.get(key);
+
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
+
+  const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
+    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
+    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
+    .on("click", (e) => {
+      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      lastTip = { id: key }; tipPinned = true;
+      try { layer.openTooltip?.(); } catch {}
+      abrirPopup(p);
+    });
+  layer.posteData = p;
+  idToMarker.set(key, layer);
+  return layer;
+}
+
+// Reconstrói tudo do zero (modo “cura tudo”)
+function hardReset(){
+  markers.clearLayers();
+  idToMarker.clear();
+  const layers = todosPostes.map(criarLayerPoste);
+  if (layers.length) markers.addLayers(layers);
+  refreshClustersSoon();
+}
+
+// Adiciona 1 poste (usado em filtros, etc.)
+function adicionarMarker(p) {
+  const layer = criarLayerPoste(p);
+  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
+}
+
+// Exibe TODOS os já criados no cache
+function exibirTodosPostes() {
+  const arr = Array.from(idToMarker.values());
+  markers.clearLayers();
+  if (arr.length) markers.addLayers(arr);
+  refreshClustersSoon();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
+}
+
+// Carrega gradativamente TODOS os postes (uma vez) e mantém no mapa
+function carregarTodosPostesGradualmente() {
+  if (todosCarregados) { exibirTodosPostes(); return; }
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
+  function addChunk() {
+    const slice = todosPostes.slice(i, i + lote);
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
+    i += lote;
+    if (i < todosPostes.length) scheduleIdle(addChunk);
+    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
+  }
+  scheduleIdle(addChunk);
+}
+
+// ---- Indicadores / BI (refs de gráfico) ----
+let chartMunicipiosRef = null;
+let censoMode = false, censoIds = null;
 
 // ---------------------------------------------------------------------
 // Carrega /api/postes, trata 401 redirecionando
@@ -1279,75 +1422,7 @@ function consultarIDsEmMassa() {
     }
   });
   map.addLayer(markers); refreshClustersSoon();
-/* ====================================================================
-   TRANSFORMADORES — Camada própria no mapa
-==================================================================== */
 
-// Pane pra controlar prioridade de desenho
-const transformadoresPane = map.createPane("transformadores");
-transformadoresPane.style.zIndex = 635; // acima do marker padrão (600) e abaixo do tooltip/popup
-
-// Ícone do transformador (coloque o arquivo em /public/assets/transformador.png)
-const ICON_TRANSFORMADOR = L.icon({
-  iconUrl: "/assets/transformador.png",
-  iconSize: [56, 56],
-  iconAnchor: [28, 40],
-  tooltipAnchor: [0, -30],
-  popupAnchor: [0, -40],
-});
-
-// Cluster opcional só pra transformadores (usa o mesmo estilo numérico)
-const transformadoresMarkers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
-  maxClusterRadius: 60,
-  disableClusteringAtZoom: 18,
-  chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({
-      html: String(cluster.getChildCount()),
-      className: "cluster-num-only",
-      iconSize: null,
-    }),
-});
-
-map.addLayer(transformadoresMarkers);
-
-// Cache opcional
-const transformadores = [];
-const idToTransformadorMarker = new Map();
-
-// ------------------------------------------------------------
-// Toggle (checkbox) — Mostrar/ocultar Transformadores
-// ------------------------------------------------------------
-function syncTransformadoresToggle() {
-  const chk = document.getElementById("chkTransformadores");
-  if (!chk) return;
-
-  const apply = () => {
-    if (chk.checked) {
-      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
-      // carrega só na primeira vez (ou se ainda não carregou)
-      if (!transformadores.length) carregarTransformadores();
-    } else {
-      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
-      // fecha popup se estiver aberto em um transformador (opcional)
-      // (não dá pra detectar 100% sem flag; então mantemos simples)
-    }
-  };
-
-  chk.addEventListener("change", apply);
-  apply(); // aplica estado inicial (checked)
-}
-
-// chama quando o DOM estiver pronto
-window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
-
-
-  
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
