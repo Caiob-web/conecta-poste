@@ -1200,7 +1200,50 @@ function consultarIDsEmMassa() {
     }
   });
   map.addLayer(markers); refreshClustersSoon();
+/* ====================================================================
+   TRANSFORMADORES — Camada própria no mapa
+==================================================================== */
 
+// Pane pra controlar prioridade de desenho
+const transformadoresPane = map.createPane("transformadores");
+transformadoresPane.style.zIndex = 635; // acima do marker padrão (600) e abaixo do tooltip/popup
+
+// Ícone do transformador (coloque o arquivo em /public/assets/transformador.png)
+const ICON_TRANSFORMADOR = L.icon({
+  iconUrl: "/assets/transformador.png",
+  iconSize: [56, 56],
+  iconAnchor: [28, 40],
+  tooltipAnchor: [0, -30],
+  popupAnchor: [0, -40],
+});
+
+// Cluster opcional só pra transformadores (usa o mesmo estilo numérico)
+const transformadoresMarkers = L.markerClusterGroup({
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: false,
+  maxClusterRadius: 60,
+  disableClusteringAtZoom: 18,
+  chunkedLoading: true,
+  chunkDelay: 5,
+  chunkInterval: 50,
+  iconCreateFunction: (cluster) =>
+    new L.DivIcon({
+      html: String(cluster.getChildCount()),
+      className: "cluster-num-only",
+      iconSize: null,
+    }),
+});
+
+map.addLayer(transformadoresMarkers);
+
+// Cache opcional
+const transformadores = [];
+const idToTransformadorMarker = new Map();
+
+
+
+  
   const coords = encontrados.map((p) => [p.lat, p.lon]);
   if (coords.length >= 2) {
     window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
