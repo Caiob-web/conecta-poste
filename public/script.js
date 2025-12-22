@@ -388,7 +388,86 @@ function setBase(mode) {
   else currentBase = osm;
   currentBase.addTo(map);
 }
+/* ====================================================================
+   ÍCONE TRANSFORMADOR (embutido) — sem arquivo, sem 404
+==================================================================== */
+const TRANSFORMADOR_DATAURI = (() => {
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <defs>
+      <linearGradient id="gBody" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#f4f4f4"/>
+        <stop offset="1" stop-color="#cfcfcf"/>
+      </linearGradient>
+      <linearGradient id="gMetal" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#bfc7cf"/>
+        <stop offset="0.55" stop-color="#ffffff"/>
+        <stop offset="1" stop-color="#9aa3ad"/>
+      </linearGradient>
+      <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+        <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/>
+      </filter>
+    </defs>
 
+    <!-- base -->
+    <g filter="url(#shadow)">
+      <rect x="10" y="45" width="44" height="9" rx="3" fill="url(#gMetal)" stroke="#7f8a96" stroke-width="1"/>
+      <rect x="14" y="54" width="14" height="5" rx="2.5" fill="#d6dde4" stroke="#7f8a96" stroke-width="1"/>
+      <rect x="36" y="54" width="14" height="5" rx="2.5" fill="#d6dde4" stroke="#7f8a96" stroke-width="1"/>
+    </g>
+
+    <!-- corpo -->
+    <g filter="url(#shadow)">
+      <rect x="14" y="18" width="36" height="26" rx="5" fill="url(#gBody)" stroke="#8b8b8b" stroke-width="1"/>
+
+      <!-- aletas -->
+      <g opacity="0.95">
+        <rect x="18" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+        <rect x="22" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
+        <rect x="26" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+        <rect x="30" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
+        <rect x="34" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+        <rect x="38" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
+        <rect x="42" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+      </g>
+
+      <!-- “alças” laterais -->
+      <path d="M14 22c-5 2-5 16 0 18" fill="none" stroke="#7f7f7f" stroke-width="2" opacity="0.75"/>
+      <path d="M50 22c5 2 5 16 0 18" fill="none" stroke="#7f7f7f" stroke-width="2" opacity="0.75"/>
+
+      <!-- buchas -->
+      <g>
+        <g transform="translate(22 6)">
+          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
+          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
+          <rect x="-1.8" y="4" width="3.6" height="2" rx="1" fill="#7a5431" opacity="0.9"/>
+          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
+        </g>
+        <g transform="translate(32 6)">
+          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
+          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
+          <rect x="-1.8" y="4" width="3.6" height="2" rx="1" fill="#7a5431" opacity="0.9"/>
+          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
+        </g>
+        <g transform="translate(42 6)">
+          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
+          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
+          <rect x="-1.8" y="4" width="3.6" height="2" rx="1" fill="#7a5431" opacity="0.9"/>
+          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
+        </g>
+      </g>
+    </g>
+  </svg>`.trim();
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+})();
+
+// Preenche automaticamente os <img data-icon="transformador"> do HTML
+window.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('img[data-icon="transformador"]').forEach((img) => {
+    img.src = TRANSFORMADOR_DATAURI;
+  });
+});
 // -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
