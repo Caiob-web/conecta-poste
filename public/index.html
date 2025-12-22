@@ -102,14 +102,43 @@
       .painel-busca .actions button:active { transform: translateY(1px) scale(.98); }
       .painel-busca .actions button .fa { margin-right: 6px; }
 
+      /* ✅ Toggle de camadas (Transformadores) */
+      .layer-toggle{
+        display:flex; align-items:center; gap:10px;
+        padding:10px 12px;
+        border:1px solid var(--ui-border);
+        border-radius:10px;
+        background: var(--ui-elev);
+        margin: 10px 0 8px;
+        user-select:none;
+      }
+      .layer-toggle input{
+        width:18px; height:18px;
+        accent-color: var(--ui-accent);
+        cursor:pointer;
+      }
+      .layer-toggle .txt{
+        display:flex; flex-direction:column; gap:2px;
+        font-size:13px; color: var(--ui-text);
+      }
+      .layer-toggle .txt small{ color: var(--ui-muted); font-size:11px; }
+      .layer-toggle img{
+        width:22px; height:22px; object-fit:contain;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
+      }
+
       .legenda {
         position: absolute; bottom: 20px; right: 20px; background: rgba(15, 27, 42, 0.92); color: var(--ui-text);
         padding: 12px 14px; border-radius: 12px; border: 1px solid var(--ui-border);
         font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; font-size: 13px; box-shadow: var(--shadow); z-index: 900;
       }
-      .legenda-item { display: flex; align-items: center; margin-bottom: 6px; }
+      .legenda-item { display: flex; align-items: center; margin-bottom: 6px; gap:8px; }
       .legenda-item:last-child{ margin-bottom:0; }
-      .legenda-item .bolinha { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; border: 1px solid var(--ui-border); }
+      .legenda-item .bolinha { width: 12px; height: 12px; border-radius: 50%; margin-right: 0; border: 1px solid var(--ui-border); }
+      .legenda-item .ico{
+        width:20px; height:20px; object-fit:contain;
+        filter: drop-shadow(0 2px 3px rgba(0,0,0,.35));
+      }
 
       .botao-topo {
         position: fixed; right: calc(var(--dock-w) + 16px); width: 42px; height: 42px;
@@ -208,6 +237,18 @@
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
       </div>
 
+      <!-- ✅ Toggle Transformadores -->
+      <div class="layer-toggle" title="Exibir/ocultar os transformadores no mapa">
+        <img src="/assets/transformador.png" alt="Transformador">
+        <label class="txt" style="cursor:pointer;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" id="chkTransformadores" checked />
+            <span><b>Mostrar transformadores</b></span>
+          </div>
+          <small>Ícone no mapa + popup com dados do transformador</small>
+        </label>
+      </div>
+
       <!-- HUD (agora AQUI, logo abaixo das funções) -->
       <div id="widget-clima" class="dock-hud">
         <div id="tempo"></div>
@@ -216,6 +257,10 @@
 
     <!-- Legenda -->
     <div class="legenda">
+      <div class="legenda-item">
+        <img class="ico" src="/assets/transformador.png" alt="Transformador">
+        Transformador
+      </div>
       <div class="legenda-item"><div class="bolinha" style="background: yellow"></div>Poste intermediário</div>
       <div class="legenda-item"><div class="bolinha" style="background: green"></div>Até 5 empresas</div>
       <div class="legenda-item"><div class="bolinha" style="background: red"></div>Mais de 5 empresas</div>
