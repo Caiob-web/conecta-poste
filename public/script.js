@@ -1241,6 +1241,31 @@ map.addLayer(transformadoresMarkers);
 const transformadores = [];
 const idToTransformadorMarker = new Map();
 
+// ------------------------------------------------------------
+// Toggle (checkbox) — Mostrar/ocultar Transformadores
+// ------------------------------------------------------------
+function syncTransformadoresToggle() {
+  const chk = document.getElementById("chkTransformadores");
+  if (!chk) return;
+
+  const apply = () => {
+    if (chk.checked) {
+      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
+      // carrega só na primeira vez (ou se ainda não carregou)
+      if (!transformadores.length) carregarTransformadores();
+    } else {
+      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
+      // fecha popup se estiver aberto em um transformador (opcional)
+      // (não dá pra detectar 100% sem flag; então mantemos simples)
+    }
+  };
+
+  chk.addEventListener("change", apply);
+  apply(); // aplica estado inicial (checked)
+}
+
+// chama quando o DOM estiver pronto
+window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
 
   
