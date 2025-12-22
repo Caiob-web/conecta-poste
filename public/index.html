@@ -20,9 +20,8 @@
                              : (performance && performance.navigation ? performance.navigation.type === 1 : false);
 
           if (isReload) {
-            // tenta encerrar a sessão no backend (se existir) e volta para o login
             fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" })
-              .catch(function(){ /* ignora se offline */ })
+              .catch(function(){})
               .finally(function(){
                 try {
                   localStorage.removeItem("auth_user");
@@ -32,7 +31,7 @@
                 location.replace("/login.html");
               });
           }
-        } catch (e) { /* silencioso */ }
+        } catch (e) {}
       })();
     </script>
 
@@ -249,7 +248,7 @@
         </label>
       </div>
 
-      <!-- HUD (agora AQUI, logo abaixo das funções) -->
+      <!-- HUD -->
       <div id="widget-clima" class="dock-hud">
         <div id="tempo"></div>
       </div>
@@ -275,15 +274,14 @@
       <div class="texto-loading">Carregando postes…</div>
     </div>
 
-    <!-- JS -->
+    <!-- JS (libs primeiro) -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-
-    <!-- App -->
-    <script src="script.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
+
+    <!-- App por último -->
+    <script src="script.js"></script>
   </body>
 </html>
