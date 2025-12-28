@@ -1,9 +1,8 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
-//  ✅ Postes em bolinhas (circleMarker) — agora menores e em Canvas
+//  ✅ Postes em bolinhas (circleMarker)
 //  ✅ Transformadores: ícone PNG (se existir) com fallback embutido + popup completo
-//  ✅ Renderização dinâmica por BBOX (carrega só postes da área visível)
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
@@ -260,10 +259,7 @@
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
-const map = L.map("map", { preferCanvas: true }).setView([-23.2, -45.9], 12);
-
-// Renderer em Canvas para os circleMarkers (bem mais leve)
-const canvasRenderer = L.canvas({ padding: 0.5 });
+const map = L.map("map").setView([-23.2, -45.9], 12);
 
 // Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
@@ -279,14 +275,14 @@ const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
 osm.addTo(map);
 
-// estilo dos pontos (postes) — AGORA MENORES
+// estilo dos pontos (postes)
 function dotStyle(qtdEmpresas){
   return {
-    radius: 4,
+    radius: 6,
     color: "#fff",
-    weight: 0.8,
+    weight: 1,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
-    fillOpacity: 0.9
+    fillOpacity: 0.95
   };
 }
 
@@ -343,6 +339,9 @@ if (overlay) overlay.style.display = "flex";
 
 /* ====================================================================
    TRANSFORMADORES — camada própria
+   ✅ Usa PNG /assets/transformador.png se existir
+   ✅ Se não existir, usa fallback embutido (sem 404 no console)
+   ✅ Popup mostra TODAS as colunas da tabela
 ==================================================================== */
 const TRANSFORMADOR_PNG_URL = "/assets/transformador.png";
 
@@ -583,21 +582,34 @@ async function carregarTransformadores() {
   }
 }
 
+/* ====================================================================
+   Transformadores: toggle NÃO carrega mais na abertura
+   Só busca dados quando o usuário marcar o checkbox
+==================================================================== */
 function syncTransformadoresToggle() {
   const chk = document.getElementById("chkTransformadores");
   if (!chk) return;
 
-  const apply = async () => {
+  // Garante que, na abertura, os transformadores NÃO estão visíveis
+  chk.checked = false;
+  if (map.hasLayer(transformadoresMarkers)) {
+    map.removeLayer(transformadoresMarkers);
+  }
+
+  const onChange = async () => {
     if (chk.checked) {
-      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
+      if (!map.hasLayer(transformadoresMarkers)) {
+        map.addLayer(transformadoresMarkers);
+      }
       await carregarTransformadores();
     } else {
-      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
+      if (map.hasLayer(transformadoresMarkers)) {
+        map.removeLayer(transformadoresMarkers);
+      }
     }
   };
 
-  chk.addEventListener("change", apply);
-  apply();
+  chk.addEventListener("change", onChange);
 }
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
@@ -609,8 +621,8 @@ const markers = L.markerClusterGroup({
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
-  chunkDelay: 10,
-  chunkInterval: 40,
+  chunkDelay: 5,
+  chunkInterval: 50,
   iconCreateFunction: (cluster) =>
     new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
@@ -634,10 +646,9 @@ markers.on("clusterclick", (e) => {
 
 map.addLayer(markers);
 
-// -------------------- Carregamento GRADATIVO / DINÂMICO --------------
-// cache: id(string) -> L.Layer
-const idToMarker = new Map();
-let todosCarregados = false; // não mais usado como antes, mas mantido
+// -------------------- Carregamento GRADATIVO GLOBAL ------------------
+const idToMarker = new Map();   // cache: id(string) -> L.Layer
+let todosCarregados = false;
 function keyId(id){ return String(id); }
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
@@ -685,13 +696,6 @@ const bairrosSet = new Set();
 const logradourosSet = new Set();
 let censoMode = false, censoIds = null;
 
-// Controle de renderização dinâmica (BBOX)
-const visivelIds = new Set();
-let modoFiltroAtivo = false;      // Filtro / Análise de Projeto desligam BBOX
-let renderTimeout = null;
-const MAX_MARKERS_VISIVEIS = 12000;
-const MARGEM_BOUNDS = 0.2;
-
 // Helpers pra lidar com empresas (nome + id_insercao)
 function getEmpresasNomesArray(p) {
   if (!Array.isArray(p.empresas)) return [];
@@ -717,10 +721,7 @@ function criarLayerPoste(p){
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
 
-  const layer = L.circleMarker([p.lat, p.lon], {
-      ...dotStyle(qtd),
-      renderer: canvasRenderer
-    })
+  const layer = L.circleMarker([p.lat, p.lon], dotStyle(qtd))
     .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
     .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
@@ -735,23 +736,22 @@ function criarLayerPoste(p){
   return layer;
 }
 
-// Reconstrói tudo do zero para modo "padrão" (BBOX)
+// Reconstrói tudo do zero (modo “cura tudo”)
 function hardReset(){
   markers.clearLayers();
-  visivelIds.clear();
-  carregarTodosPostesGradualmente();
+  idToMarker.clear();
+  const layers = todosPostes.map(criarLayerPoste);
+  if (layers.length) markers.addLayers(layers);
+  refreshClustersSoon();
 }
 
-// Adiciona 1 poste (usado por filtros / análise)
+// Adiciona 1 poste
 function adicionarMarker(p) {
   const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) {
-    markers.addLayer(layer);
-    refreshClustersSoon();
-  }
+  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
 }
 
-// Exibe TODOS os já criados no cache (não usamos mais p/ 620k, mas mantido)
+// Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
@@ -761,77 +761,21 @@ function exibirTodosPostes() {
   reabrirPopupFixo(0);
 }
 
-// =================== NOVO: Renderização dinâmica por BBOX =============
-function atualizarPostesVisiveis(options = {}) {
-  if (modoFiltroAtivo || censoMode) return; // filtro/censo/análise desligam BBOX
-  const { force = false } = options;
-  if (!todosPostes.length) return;
-
-  const bounds = map.getBounds().pad(MARGEM_BOUNDS);
-
-  const candidatos = [];
-  for (const p of todosPostes) {
-    if (bounds.contains([p.lat, p.lon])) candidatos.push(p);
-  }
-
-  let subset = candidatos;
-  if (candidatos.length > MAX_MARKERS_VISIVEIS) {
-    subset = candidatos.slice(0, MAX_MARKERS_VISIVEIS);
-  }
-
-  const newIds = new Set(subset.map((p) => keyId(p.id)));
-
-  if (!force && newIds.size === visivelIds.size) {
-    let mudou = false;
-    for (const id of newIds) {
-      if (!visivelIds.has(id)) { mudou = true; break; }
-    }
-    if (!mudou) return;
-  }
-
-  // Remover o que saiu
-  visivelIds.forEach((id) => {
-    if (!newIds.has(id)) {
-      const layer = idToMarker.get(id);
-      if (layer && markers.hasLayer(layer)) {
-        markers.removeLayer(layer);
-      }
-    }
-  });
-
-  // Adicionar o que entrou
-  const layersToAdd = [];
-  subset.forEach((p) => {
-    const id = keyId(p.id);
-    if (!visivelIds.has(id)) {
-      const layer = criarLayerPoste(p);
-      if (layer) layersToAdd.push(layer);
-    }
-  });
-
-  if (layersToAdd.length) {
-    markers.addLayers(layersToAdd);
-  }
-
-  visivelIds.clear();
-  newIds.forEach((id) => visivelIds.add(id));
-
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
-}
-
-// Carrega "todos" agora = só os visíveis (BBOX)
+// Carrega gradativamente TODOS os postes (uma vez)
 function carregarTodosPostesGradualmente() {
-  atualizarPostesVisiveis({ force: true });
+  if (todosCarregados) { exibirTodosPostes(); return; }
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
+  function addChunk() {
+    const slice = todosPostes.slice(i, i + lote);
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
+    i += lote;
+    if (i < todosPostes.length) scheduleIdle(addChunk);
+    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
+  }
+  scheduleIdle(addChunk);
 }
-
-// Recalcula postes visíveis ao mover/zoom
-map.on("moveend zoomend", () => {
-  if (!todosPostes.length || modoFiltroAtivo || censoMode) return;
-  if (renderTimeout) clearTimeout(renderTimeout);
-  renderTimeout = setTimeout(() => atualizarPostesVisiveis(), 150);
-});
 
 // ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
@@ -957,7 +901,7 @@ fetch("/api/postes", { credentials: "include" })
     });
 
     preencherListas();
-    carregarTodosPostesGradualmente(); // BBOX inicial
+    carregarTodosPostesGradualmente();
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
@@ -1033,14 +977,12 @@ function gerarExcelCliente(filtroIds) {
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso")?.addEventListener("click", async () => {
   censoMode = !censoMode;
-  modoFiltroAtivo = false;
 
   markers.clearLayers();
-  visivelIds.clear();
   refreshClustersSoon();
 
   if (!censoMode) {
-    hardReset();
+    exibirTodosPostes();
     reabrirTooltipFixo(0);
     reabrirPopupFixo(0);
     return;
@@ -1055,7 +997,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      hardReset();
+      exibirTodosPostes();
       reabrirTooltipFixo(0);
       reabrirPopupFixo(0);
       return;
@@ -1066,7 +1008,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
     .filter((p) => censoIds.has(String(p.id)))
     .forEach((poste) => {
       const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 4, color: "#666", fillColor: "#bbb", weight: 1.5, fillOpacity: 0.8, renderer: canvasRenderer
+        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8
       }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
 
       c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
@@ -1119,17 +1061,10 @@ function filtrarLocal() {
 
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
 
-  modoFiltroAtivo = true;
-  censoMode = false;
   markers.clearLayers();
-  visivelIds.clear();
   refreshClustersSoon();
-
-  const layers = filtro.map(criarLayerPoste);
-  if (layers.length) {
-    markers.addLayers(layers);
-    refreshClustersSoon();
-  }
+  filtro.forEach(adicionarMarker);
+  refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 
@@ -1162,22 +1097,6 @@ function filtrarLocal() {
 function resetarMapa() {
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
-  modoFiltroAtivo = false;
-  censoMode = false;
-
-  if (window.tracadoMassivo) {
-    try { map.removeLayer(window.tracadoMassivo); } catch {}
-    window.tracadoMassivo = null;
-  }
-  if (Array.isArray(window.intermediarios)) {
-    window.intermediarios.forEach((m) => { try { map.removeLayer(m); } catch {} });
-    window.intermediarios = [];
-  }
-  if (Array.isArray(window.numeroMarkers)) {
-    window.numeroMarkers.forEach((m) => { try { map.removeLayer(m); } catch {} });
-    window.numeroMarkers = [];
-  }
-
   hardReset();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
@@ -1419,11 +1338,7 @@ function consultarIDsEmMassa() {
 
   if (!ids.length) return alert("Nenhum ID fornecido.");
 
-  modoFiltroAtivo = true;
-  censoMode = false;
-
   markers.clearLayers();
-  visivelIds.clear();
   refreshClustersSoon();
 
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
@@ -1452,7 +1367,7 @@ function consultarIDsEmMassa() {
         .forEach((p) => {
           const empresasStr = empresasToString(p) || "Disponível";
           const m = L.circleMarker([p.lat, p.lon], {
-              radius: 4, color: "gold", fillColor: "yellow", fillOpacity: 0.8, weight: 1, renderer: canvasRenderer
+              radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
             })
             .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
