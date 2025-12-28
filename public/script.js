@@ -582,21 +582,34 @@ async function carregarTransformadores() {
   }
 }
 
+/* ====================================================================
+   Transformadores: toggle NÃO carrega mais na abertura
+   Só busca dados quando o usuário marcar o checkbox
+==================================================================== */
 function syncTransformadoresToggle() {
   const chk = document.getElementById("chkTransformadores");
   if (!chk) return;
 
-  const apply = async () => {
+  // Garante que, na abertura, os transformadores NÃO estão visíveis
+  chk.checked = false;
+  if (map.hasLayer(transformadoresMarkers)) {
+    map.removeLayer(transformadoresMarkers);
+  }
+
+  const onChange = async () => {
     if (chk.checked) {
-      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
+      if (!map.hasLayer(transformadoresMarkers)) {
+        map.addLayer(transformadoresMarkers);
+      }
       await carregarTransformadores();
     } else {
-      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
+      if (map.hasLayer(transformadoresMarkers)) {
+        map.removeLayer(transformadoresMarkers);
+      }
     }
   };
 
-  chk.addEventListener("change", apply);
-  apply();
+  chk.addEventListener("change", onChange);
 }
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
