@@ -1,8 +1,9 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
-//  ✅ Postes em bolinhas (circleMarker)
-//  ✅ Transformadores: ícone PNG (se existir) com fallback embutido + popup completo
+//  ✅ Postes em bolinhas (circleMarker) — AGORA MENORES
+//  ✅ Transformadores só carregam quando marcar o checkbox
+//  ✅ GeoJSON por município (28 arquivos) + logos das prefeituras
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
@@ -170,7 +171,7 @@
       border-radius: 6px; overflow: hidden; border: 1px solid #e6e6e6; margin-top:6px;
     }
     .mp-empresa-item {
-      display: flex; align-items: center; padding: 6px 8px; background: #fdfdfd; cursor:pointer;
+     	display: flex; align-items: center; padding: 6px 8px; background: #fdfdfd; cursor:pointer;
     }
     .mp-empresa-item + .mp-empresa-item { border-top: 1px solid #eee; }
     .mp-empresa-status { margin-right: 8px; }
@@ -258,6 +259,87 @@
   document.head.appendChild(style);
 })();
 
+/* ====================================================================
+   Modal inicial: "Ver todos os postes" x "Ver por município"
+==================================================================== */
+(function injectInicioModalStyles(){
+  const css = `
+    .mi-backdrop{
+      position:fixed; inset:0; background:rgba(15,23,42,.88);
+      display:none; align-items:center; justify-content:center;
+      z-index:3500;
+    }
+    .mi-card{
+      width:min(960px,95vw); max-height:90vh;
+      background:#020617; border-radius:16px;
+      box-shadow:0 24px 80px rgba(0,0,0,.7);
+      padding:20px 22px; border:1px solid rgba(148,163,184,.5);
+      color:#e5e7eb; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    }
+    .mi-header{ margin-bottom:16px; }
+    .mi-title{ font-size:18px; font-weight:700; margin-bottom:4px; }
+    .mi-sub{ font-size:13px; color:#9ca3af; }
+    .mi-actions-row{
+      display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;
+    }
+    .mi-btn{
+      border-radius:999px; border:1px solid #22c55e;
+      background:#16a34a; color:#022c22;
+      padding:10px 16px; font-size:14px; font-weight:700;
+      cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      box-shadow:0 6px 18px rgba(22,163,74,.55);
+    }
+    .mi-btn.secondary{
+      background:transparent; color:#e5e7eb;
+      border-color:#4b5563; box-shadow:none;
+    }
+    .mi-btn span.icon{ font-size:16px; }
+    .mi-grid-title{
+      font-size:13px; font-weight:600; margin-bottom:6px; color:#9ca3af;
+    }
+    .mi-grid{
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+      gap:10px; max-height:260px; overflow:auto; padding-right:4px;
+    }
+    .mun-card{
+      background:#020617; border-radius:12px;
+      border:1px solid #1f2937; padding:8px 8px 10px;
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      cursor:pointer;
+      transition:border-color .15s ease, box-shadow .15s ease, transform .08s ease, background .15s ease;
+    }
+    .mun-card:hover{
+      border-color:#22c55e; box-shadow:0 0 0 1px rgba(34,197,94,.4);
+      transform:translateY(-1px);
+    }
+    .mun-card.selected{
+      border-color:#22c55e; background:rgba(22,163,74,.18);
+      box-shadow:0 0 0 1px rgba(34,197,94,.6);
+    }
+    .mun-logo-wrap{
+      width:52px; height:52px; border-radius:999px; overflow:hidden;
+      background:#020617; display:flex; align-items:center; justify-content:center;
+    }
+    .mun-logo-wrap img{ width:100%; height:100%; object-fit:cover; }
+    .mun-card span{
+      font-size:11px; text-align:center; line-height:1.2; text-transform:uppercase;
+    }
+    .mi-footer{
+      margin-top:12px; display:flex; justify-content:space-between;
+      align-items:center; gap:10px; font-size:11px; color:#9ca3af;
+    }
+    .mi-footer-right{ display:flex; gap:8px; }
+    @media (max-width:640px){
+      .mi-card{ padding:16px; }
+      .mi-grid{ max-height:220px; }
+      .mi-footer{ flex-direction:column; align-items:flex-start; }
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
 // ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map").setView([-23.2, -45.9], 12);
 
@@ -275,14 +357,17 @@ const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
 osm.addTo(map);
 
-// estilo dos pontos (postes)
+// Camada para polígonos dos municípios (GeoJSON)
+const municipiosLayer = L.layerGroup().addTo(map);
+
+// estilo dos pontos (postes) – bolinhas menores
 function dotStyle(qtdEmpresas){
   return {
-    radius: 6,
+    radius: 4,            // 🔽 antes 6
     color: "#fff",
-    weight: 1,
+    weight: 0.5,
     fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
-    fillOpacity: 0.95
+    fillOpacity: 0.9
   };
 }
 
@@ -333,15 +418,113 @@ function copyBtnHandler(btn) {
 }
 function toggleEmpresaExtra(row) { row.classList.toggle("open"); }
 
-// Spinner overlay
+// Spinner overlay + helpers
 const overlay = document.getElementById("carregando");
-if (overlay) overlay.style.display = "flex";
+function showLoading(msg) {
+  if (!overlay) return;
+  overlay.style.display = "flex";
+  const texto = overlay.querySelector(".texto-loading");
+  if (texto && msg) texto.textContent = msg;
+}
+function hideLoading() {
+  if (!overlay) return;
+  overlay.style.display = "none";
+}
+
+// Deixa o loading ligado na entrada até carregar os dados
+showLoading("Carregando dados dos postes…");
+
+/* ====================================================================
+   Lista de municípios (slug + nome + logo)
+   – nomes usados no filtro; slug usado pro arquivo .geojson
+==================================================================== */
+const MUNICIPIOS_INFO = [
+  { slug: "aparecida",        nome: "APARECIDA",              logo: "https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
+  { slug: "biritiba",         nome: "BIRITIBA MIRIM",         logo: "https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
+  { slug: "cacapava",         nome: "CAÇAPAVA",               logo: "https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { slug: "cachoeira",        nome: "CACHOEIRA PAULISTA",     logo: "https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
+  { slug: "canas",            nome: "CANAS",                  logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
+  { slug: "caraguatatuba",    nome: "CARAGUATATUBA",          logo: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
+  { slug: "cruzeiro",         nome: "CRUZEIRO",               logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
+  { slug: "ferraz",           nome: "FERRAZ DE VASCONCELOS",  logo: "https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
+  { slug: "guararema",        nome: "GUARAREMA",              logo: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
+  { slug: "guaratingueta",    nome: "GUARATINGUETÁ",          logo: "https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { slug: "guarulhos",        nome: "GUARULHOS",              logo: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
+  { slug: "itaquaquecetuba",  nome: "ITAQUAQUECETUBA",        logo: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
+  { slug: "jacarei",          nome: "JACAREÍ",                logo: "https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { slug: "jambeiro",         nome: "JAMBEIRO",               logo: "https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
+  { slug: "lorena",           nome: "LORENA",                 logo: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
+  { slug: "mogi",             nome: "MOGI DAS CRUZES",        logo: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
+  { slug: "monteirolobato",   nome: "MONTEIRO LOBATO",        logo: "https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
+  { slug: "pindamonhangaba",  nome: "PINDAMONHANGABA",        logo: "https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
+  { slug: "poa",              nome: "POÁ",                   logo: "https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { slug: "potim",            nome: "POTIM",                  logo: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
+  { slug: "roseira",          nome: "ROSEIRA",                logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
+  { slug: "salesopolis",      nome: "SALESÓPOLIS",            logo: "https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { slug: "santabranca",      nome: "SANTA BRANCA",           logo: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
+  { slug: "sjc",              nome: "SÃO JOSÉ DOS CAMPOS",    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { slug: "saosebastiao",     nome: "SÃO SEBASTIÃO",          logo: "https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { slug: "suzano",           nome: "SUZANO",                 logo: "https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
+  { slug: "taubate",          nome: "TAUBATÉ",                logo: "https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { slug: "tremembe",         nome: "TREMEMBÉ",               logo: "https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
+];
+
+/* ====================================================================
+   Função para carregar GeoJSON dos municípios
+==================================================================== */
+
+function normKey(k){
+  return String(k || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+async function carregarPoligonosMunicipios(slugs) {
+  municipiosLayer.clearLayers();
+  if (!Array.isArray(slugs) || !slugs.length) return;
+
+  const boundsList = [];
+
+  await Promise.all(
+    slugs.map(async (slug) => {
+      if (!slug) return;
+      try {
+        const res = await fetch(`/data/geojson/${slug}.geojson`, {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const geojson = await res.json();
+
+        const layer = L.geoJSON(geojson, {
+          style: {
+            color: "#0ea5e9",
+            weight: 2,
+            fillColor: "#38bdf8",
+            fillOpacity: 0.12,
+          },
+        });
+
+        layer.addTo(municipiosLayer);
+
+        const b = layer.getBounds();
+        if (b.isValid()) boundsList.push(b);
+      } catch (e) {
+        console.error("Erro ao carregar GeoJSON do município:", slug, e);
+      }
+    })
+  );
+
+  if (boundsList.length) {
+    const all = boundsList[0].clone();
+    boundsList.slice(1).forEach((b) => all.extend(b));
+    map.fitBounds(all, { padding: [20, 20], maxZoom: 13 });
+  }
+}
 
 /* ====================================================================
    TRANSFORMADORES — camada própria
-   ✅ Usa PNG /assets/transformador.png se existir
-   ✅ Se não existir, usa fallback embutido (sem 404 no console)
-   ✅ Popup mostra TODAS as colunas da tabela
 ==================================================================== */
 const TRANSFORMADOR_PNG_URL = "/assets/transformador.png";
 
@@ -456,14 +639,7 @@ const transformadoresMarkers = L.markerClusterGroup({
 
 const transformadores = [];
 const idToTransformadorMarker = new Map();
-let transformadoresCarregados = false;
 
-function normKey(k){
-  return String(k || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
-}
 function buildNormMap(obj){
   const m = new Map();
   for (const [k, v] of Object.entries(obj || {})) m.set(normKey(k), v);
@@ -550,8 +726,7 @@ function popupTransformadorHTML(t) {
 }
 
 async function carregarTransformadores() {
-  if (transformadoresCarregados) return;
-  transformadoresCarregados = true;
+  if (transformadores.length) return;
 
   try {
     const icon = await ensureTransformadorIcon();
@@ -582,34 +757,23 @@ async function carregarTransformadores() {
   }
 }
 
-/* ====================================================================
-   Transformadores: toggle NÃO carrega mais na abertura
-   Só busca dados quando o usuário marcar o checkbox
-==================================================================== */
 function syncTransformadoresToggle() {
   const chk = document.getElementById("chkTransformadores");
   if (!chk) return;
 
-  // Garante que, na abertura, os transformadores NÃO estão visíveis
+  // Não carrega mais na abertura
   chk.checked = false;
-  if (map.hasLayer(transformadoresMarkers)) {
-    map.removeLayer(transformadoresMarkers);
-  }
 
-  const onChange = async () => {
+  const apply = async () => {
     if (chk.checked) {
-      if (!map.hasLayer(transformadoresMarkers)) {
-        map.addLayer(transformadoresMarkers);
-      }
+      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
       await carregarTransformadores();
     } else {
-      if (map.hasLayer(transformadoresMarkers)) {
-        map.removeLayer(transformadoresMarkers);
-      }
+      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
     }
   };
 
-  chk.addEventListener("change", onChange);
+  chk.addEventListener("change", apply);
 }
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
@@ -763,7 +927,22 @@ function exibirTodosPostes() {
 
 // Carrega gradativamente TODOS os postes (uma vez)
 function carregarTodosPostesGradualmente() {
-  if (todosCarregados) { exibirTodosPostes(); return; }
+  showLoading("Carregando todos os postes…");
+
+  // Desenha toda a área de concessão (todos os municípios)
+  try {
+    const slugs = MUNICIPIOS_INFO.map((m) => m.slug);
+    carregarPoligonosMunicipios(slugs);
+  } catch (e) {
+    console.error("Erro ao carregar GeoJSON de toda a concessão:", e);
+  }
+
+  if (todosCarregados) {
+    hideLoading();
+    exibirTodosPostes();
+    return;
+  }
+
   const lote = document.hidden ? 3500 : 1200;
   let i = 0;
   function addChunk() {
@@ -771,8 +950,14 @@ function carregarTodosPostesGradualmente() {
     const layers = slice.map(criarLayerPoste);
     if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
     i += lote;
-    if (i < todosPostes.length) scheduleIdle(addChunk);
-    else { todosCarregados = true; reabrirTooltipFixo(0); reabrirPopupFixo(0); }
+    if (i < todosPostes.length) {
+      scheduleIdle(addChunk);
+    } else {
+      todosCarregados = true;
+      hideLoading();
+      reabrirTooltipFixo(0);
+      reabrirPopupFixo(0);
+    }
   }
   scheduleIdle(addChunk);
 }
@@ -830,9 +1015,131 @@ let chartMunicipiosRef = null;
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
-// ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
-// ---------------------------------------------------------------------
+/* ====================================================================
+   Modal de início (escolher "todos" x "por município")
+==================================================================== */
+let modalInicioBuilt = false;
+
+function buildModalInicio() {
+  if (modalInicioBuilt) return;
+  modalInicioBuilt = true;
+
+  const backdrop = document.createElement("div");
+  backdrop.id = "modalInicio";
+  backdrop.className = "mi-backdrop";
+
+  backdrop.innerHTML = `
+    <div class="mi-card">
+      <div class="mi-header">
+        <div class="mi-title">Como você quer visualizar os postes?</div>
+        <div class="mi-sub">
+          Você pode carregar todos os postes da concessão ou focar em um ou mais municípios para o mapa ficar mais leve.
+        </div>
+      </div>
+
+      <div class="mi-actions-row">
+        <button type="button" id="miVerTodos" class="mi-btn">
+          <span class="icon">🌐</span>
+          <span>Ver todos os postes</span>
+        </button>
+        <button type="button" id="miVerSelecionados" class="mi-btn secondary">
+          <span class="icon">🗺️</span>
+          <span>Carregar apenas municípios selecionados</span>
+        </button>
+      </div>
+
+      <div class="mi-grid-title">Selecione um ou mais municípios:</div>
+      <div class="mi-grid"></div>
+
+      <div class="mi-footer">
+        <span>Dica: para começar, escolha 1 a 3 municípios. Depois você pode voltar e carregar mais.</span>
+        <div class="mi-footer-right">
+          <button type="button" id="miCancelar" class="mi-btn secondary">Fechar</button>
+          <button type="button" id="miAplicar" class="mi-btn">
+            <span class="icon">✅</span>
+            <span>Carregar seleção</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  const modal = backdrop;
+  const grid = modal.querySelector(".mi-grid");
+
+  MUNICIPIOS_INFO.forEach((m) => {
+    const card = document.createElement("div");
+    card.className = "mun-card";
+    card.dataset.municipio = m.nome;
+    card.dataset.munkey = normKey(m.nome);
+    card.dataset.slug = m.slug;
+    card.innerHTML = `
+      <div class="mun-logo-wrap">
+        <img src="${m.logo}" alt="${escapeAttr("Prefeitura de " + m.nome)}" loading="lazy">
+      </div>
+      <span>${escapeHtml(m.nome)}</span>
+    `;
+    card.addEventListener("click", () => {
+      card.classList.toggle("selected");
+    });
+    grid.appendChild(card);
+  });
+
+  const btnTodos = modal.querySelector("#miVerTodos");
+  const btnAplicar = modal.querySelector("#miAplicar");
+  const btnSelecionados = modal.querySelector("#miVerSelecionados");
+  const btnCancelar = modal.querySelector("#miCancelar");
+
+  if (btnTodos) {
+    btnTodos.addEventListener("click", () => {
+      modal.style.display = "none";
+      carregarTodosPostesGradualmente();
+    });
+  }
+
+  if (btnSelecionados) {
+    btnSelecionados.addEventListener("click", () => {
+      const first = modal.querySelector(".mun-card");
+      if (first) first.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  if (btnAplicar) {
+    btnAplicar.addEventListener("click", () => {
+      const cards = Array.from(modal.querySelectorAll(".mun-card"));
+      const selecionados = cards
+        .filter((c) => c.classList.contains("selected"))
+        .map((c) => ({
+          nome: c.dataset.municipio || "",
+          slug: c.dataset.slug || "",
+        }));
+      if (!selecionados.length) {
+        alert("Selecione ao menos um município.");
+        return;
+      }
+      modal.style.display = "none";
+      carregarPostesPorMunicipiosGradualmente(selecionados);
+    });
+  }
+
+  if (btnCancelar) {
+    btnCancelar.addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+  }
+}
+
+function abrirModalInicio() {
+  buildModalInicio();
+  const modal = document.getElementById("modalInicio");
+  if (modal) modal.style.display = "flex";
+}
+
+/* ====================================================================
+   Carrega /api/postes (apenas dados, sem jogar tudo no mapa ainda)
+==================================================================== */
 fetch("/api/postes", { credentials: "include" })
   .then((res) => {
     if (res.status === 401) {
@@ -843,7 +1150,6 @@ fetch("/api/postes", { credentials: "include" })
     return res.json();
   })
   .then((data) => {
-    if (overlay) overlay.style.display = "none";
     const agrupado = {};
 
     data.forEach((p) => {
@@ -901,11 +1207,12 @@ fetch("/api/postes", { credentials: "include" })
     });
 
     preencherListas();
-    carregarTodosPostesGradualmente();
+    hideLoading();        // terminou de carregar os dados
+    abrirModalInicio();   // pergunta como o usuário quer ver
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
-    if (overlay) overlay.style.display = "none";
+    hideLoading();
     if (err.message !== "Não autorizado") alert("Erro ao carregar dados dos postes.");
   });
 
@@ -1061,6 +1368,8 @@ function filtrarLocal() {
 
   if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
 
+  showLoading("Aplicando filtros de localização…");
+
   markers.clearLayers();
   refreshClustersSoon();
   filtro.forEach(adicionarMarker);
@@ -1089,7 +1398,10 @@ function filtrarLocal() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(u);
     })
-    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
+    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); })
+    .finally(() => {
+      hideLoading();
+    });
 
   gerarExcelCliente(filtro.map((p) => p.id));
 }
@@ -1097,9 +1409,15 @@ function filtrarLocal() {
 function resetarMapa() {
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
-  hardReset();
+
+  markers.clearLayers();
+  refreshClustersSoon();
+  municipiosLayer.clearLayers(); // limpa polígonos de municípios
+
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
+
+  abrirModalInicio();
 }
 
 // ---------------------------------------------------------------------
@@ -1338,6 +1656,8 @@ function consultarIDsEmMassa() {
 
   if (!ids.length) return alert("Nenhum ID fornecido.");
 
+  showLoading("Consultando IDs e desenhando traçado…");
+
   markers.clearLayers();
   refreshClustersSoon();
 
@@ -1349,7 +1669,10 @@ function consultarIDsEmMassa() {
     .map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id)))
     .filter(Boolean);
 
-  if (!encontrados.length) return alert("Nenhum poste encontrado.");
+  if (!encontrados.length) {
+    hideLoading();
+    return alert("Nenhum poste encontrado.");
+  }
 
   encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
@@ -1406,6 +1729,7 @@ function consultarIDsEmMassa() {
 
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
+  hideLoading();
 }
 
 // Adiciona marcador numerado (para análise)
@@ -1511,6 +1835,7 @@ document.getElementById("togglePainel")?.addEventListener("click", () => {
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   try {
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
     sessionStorage.removeItem("auth_token");
     document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
   } catch {}
@@ -1872,6 +2197,65 @@ function atualizarIndicadores() {
     const box = document.getElementById("detalhesMunicipio");
     if (box) box.style.display = "none";
   }
+}
+
+/* ====================================================================
+   Carregar postes apenas dos municípios selecionados
+==================================================================== */
+function carregarPostesPorMunicipiosGradualmente(selecionados) {
+  if (!Array.isArray(selecionados) || !selecionados.length) {
+    alert("Selecione ao menos um município.");
+    return;
+  }
+
+  const nomes = selecionados.map((m) => m.nome);
+  const slugs = selecionados.map((m) => m.slug).filter(Boolean);
+
+  const alvo = new Set(nomes.map((n) => normKey(n)));
+  const lista = todosPostes.filter((p) =>
+    alvo.has(normKey(p.nome_municipio || ""))
+  );
+
+  if (!lista.length) {
+    alert("Nenhum poste encontrado para os municípios selecionados.");
+    return;
+  }
+
+  showLoading("Carregando postes dos municípios selecionados…");
+
+  markers.clearLayers();
+  refreshClustersSoon();
+
+  carregarPoligonosMunicipios(slugs).catch((e) =>
+    console.error("Erro ao carregar polígonos:", e)
+  );
+
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
+
+  try {
+    const bounds = L.latLngBounds(lista.map((p) => [p.lat, p.lon]));
+    map.fitBounds(bounds, { maxZoom: 15 });
+  } catch (_) {}
+
+  function addChunk() {
+    const slice = lista.slice(i, i + lote);
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) {
+      markers.addLayers(layers);
+      refreshClustersSoon();
+    }
+    i += lote;
+    if (i < lista.length) {
+      scheduleIdle(addChunk);
+    } else {
+      hideLoading();
+      reabrirTooltipFixo(0);
+      reabrirPopupFixo(0);
+    }
+  }
+
+  scheduleIdle(addChunk);
 }
 
 /* ====================================================================
