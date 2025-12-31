@@ -1,0 +1,1679 @@
+{
+  "type": "FeatureCollection",
+  "generator": "overpass-turbo",
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.",
+  "timestamp": "2025-09-17T11:22:02Z",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "relation/298459",
+        "IBGE:GEOCODIGO": "3513405",
+        "admin_level": "8",
+        "boundary": "administrative",
+        "name": "Cruzeiro",
+        "official_name": "Município de Interesse Turístico de Cruzeiro",
+        "place": "municipality",
+        "population": "74961",
+        "population:date": "2023-08-31",
+        "source": "IBGE",
+        "source:population": "IBGE, DOU de 31/08/2023",
+        "type": "boundary",
+        "wikidata": "Q1003429",
+        "wikipedia": "pt:Cruzeiro (São Paulo)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-45.002937, -22.4678996],
+            [-45.0032582, -22.4678277],
+            [-45.0032993, -22.4678186],
+            [-45.0097893, -22.4663687],
+            [-45.0109636, -22.4665029],
+            [-45.0117603, -22.4665939],
+            [-45.0171953, -22.4676585],
+            [-45.0190177, -22.4666927],
+            [-45.0210224, -22.4672212],
+            [-45.0246221, -22.4687724],
+            [-45.0263438, -22.4701734],
+            [-45.0271499, -22.4702269],
+            [-45.0274343, -22.4697143],
+            [-45.0271146, -22.4690172],
+            [-45.0250025, -22.4658813],
+            [-45.0251489, -22.4648714],
+            [-45.0267668, -22.4636536],
+            [-45.0284034, -22.4631977],
+            [-45.0322323, -22.4645366],
+            [-45.0341499, -22.4659752],
+            [-45.035431, -22.4664674],
+            [-45.0369082, -22.4666678],
+            [-45.0405443, -22.4692716],
+            [-45.0420921, -22.4695546],
+            [-45.0430917, -22.4689342],
+            [-45.0460622, -22.4689524],
+            [-45.0490418, -22.4698733],
+            [-45.0511102, -22.4695538],
+            [-45.0549555, -22.4703375],
+            [-45.0563587, -22.4709571],
+            [-45.0578531, -22.4708933],
+            [-45.0588919, -22.4707748],
+            [-45.0601584, -22.4716131],
+            [-45.0620189, -22.4734996],
+            [-45.0638505, -22.4753871],
+            [-45.0658173, -22.4770646],
+            [-45.0684293, -22.4775714],
+            [-45.0701782, -22.4775026],
+            [-45.0711582, -22.4772502],
+            [-45.0715369, -22.4773695],
+            [-45.0731785, -22.4786592],
+            [-45.0757022, -22.480112],
+            [-45.0768125, -22.4810064],
+            [-45.0778264, -22.4822253],
+            [-45.0795687, -22.4843171],
+            [-45.0800272, -22.4851308],
+            [-45.0817767, -22.4854953],
+            [-45.0826924, -22.4860921],
+            [-45.0834988, -22.4866069],
+            [-45.0842471, -22.4872304],
+            [-45.0846298, -22.48618],
+            [-45.084164, -22.4849007],
+            [-45.0848292, -22.4845454],
+            [-45.0852848, -22.4846183],
+            [-45.0859773, -22.4840556],
+            [-45.0877268, -22.4828346],
+            [-45.08949, -22.4824177],
+            [-45.0911255, -22.4830978],
+            [-45.0921735, -22.4831376],
+            [-45.0931439, -22.4839075],
+            [-45.094169, -22.4843927],
+            [-45.095472, -22.4838825],
+            [-45.0966292, -22.4841535],
+            [-45.0973491, -22.4847663],
+            [-45.0978269, -22.4853192],
+            [-45.1002455, -22.4881176],
+            [-45.1008859, -22.4885473],
+            [-45.103, -22.49],
+            [-45.1038141, -22.4901834],
+            [-45.1057276, -22.4906026],
+            [-45.1073222, -22.4917598],
+            [-45.108124, -22.4917233],
+            [-45.1097186, -22.4920331],
+            [-45.1120331, -22.4932906],
+            [-45.1127985, -22.4928988],
+            [-45.1138828, -22.4933635],
+            [-45.1155685, -22.4929443],
+            [-45.1163646, -22.4932976],
+            [-45.1170265, -22.4935913],
+            [-45.1189533, -22.494723],
+            [-45.1212453, -22.4961244],
+            [-45.1224754, -22.4969901],
+            [-45.1233684, -22.4971814],
+            [-45.1245894, -22.4968078],
+            [-45.1214612, -22.5030815],
+            [-45.121311, -22.5049152],
+            [-45.1210374, -22.505946],
+            [-45.1195836, -22.506952],
+            [-45.1197124, -22.5075616],
+            [-45.1192618, -22.5083941],
+            [-45.1168585, -22.509187],
+            [-45.1147128, -22.5095042],
+            [-45.1123095, -22.5109711],
+            [-45.1119447, -22.5128543],
+            [-45.1113654, -22.514222],
+            [-45.1103675, -22.5155105],
+            [-45.1093376, -22.5155997],
+            [-45.1093269, -22.5160952],
+            [-45.1101423, -22.5171953],
+            [-45.1106787, -22.518781],
+            [-45.1102925, -22.52001],
+            [-45.1087475, -22.5215561],
+            [-45.1083827, -22.5220318],
+            [-45.1084471, -22.5229435],
+            [-45.107975, -22.5238553],
+            [-45.1082755, -22.524767],
+            [-45.1100564, -22.5262338],
+            [-45.1100779, -22.5280771],
+            [-45.1099813, -22.5287609],
+            [-45.1102066, -22.5294447],
+            [-45.1089406, -22.5312681],
+            [-45.1089192, -22.531833],
+            [-45.1086402, -22.5324573],
+            [-45.1087475, -22.5336663],
+            [-45.1091337, -22.5347365],
+            [-45.1089835, -22.53545],
+            [-45.1091659, -22.5362924],
+            [-45.1100993, -22.5367977],
+            [-45.1106143, -22.537313],
+            [-45.1105929, -22.5385121],
+            [-45.1108611, -22.5397706],
+            [-45.1116657, -22.5402165],
+            [-45.1118589, -22.5408606],
+            [-45.1121807, -22.5420893],
+            [-45.1114941, -22.5433775],
+            [-45.1102066, -22.5441504],
+            [-45.1094556, -22.544626],
+            [-45.1089192, -22.5453296],
+            [-45.1081252, -22.5472816],
+            [-45.1076532, -22.5511262],
+            [-45.1078463, -22.5518891],
+            [-45.1079214, -22.5529691],
+            [-45.107578, -22.5540293],
+            [-45.1076317, -22.5552678],
+            [-45.1071704, -22.5565163],
+            [-45.1075244, -22.5572495],
+            [-45.1067734, -22.5583492],
+            [-45.1064837, -22.5596769],
+            [-45.1061833, -22.5601178],
+            [-45.1052928, -22.5614702],
+            [-45.1041234, -22.5621439],
+            [-45.1032114, -22.5630158],
+            [-45.1024604, -22.5642543],
+            [-45.1030827, -22.5659484],
+            [-45.1038444, -22.5671472],
+            [-45.1060224, -22.5705652],
+            [-45.1071596, -22.5717541],
+            [-45.1085544, -22.5726853],
+            [-45.104, -22.58],
+            [-45.095, -22.585],
+            [-45.102, -22.589],
+            [-45.086, -22.598],
+            [-45.067, -22.595],
+            [-45.065, -22.599],
+            [-45.051, -22.601],
+            [-45.051, -22.598],
+            [-45.039, -22.597],
+            [-45.0300924, -22.5999338],
+            [-45.03, -22.6],
+            [-45.0250686, -22.5991487],
+            [-45.024, -22.599],
+            [-45.018, -22.604],
+            [-45.012, -22.603],
+            [-45.01, -22.602],
+            [-45.004, -22.604],
+            [-45.002, -22.609],
+            [-45.005, -22.61],
+            [-45.0022084, -22.6111235],
+            [-45.0009746, -22.6116667],
+            [-45, -22.612],
+            [-44.9959023, -22.6226547],
+            [-44.9921299, -22.6324627],
+            [-44.99, -22.638],
+            [-44.978, -22.643],
+            [-44.962, -22.644],
+            [-44.955, -22.653],
+            [-44.94, -22.66],
+            [-44.927, -22.654],
+            [-44.913, -22.647],
+            [-44.908, -22.639],
+            [-44.902, -22.639],
+            [-44.904, -22.626],
+            [-44.912, -22.62],
+            [-44.911, -22.613],
+            [-44.905, -22.611],
+            [-44.911, -22.596],
+            [-44.926, -22.585],
+            [-44.929, -22.572],
+            [-44.929, -22.57],
+            [-44.931, -22.562],
+            [-44.928, -22.554],
+            [-44.9249785, -22.5437021],
+            [-44.921, -22.534],
+            [-44.924, -22.52],
+            [-44.927, -22.517],
+            [-44.924, -22.508],
+            [-44.9324405, -22.496024],
+            [-44.933331, -22.4947155],
+            [-44.9340284, -22.4932287],
+            [-44.9348331, -22.4923662],
+            [-44.9356377, -22.4915732],
+            [-44.9357665, -22.4910677],
+            [-44.9368501, -22.4908496],
+            [-44.9392319, -22.4907802],
+            [-44.9408412, -22.4898187],
+            [-44.944, -22.486],
+            [-44.9525142, -22.4851793],
+            [-44.9548531, -22.4856552],
+            [-44.9608398, -22.4854371],
+            [-44.9625135, -22.4844656],
+            [-44.9644044, -22.484427],
+            [-44.9671107, -22.4806557],
+            [-44.9653673, -22.4777046],
+            [-44.9658591, -22.4751928],
+            [-44.9684598, -22.4738729],
+            [-44.9698995, -22.4721781],
+            [-44.9719406, -22.4713216],
+            [-44.9741639, -22.4714491],
+            [-44.9773713, -22.4703101],
+            [-44.9796676, -22.4691711],
+            [-44.9815629, -22.468752],
+            [-44.9830117, -22.4683419],
+            [-44.9840336, -22.468759],
+            [-44.9865562, -22.4694627],
+            [-44.9887522, -22.4693716],
+            [-44.9893733, -22.4687341],
+            [-44.9897593, -22.4680731],
+            [-44.9900917, -22.4675765],
+            [-44.9910667, -22.46672],
+            [-44.9917956, -22.4659181],
+            [-44.9925519, -22.4661277],
+            [-44.9926339, -22.4666107],
+            [-44.993208, -22.4673396],
+            [-44.9953078, -22.4682603],
+            [-44.997035, -22.4692349],
+            [-44.9988574, -22.4692714],
+            [-45.0004156, -22.468506],
+            [-45.002937, -22.4678996]
+          ]
+        ]
+      },
+      "id": "relation/298459"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/42845839",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1078463, -22.5518891],
+          [-45.1076532, -22.5511262],
+          [-45.1081252, -22.5472816],
+          [-45.1089192, -22.5453296],
+          [-45.1094556, -22.544626],
+          [-45.1102066, -22.5441504],
+          [-45.1114941, -22.5433775],
+          [-45.1121807, -22.5420893],
+          [-45.1118589, -22.5408606],
+          [-45.1116657, -22.5402165],
+          [-45.1108611, -22.5397706],
+          [-45.1105929, -22.5385121],
+          [-45.1106143, -22.537313],
+          [-45.1100993, -22.5367977],
+          [-45.1091659, -22.5362924],
+          [-45.1089835, -22.53545],
+          [-45.1091337, -22.5347365],
+          [-45.1087475, -22.5336663],
+          [-45.1086402, -22.5324573],
+          [-45.1089192, -22.531833],
+          [-45.1089406, -22.5312681],
+          [-45.1102066, -22.5294447],
+          [-45.1099813, -22.5287609],
+          [-45.1100779, -22.5280771],
+          [-45.1100564, -22.5262338],
+          [-45.1082755, -22.524767],
+          [-45.107975, -22.5238553],
+          [-45.1084471, -22.5229435],
+          [-45.1083827, -22.5220318],
+          [-45.1087475, -22.5215561],
+          [-45.1102925, -22.52001],
+          [-45.1106787, -22.518781],
+          [-45.1101423, -22.5171953],
+          [-45.1093269, -22.5160952],
+          [-45.1093376, -22.5155997],
+          [-45.1103675, -22.5155105],
+          [-45.1113654, -22.514222],
+          [-45.1119447, -22.5128543],
+          [-45.1123095, -22.5109711],
+          [-45.1147128, -22.5095042],
+          [-45.1168585, -22.509187],
+          [-45.1192618, -22.5083941],
+          [-45.1197124, -22.5075616],
+          [-45.1195836, -22.506952]
+        ]
+      },
+      "id": "way/42845839"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/42846761",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1189533, -22.494723],
+          [-45.1170265, -22.4935913],
+          [-45.1163646, -22.4932976],
+          [-45.1155685, -22.4929443],
+          [-45.1138828, -22.4933635],
+          [-45.1127985, -22.4928988],
+          [-45.1120331, -22.4932906],
+          [-45.1097186, -22.4920331],
+          [-45.108124, -22.4917233],
+          [-45.1073222, -22.4917598],
+          [-45.1057276, -22.4906026],
+          [-45.1038141, -22.4901834],
+          [-45.103, -22.49]
+        ]
+      },
+      "id": "way/42846761"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/42846879",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.905, -22.611],
+          [-44.911, -22.613],
+          [-44.912, -22.62],
+          [-44.904, -22.626],
+          [-44.902, -22.639],
+          [-44.908, -22.639],
+          [-44.913, -22.647],
+          [-44.927, -22.654]
+        ]
+      },
+      "id": "way/42846879"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/42846987",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1038444, -22.5671472],
+          [-45.1060224, -22.5705652],
+          [-45.1071596, -22.5717541],
+          [-45.1085544, -22.5726853],
+          [-45.104, -22.58],
+          [-45.095, -22.585],
+          [-45.102, -22.589],
+          [-45.086, -22.598],
+          [-45.067, -22.595],
+          [-45.065, -22.599],
+          [-45.051, -22.601],
+          [-45.051, -22.598],
+          [-45.039, -22.597],
+          [-45.0300924, -22.5999338],
+          [-45.03, -22.6],
+          [-45.0250686, -22.5991487],
+          [-45.024, -22.599],
+          [-45.018, -22.604],
+          [-45.012, -22.603],
+          [-45.01, -22.602],
+          [-45.004, -22.604],
+          [-45.002, -22.609],
+          [-45.005, -22.61],
+          [-45.0022084, -22.6111235],
+          [-45.0009746, -22.6116667],
+          [-45, -22.612],
+          [-44.9959023, -22.6226547],
+          [-44.9921299, -22.6324627],
+          [-44.99, -22.638],
+          [-44.978, -22.643],
+          [-44.962, -22.644],
+          [-44.955, -22.653],
+          [-44.94, -22.66],
+          [-44.927, -22.654]
+        ]
+      },
+      "id": "way/42846987"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/42847363",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9348331, -22.4923662],
+          [-44.9340284, -22.4932287],
+          [-44.933331, -22.4947155],
+          [-44.9324405, -22.496024],
+          [-44.924, -22.508],
+          [-44.927, -22.517],
+          [-44.924, -22.52],
+          [-44.921, -22.534],
+          [-44.9249785, -22.5437021]
+        ]
+      },
+      "id": "way/42847363"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/227547883",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9249785, -22.5437021],
+          [-44.928, -22.554],
+          [-44.931, -22.562],
+          [-44.929, -22.57],
+          [-44.929, -22.572],
+          [-44.926, -22.585],
+          [-44.911, -22.596],
+          [-44.905, -22.611]
+        ]
+      },
+      "id": "way/227547883"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/437357400",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9658591, -22.4751928],
+          [-44.9684598, -22.4738729],
+          [-44.9698995, -22.4721781],
+          [-44.9719406, -22.4713216],
+          [-44.9741639, -22.4714491],
+          [-44.9773713, -22.4703101],
+          [-44.9796676, -22.4691711],
+          [-44.9815629, -22.468752],
+          [-44.9830117, -22.4683419],
+          [-44.9840336, -22.468759],
+          [-44.9865562, -22.4694627],
+          [-44.9887522, -22.4693716],
+          [-44.9893733, -22.4687341],
+          [-44.9897593, -22.4680731]
+        ]
+      },
+      "id": "way/437357400"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/437607856",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0588919, -22.4707748],
+          [-45.0601584, -22.4716131],
+          [-45.0620189, -22.4734996],
+          [-45.0638505, -22.4753871],
+          [-45.0658173, -22.4770646],
+          [-45.0684293, -22.4775714],
+          [-45.0701782, -22.4775026],
+          [-45.0711582, -22.4772502],
+          [-45.0715369, -22.4773695],
+          [-45.0731785, -22.4786592],
+          [-45.0757022, -22.480112],
+          [-45.0768125, -22.4810064],
+          [-45.0778264, -22.4822253]
+        ]
+      },
+      "id": "way/437607856"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/437607857",
+        "alt_name": "Serra da Mantiqueira",
+        "name": "Serra da Picada",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0284034, -22.4631977],
+          [-45.0322323, -22.4645366],
+          [-45.0341499, -22.4659752],
+          [-45.035431, -22.4664674],
+          [-45.0369082, -22.4666678],
+          [-45.0405443, -22.4692716],
+          [-45.0420921, -22.4695546],
+          [-45.0430917, -22.4689342],
+          [-45.0460622, -22.4689524],
+          [-45.0490418, -22.4698733],
+          [-45.0511102, -22.4695538],
+          [-45.0549555, -22.4703375],
+          [-45.0563587, -22.4709571],
+          [-45.0578531, -22.4708933],
+          [-45.0588919, -22.4707748]
+        ]
+      },
+      "id": "way/437607857"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/438867045",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.084164, -22.4849007],
+          [-45.0848292, -22.4845454],
+          [-45.0852848, -22.4846183],
+          [-45.0859773, -22.4840556],
+          [-45.0877268, -22.4828346],
+          [-45.08949, -22.4824177],
+          [-45.0911255, -22.4830978],
+          [-45.0921735, -22.4831376],
+          [-45.0931439, -22.4839075],
+          [-45.094169, -22.4843927],
+          [-45.095472, -22.4838825],
+          [-45.0966292, -22.4841535],
+          [-45.0973491, -22.4847663],
+          [-45.0978269, -22.4853192]
+        ]
+      },
+      "id": "way/438867045"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520634990",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1195836, -22.506952],
+          [-45.1210374, -22.505946],
+          [-45.121311, -22.5049152],
+          [-45.1214612, -22.5030815],
+          [-45.1245894, -22.4968078]
+        ]
+      },
+      "id": "way/520634990"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520634992",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1245894, -22.4968078],
+          [-45.1233684, -22.4971814],
+          [-45.1224754, -22.4969901],
+          [-45.1212453, -22.4961244],
+          [-45.1189533, -22.494723]
+        ]
+      },
+      "id": "way/520634992"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520635046",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1061833, -22.5601178],
+          [-45.1064837, -22.5596769],
+          [-45.1067734, -22.5583492],
+          [-45.1075244, -22.5572495],
+          [-45.1071704, -22.5565163]
+        ]
+      },
+      "id": "way/520635046"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520635047",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9408412, -22.4898187],
+          [-44.9392319, -22.4907802],
+          [-44.9368501, -22.4908496],
+          [-44.9357665, -22.4910677],
+          [-44.9356377, -22.4915732],
+          [-44.9348331, -22.4923662]
+        ]
+      },
+      "id": "way/520635047"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520641906",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0032993, -22.4678186],
+          [-45.0097893, -22.4663687],
+          [-45.0109636, -22.4665029]
+        ]
+      },
+      "id": "way/520641906"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520641908",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.002937, -22.4678996],
+          [-45.0032582, -22.4678277],
+          [-45.0032993, -22.4678186]
+        ]
+      },
+      "id": "way/520641908"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520641916",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0171953, -22.4676585],
+          [-45.0190177, -22.4666927],
+          [-45.0210224, -22.4672212],
+          [-45.0246221, -22.4687724],
+          [-45.0263438, -22.4701734],
+          [-45.0271499, -22.4702269],
+          [-45.0274343, -22.4697143],
+          [-45.0271146, -22.4690172],
+          [-45.0250025, -22.4658813],
+          [-45.0251489, -22.4648714],
+          [-45.0267668, -22.4636536],
+          [-45.0284034, -22.4631977]
+        ]
+      },
+      "id": "way/520641916"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520641919",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0109636, -22.4665029],
+          [-45.0117603, -22.4665939],
+          [-45.0171953, -22.4676585]
+        ]
+      },
+      "id": "way/520641919"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520667948",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9525142, -22.4851793],
+          [-44.944, -22.486],
+          [-44.9408412, -22.4898187]
+        ]
+      },
+      "id": "way/520667948"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520667960",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9625135, -22.4844656],
+          [-44.9608398, -22.4854371],
+          [-44.9548531, -22.4856552],
+          [-44.9525142, -22.4851793]
+        ]
+      },
+      "id": "way/520667960"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520667961",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9658591, -22.4751928],
+          [-44.9653673, -22.4777046],
+          [-44.9671107, -22.4806557],
+          [-44.9644044, -22.484427],
+          [-44.9625135, -22.4844656]
+        ]
+      },
+      "id": "way/520667961"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520705839",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0778264, -22.4822253],
+          [-45.0795687, -22.4843171],
+          [-45.0800272, -22.4851308],
+          [-45.0817767, -22.4854953],
+          [-45.0826924, -22.4860921],
+          [-45.0834988, -22.4866069],
+          [-45.0842471, -22.4872304]
+        ]
+      },
+      "id": "way/520705839"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520705840",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0842471, -22.4872304],
+          [-45.0846298, -22.48618],
+          [-45.084164, -22.4849007]
+        ]
+      },
+      "id": "way/520705840"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/520706354",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-44.9897593, -22.4680731],
+          [-44.9900917, -22.4675765],
+          [-44.9910667, -22.46672],
+          [-44.9917956, -22.4659181],
+          [-44.9925519, -22.4661277],
+          [-44.9926339, -22.4666107],
+          [-44.993208, -22.4673396],
+          [-44.9953078, -22.4682603],
+          [-44.997035, -22.4692349],
+          [-44.9988574, -22.4692714],
+          [-45.0004156, -22.468506],
+          [-45.002937, -22.4678996]
+        ]
+      },
+      "id": "way/520706354"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/521122030",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1024604, -22.5642543],
+          [-45.1030827, -22.5659484],
+          [-45.1038444, -22.5671472]
+        ]
+      },
+      "id": "way/521122030"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/521122037",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1041234, -22.5621439],
+          [-45.1052928, -22.5614702],
+          [-45.1061833, -22.5601178]
+        ]
+      },
+      "id": "way/521122037"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/521122038",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1071704, -22.5565163],
+          [-45.1076317, -22.5552678],
+          [-45.107578, -22.5540293],
+          [-45.1079214, -22.5529691],
+          [-45.1078463, -22.5518891]
+        ]
+      },
+      "id": "way/521122038"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/521122039",
+        "source": "IBGE",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1041234, -22.5621439],
+          [-45.1032114, -22.5630158],
+          [-45.1024604, -22.5642543]
+        ]
+      },
+      "id": "way/521122039"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/521326697",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.0978269, -22.4853192],
+          [-45.1002455, -22.4881176],
+          [-45.1008859, -22.4885473]
+        ]
+      },
+      "id": "way/521326697"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/521326699",
+        "name": "Serra da Mantiqueira",
+        "natural": "ridge",
+        "source": "IBGE; Bing",
+        "@relations": [
+          {
+            "role": "outer",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-45.1008859, -22.4885473],
+          [-45.103, -22.49]
+        ]
+      },
+      "id": "way/521326699"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/368180315",
+        "name": "Cruzeiro",
+        "place": "town",
+        "population": "74961",
+        "population:date": "2023-08-31",
+        "source": "IBGE;http://www.cruzeiro.sp.gov.br/index.php?option=com_content&view=section&id=5&Itemid=57",
+        "source:population": "IBGE, DOU de 31/08/2023",
+        "wikidata": "Q1003429",
+        "wikipedia": "pt:Cruzeiro (São Paulo)",
+        "@relations": [
+          {
+            "role": "admin_centre",
+            "rel": 298459,
+            "reltags": {
+              "IBGE:GEOCODIGO": "3513405",
+              "admin_level": "8",
+              "boundary": "administrative",
+              "name": "Cruzeiro",
+              "official_name": "Município de Interesse Turístico de Cruzeiro",
+              "place": "municipality",
+              "population": "74961",
+              "population:date": "2023-08-31",
+              "source": "IBGE",
+              "source:population": "IBGE, DOU de 31/08/2023",
+              "type": "boundary",
+              "wikidata": "Q1003429",
+              "wikipedia": "pt:Cruzeiro (São Paulo)"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-44.9642044, -22.5783685]
+      },
+      "id": "node/368180315"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/536172627",
+        "ele": "2068",
+        "name": "Pico da Gomeira",
+        "natural": "peak",
+        "source": "IBGE"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-44.9658591, -22.4751928]
+      },
+      "id": "node/536172627"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/2588081239",
+        "alt_name": "Pico do Itaguaré",
+        "ele": "2308",
+        "name": "Pico Itaguaré",
+        "natural": "peak",
+        "source": "IBGE",
+        "wikidata": "Q10349574",
+        "wikimedia_commons": "Category:Pico do Itaguaré",
+        "wikipedia": "pt:Pico do Itaguaré"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-45.0842471, -22.4872304]
+      },
+      "id": "node/2588081239"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/5078069961",
+        "name": "Morro da Mendanha",
+        "natural": "peak",
+        "source": "IBGE"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-45.1105929, -22.5385121]
+      },
+      "id": "node/5078069961"
+    }
+  ]
+}
