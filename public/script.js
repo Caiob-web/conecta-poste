@@ -69,6 +69,43 @@
     .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
 
+    /* Célula com brasão + nome do município */
+    .bi-muni-cell{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .bi-muni-logo{
+      width:22px;
+      height:22px;
+      border-radius:999px;
+      object-fit:contain;
+      box-shadow:0 1px 2px rgba(0,0,0,.25);
+    }
+    .bi-muni-logo-placeholder{
+      width:22px;
+      height:22px;
+      border-radius:999px;
+      background:#e5e7eb;
+    }
+    .bi-actions{
+      text-align:center;
+      white-space:nowrap;
+    }
+    .bi-btn-mini{
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      background:#f9fafb;
+      padding:4px 10px;
+      font-size:11px;
+      cursor:pointer;
+      color:#111827;
+    }
+    .bi-btn-mini:hover{
+      background:#e5f2ff;
+      border-color:#bfdbfe;
+    }
+
     /* Detalhes por município */
     .bi-detalhes{
       margin-top:10px;
@@ -119,15 +156,6 @@
     }
     .bi-mini-table td.num{
       text-align:right;
-    }
-
-    .bi-muni-logo{
-      width:20px;
-      height:20px;
-      object-fit:contain;
-      margin-right:6px;
-      vertical-align:middle;
-      border-radius:4px;
     }
 
     /* Garante tooltip acima de labels/polylines */
@@ -988,6 +1016,12 @@ const MUNICIPIOS_META = [
   slug: slugMunicipio(m.db || m.label || m.id)
 }));
 
+// helper para achar meta pelo nome de município vindo do banco
+function findMunicipioMetaByName(nome) {
+  const s = slugMunicipio(nome || "");
+  return MUNICIPIOS_META.find((m) => m.slug === s) || null;
+}
+
 const layerMunicipios = L.layerGroup().addTo(map);
 
 async function carregarPoligonosMunicipios(ids, limparPostes = false) {
@@ -1169,6 +1203,11 @@ function abrirModalModoInicial(){
 function fecharModalModoInicial(){
   if (modalModoEl) modalModoEl.style.display = "none";
 }
+
+// garante que o modal esteja criado (sem abrir) assim que o DOM carregar
+document.addEventListener("DOMContentLoaded", () => {
+  buildModalModoInicial();
+});
 
 // Carregamento gradual apenas para alguns municípios
 function carregarPostesPorMunicipiosGradual(muniSlugSet){
@@ -1532,6 +1571,8 @@ function resetarMapa() {
   showOverlay("Carregando todos os postes…");
   modoAtual = "todos";
   hardReset();
+  // garante que os polígonos de todos os municípios voltem a aparecer
+  carregarPoligonosMunicipios();
 }
 
 // ---------------------------------------------------------------------
@@ -1961,12 +2002,6 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
 /* --------------------------------------------------------------------
    === Indicadores (BI)
 -------------------------------------------------------------------- */
-function getMunicipioMetaByNome(nome) {
-  if (!nome) return null;
-  const slug = slugMunicipio(nome);
-  return MUNICIPIOS_META.find((m) => m.slug === slug) || null;
-}
-
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
@@ -1989,6 +2024,45 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   return { rows, total };
 }
 
+// agrega empresas por município para exportar CSV
+function agregaEmpresasPorMunicipioCSV({ empresa = "", apenasVisiveis = false } = {}) {
+  const empresaNorm = (empresa || "").trim().toLowerCase();
+  const bounds = apenasVisiveis ? map.getBounds() : null;
+  const mapa = new Map(); // chave: municipio||empresa -> qtd
+
+  for (const p of todosPostes) {
+    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
+    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
+
+    const municipio = p.nome_municipio || "—";
+    const emps = getEmpresasNomesArray(p);
+    if (!emps || !emps.length) continue;
+
+    const seen = new Set();
+    for (const raw of emps) {
+      const nome = (raw || "").trim();
+      if (!nome || seen.has(nome)) continue;
+      seen.add(nome);
+      const key = `${municipio}||${nome}`;
+      mapa.set(key, (mapa.get(key) || 0) + 1);
+    }
+  }
+
+  const rows = [];
+  for (const [key, qtd] of mapa.entries()) {
+    const [municipio, empresaNome] = key.split("||");
+    rows.push({ municipio, empresa: empresaNome, qtd });
+  }
+
+  rows.sort((a, b) => {
+    const cmp = (a.municipio || "").localeCompare(b.municipio || "", "pt-BR");
+    if (cmp !== 0) return cmp;
+    return b.qtd - a.qtd;
+  });
+
+  return rows;
+}
+
 function rowsToCSV(rows) {
   const header = "Municipio,Quantidade\n";
   const body = rows
@@ -1997,55 +2071,12 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-function agregaEmpresasPorMunicipio({ apenasVisiveis = false } = {}) {
-  const bounds = apenasVisiveis ? map.getBounds() : null;
-  const mapa = new Map(); // municipio -> Set de empresas
-
-  for (const p of todosPostes) {
-    if (!p.nome_municipio) continue;
-    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
-
-    const emps = getEmpresasNomesArray(p);
-    if (!emps || !emps.length) continue;
-
-    let set = mapa.get(p.nome_municipio);
-    if (!set) {
-      set = new Set();
-      mapa.set(p.nome_municipio, set);
-    }
-
-    emps.forEach((raw) => {
-      const nome = (raw || "").toString().trim();
-      if (nome) set.add(nome);
-    });
-  }
-
-  const rows = [];
-  mapa.forEach((set, municipio) => {
-    Array.from(set)
-      .sort((a, b) => a.localeCompare(b, "pt-BR"))
-      .forEach((empresa) => {
-        rows.push({ municipio, empresa });
-      });
-  });
-
-  rows.sort((a, b) => {
-    const cm = (a.municipio || "").localeCompare(b.municipio || "", "pt-BR");
-    if (cm !== 0) return cm;
-    return (a.empresa || "").localeCompare(b.empresa || "", "pt-BR");
-  });
-
-  return rows;
-}
-
-function empresasPorMunicipioToCSV(rows) {
-  const header = "Municipio,Empresa\n";
+function empresasRowsToCSV(rows) {
+  const header = "Municipio,Empresa,QuantidadePostes\n";
   const body = rows
-    .map((r) => {
-      const mun = (r.municipio || "").replace(/"/g, '""');
-      const emp = (r.empresa || "").replace(/"/g, '""');
-      return `"${mun}","${emp}"`;
-    })
+    .map(r =>
+      `"${(r.municipio || "").replace(/"/g,'""')}","${(r.empresa || "").replace(/"/g,'""')}",${r.qtd}`
+    )
     .join("\n");
   return header + body + "\n";
 }
@@ -2108,9 +2139,6 @@ function ensureBIModal() {
           <button id="exportarCsvBI" class="bi-btn">
             <i class="fa fa-file-csv"></i> Exportar CSV
           </button>
-          <button id="exportarCsvEmpresasBI" class="bi-btn">
-            <i class="fa fa-file-csv"></i> Exportar empresas x municípios
-          </button>
         </div>
       </div>
 
@@ -2121,6 +2149,7 @@ function ensureBIModal() {
               <tr>
                 <th style="text-align:left;">Município</th>
                 <th style="text-align:right;">Qtd. de Postes</th>
+                <th style="text-align:center;">Ações</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -2128,10 +2157,7 @@ function ensureBIModal() {
         </div>
 
         <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
-          <h4>
-            <img id="detMunicipioLogo" class="bi-muni-logo" src="" alt="" style="display:none; margin-right:6px; vertical-align:middle;">
-            Detalhes de <span id="detMunicipioNome"></span>
-          </h4>
+          <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
           <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
 
           <div class="bi-detalhes-cols">
@@ -2145,7 +2171,7 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Bairros (todos)</strong>
+              <strong>Bairros (top 15)</strong>
               <table id="detTabelaBairros" class="bi-mini-table">
                 <thead>
                   <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
@@ -2154,7 +2180,7 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Logradouros (todos)</strong>
+              <strong>Logradouros (top 15)</strong>
               <table id="detTabelaLogradouros" class="bi-mini-table">
                 <thead>
                   <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
@@ -2244,22 +2270,20 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
     }
   }
 
-  const toRows = (m, limit) => {
-    const arr = Array.from(m.entries())
+  const toRows = (m, limit = 0) =>
+    Array.from(m.entries())
       .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd);
-    if (typeof limit === "number" && limit > 0) {
-      return arr.slice(0, limit);
-    }
-    return arr;
-  };
+      .sort((a, b) => b.qtd - a.qtd)
+      .slice(0, limit || undefined);
 
   return {
     totalPostes,
     totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts),
-    bairrosRows: toRows(bairroCounts),
-    logradourosRows: toRows(logCounts),
+    // empresas: sem limite (todas)
+    empresasRows: toRows(empCounts, 0),
+    // bairros / logradouros continuam top 15
+    bairrosRows: toRows(bairroCounts, 15),
+    logradourosRows: toRows(logCounts, 15),
   };
 }
 
@@ -2279,7 +2303,6 @@ function mostrarDetalhesMunicipio(municipio) {
   const box = document.getElementById("detalhesMunicipio");
   const nomeEl = document.getElementById("detMunicipioNome");
   const resumoEl = document.getElementById("detMunicipioResumo");
-  const logoEl = document.getElementById("detMunicipioLogo");
   if (!box || !nomeEl || !resumoEl) return;
 
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
@@ -2288,17 +2311,6 @@ function mostrarDetalhesMunicipio(municipio) {
   const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
 
   nomeEl.textContent = municipio;
-
-  if (logoEl) {
-    const meta = getMunicipioMetaByNome(municipio);
-    if (meta && meta.logo) {
-      logoEl.src = meta.logo;
-      logoEl.alt = meta.label || municipio;
-      logoEl.style.display = "inline-block";
-    } else {
-      logoEl.style.display = "none";
-    }
-  }
 
   resumoEl.innerHTML =
     `Postes no município${empresa ? ` para <b>${escapeHtml(empresa)}</b>` : ""}: <b>${det.totalPostes.toLocaleString("pt-BR")}</b>` +
@@ -2322,7 +2334,11 @@ function attachChartClickHandler() {
     const first = elements[0];
     const idx = first.index;
     const label = chartMunicipiosRef.data.labels[idx];
-    if (label) mostrarDetalhesMunicipio(label);
+    if (label) {
+      mostrarDetalhesMunicipio(label);
+      const box = document.getElementById("detalhesMunicipio");
+      if (box) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
   chartMunicipiosRef.update();
 }
@@ -2337,30 +2353,51 @@ function atualizarIndicadores() {
   if (tb) {
     tb.innerHTML =
       rows.map((r) => {
-        const meta = getMunicipioMetaByNome(r.municipio);
-        let logoHtml = "";
-        if (meta && meta.logo) {
-          logoHtml =
-            '<img src="' +
-            meta.logo +
-            '" class="bi-muni-logo" alt="' +
-            escapeAttr(meta.label || r.municipio) +
-            '">';
-        }
-        return '<tr data-municipio="' + escapeAttr(r.municipio) + '"><td>' + logoHtml + escapeHtml(r.municipio) + '</td><td class="num">' + r.qtd.toLocaleString("pt-BR") + "</td></tr>";
+        const meta = findMunicipioMetaByName(r.municipio);
+        const logo = meta && meta.logo ? meta.logo : "";
+        const logoHtml = logo
+          ? `<img src="${logo}" class="bi-muni-logo" alt="Brasão de ${escapeAttr(r.municipio)}">`
+          : `<span class="bi-muni-logo bi-muni-logo-placeholder"></span>`;
+        return `
+          <tr data-municipio="${escapeAttr(r.municipio)}">
+            <td>
+              <div class="bi-muni-cell">
+                ${logoHtml}
+                <span>${escapeHtml(r.municipio)}</span>
+              </div>
+            </td>
+            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
+            <td class="bi-actions">
+              <button type="button"
+                      class="bi-btn-mini bi-ver-empresas"
+                      data-municipio="${escapeAttr(r.municipio)}">
+                Ver empresas
+              </button>
+            </td>
+          </tr>`;
       }).join("") ||
-      `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+      `<tr><td colspan="3" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
 
     tb.onclick = (ev) => {
-      const tr = ev.target.closest("tr");
-      if (!tr || !tr.dataset || !tr.dataset.municipio) return;
-      mostrarDetalhesMunicipio(tr.dataset.municipio);
+      const btn = ev.target.closest("button.bi-ver-empresas");
+      if (btn && btn.dataset && btn.dataset.municipio) {
+        const muni = btn.dataset.municipio;
+        mostrarDetalhesMunicipio(muni);
+        const box = document.getElementById("detalhesMunicipio");
+        if (box) box.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      const tr = ev.target.closest("tr[data-municipio]");
+      if (!tr) return;
+      const muni = tr.dataset.municipio;
+      if (!muni) return;
+      mostrarDetalhesMunicipio(muni);
     };
   }
 
   const resumo = document.getElementById("resumoBI");
   if (resumo) {
-    const txtEmp = empresa ? ` para <b>${empresa}</b>` : "";
+    const txtEmp = empresa ? ` para <b>${escapeHtml(empresa)}</b>` : "";
     const txtScope = apenasVisiveis ? " (apenas área visível)" : "";
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
@@ -2397,35 +2434,14 @@ function atualizarIndicadores() {
   const btnCsv = document.getElementById("exportarCsvBI");
   if (btnCsv) {
     btnCsv.onclick = () => {
-      const csv = rowsToCSV(rows);
+      const detalhesEmpresas = agregaEmpresasPorMunicipioCSV({ empresa, apenasVisiveis });
+      const csv = empresasRowsToCSV(detalhesEmpresas);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const sufixo = empresa ? `_${empresa.replace(/\W+/g, "_")}` : "";
       a.href = url;
-      a.download = `postes_por_municipio${sufixo}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    };
-  }
-
-  const btnCsvEmp = document.getElementById("exportarCsvEmpresasBI");
-  if (btnCsvEmp) {
-    btnCsvEmp.onclick = () => {
-      const apenasVisiveisAtual = !!document.getElementById("apenasVisiveisBI")?.checked;
-      const rowsEmp = agregaEmpresasPorMunicipio({ apenasVisiveis: apenasVisiveisAtual });
-      if (!rowsEmp.length) {
-        alert("Nenhuma empresa encontrada para exportar.");
-        return;
-      }
-      const csvEmp = empresasPorMunicipioToCSV(rowsEmp);
-      const blob = new Blob([csvEmp], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "empresas_por_municipio.csv";
+      a.download = `empresas_por_municipio${sufixo}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
