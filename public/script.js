@@ -1,11 +1,10 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
+//  (Street View via link público do Google — sem API, sem custo)
 // =====================================================================
 
-/* *********************************************************************
-   ESTILOS INJETADOS (HUD, POPUP CARD, MODAL VISUALIZAÇÃO, BI, CLUSTER)
-********************************************************************* */
-(function injectHudAndBiStyles() {
+// ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
+(function injectHudStyles() {
   const css = `
     /* HUD raiz (caixa externa) */
     #tempo{
@@ -70,42 +69,6 @@
     .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
 
-    /* célula do município com brasão + botão */
-    .bi-muni-cell{
-      display:flex; align-items:center; gap:10px;
-    }
-    .bi-muni-badge{
-      width:28px; height:28px; border-radius:50%; object-fit:cover;
-      box-shadow:0 0 0 1px rgba(148,163,184,.6),0 2px 4px rgba(15,23,42,.35);
-      flex-shrink:0;
-    }
-    .bi-muni-fallback{
-      width:28px; height:28px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center;
-      background:#e5e7eb; color:#111827; font-size:12px; font-weight:700;
-      box-shadow:0 0 0 1px rgba(148,163,184,.6),0 2px 4px rgba(15,23,42,.35);
-      flex-shrink:0;
-    }
-    .bi-muni-text{
-      display:flex; flex-direction:column; gap:3px;
-    }
-    .bi-muni-nome{ font-weight:600; }
-    .bi-muni-btn{
-      align-self:flex-start;
-      margin:0; margin-top:2px;
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid #e5e7eb;
-      background:#f9fafb;
-      font-size:11px;
-      color:#374151;
-      cursor:pointer;
-    }
-    .bi-muni-btn:hover{
-      background:#eef2ff;
-      border-color:#c7d2fe;
-    }
-
     /* Detalhes por município */
     .bi-detalhes{
       margin-top:10px;
@@ -115,68 +78,16 @@
       background:#f9fafb;
       border-radius:0 0 10px 10px;
     }
-    .bi-detalhes-header{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      align-items:flex-start;
-      margin-bottom:6px;
-    }
     .bi-detalhes h4{
-      margin:0 0 4px 0;
+      margin:0 0 6px 0;
       font-size:13px;
       font-weight:700;
       color:#111827;
     }
     .bi-detalhes-resumo{
-      margin-bottom:4px;
+      margin-bottom:6px;
       color:#374151;
     }
-    .bi-detalhes-toolbar{
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-      justify-content:flex-end;
-      align-items:center;
-    }
-    .bi-detalhes-buttons{
-      display:flex;
-      flex-wrap:wrap;
-      gap:4px;
-    }
-    .bi-pill{
-      border-radius:999px;
-      border:1px solid #d1d5db;
-      background:#fff;
-      padding:4px 10px;
-      font-size:11px;
-      cursor:pointer;
-      color:#374151;
-    }
-    .bi-pill-active{
-      background:#1d4ed8;
-      color:#f9fafb;
-      border-color:#1d4ed8;
-    }
-    .bi-detalhes-search{
-      position:relative;
-      min-width:180px;
-    }
-    .bi-detalhes-search input{
-      width:100%;
-      padding:4px 8px 4px 22px;
-      border-radius:999px;
-      border:1px solid #d1d5db;
-      font-size:11px;
-    }
-    .bi-detalhes-search i{
-      position:absolute;
-      left:6px; top:50%;
-      transform:translateY(-50%);
-      font-size:10px;
-      color:#9ca3af;
-    }
-
     .bi-detalhes-cols{
       display:grid;
       grid-template-columns:2fr 1.5fr 1.5fr;
@@ -210,7 +121,146 @@
       text-align:right;
     }
 
-    /* Modal de modo inicial (Visualização) */
+    /* Garante tooltip acima de labels/polylines */
+    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+/* ====================================================================
+   Estilos do popup tipo “card”
+==================================================================== */
+(function injectPopupCardStyles() {
+  const css = `
+    .leaflet-popup-content { margin: 0; padding: 0; }
+    .mp-card {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      padding: 10px 12px;
+      min-width: 220px;
+      max-width: 420px;
+    }
+    .mp-header { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px; }
+    .mp-header-title { font-weight: 600; font-size: 13px; }
+    .mp-header-sub { font-size: 11px; color: #777; }
+    .mp-local { margin-bottom: 4px; }
+    .mp-local-principal { font-weight: 500; font-size: 12px; }
+    .mp-local-secundario, .mp-local-coord { font-size: 11px; color: #666; }
+
+    /* Linhas com botão de copiar */
+    .mp-copy-line{
+      display:flex; align-items:center; gap:6px; font-size:11px; margin:2px 0;
+    }
+    .mp-copy-label{ font-weight:600; min-width:48px; }
+    .mp-copy-value{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-copy-btn{
+      border:none; background:#e5f0ff; border-radius:999px; padding:3px 6px;
+      cursor:pointer; font-size:11px; display:flex; align-items:center; gap:4px;
+    }
+    .mp-copy-btn i{ font-size:11px; }
+
+    .mp-empresas-lista {
+      border-radius: 6px; overflow: hidden; border: 1px solid #e6e6e6; margin-top:6px;
+    }
+    .mp-empresa-item {
+      display: flex; align-items: center; padding: 6px 8px; background: #fdfdfd; cursor:pointer;
+    }
+    .mp-empresa-item + .mp-empresa-item { border-top: 1px solid #eee; }
+    .mp-empresa-status { margin-right: 8px; }
+    .mp-status-badge {
+      display: inline-block; width: 18px; height: 18px; border-radius: 999px; background: #18c167; position: relative;
+    }
+    .mp-status-badge::after {
+      content: "✔"; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -57%); font-size: 11px; color: #fff;
+    }
+    .mp-empresa-textos { flex: 1; }
+    .mp-empresa-nome { font-size: 12px; font-weight: 500; }
+    .mp-empresa-extra{ display:none; font-size:10px; color:#555; margin-top:2px; }
+    .mp-empresa-item.open .mp-empresa-extra{ display:block; }
+    .mp-empresa-arrow { font-size: 14px; color: #999; margin-left: 6px; transition: transform .15s ease; }
+    .mp-empresa-item.open .mp-empresa-arrow{ transform: rotate(90deg); }
+    .mp-empresa-empty{ padding:8px 10px; font-size:11px; color:#6b7280; background:#f9fafb; }
+
+    .mp-btn-street {
+      margin-top: 8px; width: 100%; border: none; border-radius: 6px;
+      padding: 6px 8px; font-size: 12px; font-weight: 500;
+      cursor: pointer; background: #0078ff; color: #fff;
+    }
+    .mp-btn-street:hover { opacity: 0.9; }
+    .mp-street-note { margin-top: 4px; color: #777; font-size: 10px; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+/* ====================================================================
+   Sidebar fixa + botão recolher
+==================================================================== */
+(function injectDockSidebarStyles(){
+  const css = `
+    :root{ --dock-w: 340px; }
+    .painel-busca{
+      position: fixed !important; top: 0; right: 0; height: 100vh; width: var(--dock-w);
+      overflow: auto; overflow-x: hidden; border-left: 2px solid var(--ui-border, #19d68f);
+      border-radius: 0 !important; padding: 12px 12px 20px;
+      transform: translateX(0%); transition: transform .25s ease;
+      z-index: 1000; box-sizing: border-box;
+    }
+    .painel-busca .actions{ display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-top: 6px; }
+    .painel-busca.collapsed{ transform: translateX(100%); }
+    #togglePainel{
+      position: fixed !important; top: 50%; right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
+      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important; background: var(--ui-bg, #0f1b2a) !important;
+      border: 1px solid var(--ui-border, #19d68f) !important; box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
+      display:flex;align-items:center;justify-content:center;
+    }
+    body.sidebar-collapsed #togglePainel{ right: 6px !important; }
+    #togglePainel i{ transition: transform .2s ease; }
+    body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
+    #localizacaoUsuario, #logoutBtn{ position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100; }
+    body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
+    .dock-hud{ margin-top:12px; }
+  `;
+  const style = document.createElement('style');
+  style.id = 'dock-sidebar-styles';
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const tgl = document.getElementById('togglePainel');
+    if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
+  });
+})();
+
+/* ====================================================================
+   CLUSTER: mostrar SÓ NÚMEROS (sem bolhas)
+==================================================================== */
+(function injectClusterNumberStyles(){
+  const css = `
+    .cluster-num-only{
+      background:transparent !important; border:none !important; box-shadow:none !important;
+      color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
+      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
+    }
+  `;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+/* ====================================================================
+   Modal inicial: modo de carregamento (todos / por município)
+==================================================================== */
+(function injectModoInicialStyles(){
+  const css = `
     .modo-backdrop{
       position:fixed; inset:0; z-index:3500;
       background:rgba(15,23,42,.88);
@@ -274,7 +324,7 @@
       font-size:11px;
       text-align:center;
       letter-spacing:.25px;
-      color:#f9fafb;
+      color:#f9fafb; /* texto dos municípios em branco */
     }
     .modo-card-muni:hover{
       border-color:#38bdf8;
@@ -340,89 +390,16 @@
       .modo-footer{flex-direction:column; align-items:stretch;}
       .modo-footer-right{justify-content:flex-end;}
     }
-
-    /* CLUSTER: mostrar só número (sem bolha) */
-    .cluster-num-only{
-      background:transparent !important; border:none !important; box-shadow:none !important;
-      color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
-      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
-    }
-
-    /* Popup estilo card (postes) */
-    .leaflet-popup-content { margin: 0; padding: 0; }
-    .mp-card {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 12px;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-      padding: 10px 12px;
-      min-width: 220px;
-      max-width: 420px;
-    }
-    .mp-header { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px; }
-    .mp-header-title { font-weight: 600; font-size: 13px; }
-    .mp-header-sub { font-size: 11px; color: #777; }
-    .mp-local { margin-bottom: 4px; }
-    .mp-local-principal { font-weight: 500; font-size: 12px; }
-    .mp-local-secundario, .mp-local-coord { font-size: 11px; color: #666; }
-
-    .mp-copy-line{
-      display:flex; align-items:center; gap:6px; font-size:11px; margin:2px 0;
-    }
-    .mp-copy-label{ font-weight:600; min-width:48px; }
-    .mp-copy-value{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .mp-copy-btn{
-      border:none; background:#e5f0ff; border-radius:999px; padding:3px 6px;
-      cursor:pointer; font-size:11px; display:flex; align-items:center; gap:4px;
-    }
-    .mp-copy-btn i{ font-size:11px; }
-
-    .mp-empresas-lista {
-      border-radius: 6px; overflow: hidden; border: 1px solid #e6e6e6; margin-top:6px;
-    }
-    .mp-empresa-item {
-      display: flex; align-items: center; padding: 6px 8px; background: #fdfdfd; cursor:pointer;
-    }
-    .mp-empresa-item + .mp-empresa-item { border-top: 1px solid #eee; }
-    .mp-empresa-status { margin-right: 8px; }
-    .mp-status-badge {
-      display: inline-block; width: 18px; height: 18px; border-radius: 999px; background: #18c167; position: relative;
-    }
-    .mp-status-badge::after {
-      content: "✔"; position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -57%); font-size: 11px; color: #fff;
-    }
-    .mp-empresa-textos { flex: 1; }
-    .mp-empresa-nome { font-size: 12px; font-weight: 500; }
-    .mp-empresa-extra{ display:none; font-size:10px; color:#555; margin-top:2px; }
-    .mp-empresa-item.open .mp-empresa-extra{ display:block; }
-    .mp-empresa-arrow { font-size: 14px; color: #999; margin-left: 6px; transition: transform .15s ease; }
-    .mp-empresa-item.open .mp-empresa-arrow{ transform: rotate(90deg); }
-    .mp-empresa-empty{ padding:8px 10px; font-size:11px; color:#6b7280; background:#f9fafb; }
-
-    .mp-btn-street {
-      margin-top: 8px; width: 100%; border: none; border-radius: 6px;
-      padding: 6px 8px; font-size: 12px; font-weight: 500;
-      cursor: pointer; background: #0078ff; color: #fff;
-    }
-    .mp-btn-street:hover { opacity: 0.9; }
-    .mp-street-note { margin-top: 4px; color: #777; font-size: 10px; }
-
-    /* Tooltip acima de tudo (para não ficar atrás de polilinhas) */
-    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
   `;
   const style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
 })();
 
-/* *********************************************************************
-   MAPA & BASES
-********************************************************************* */
+// ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map").setView([-23.2, -45.9], 8);
 
+// Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
 const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
 
@@ -433,18 +410,11 @@ const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_la
   pane: "labels", maxZoom: 19, subdomains: "abcd"
 });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
+
 osm.addTo(map);
 
-let currentBase = osm;
-function setBase(mode) {
-  if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
-  if (mode === "sat") currentBase = esriSat;
-  else if (mode === "satlabels") currentBase = satComRotulos;
-  else currentBase = osm;
-  currentBase.addTo(map);
-}
-
-function dotStyle(qtdEmpresas) {
+// estilo dos pontos (postes) — menor e mais leve
+function dotStyle(qtdEmpresas){
   return {
     radius: 4,
     color: "#111827",
@@ -454,9 +424,19 @@ function dotStyle(qtdEmpresas) {
   };
 }
 
-/* *********************************************************************
-   OVERLAY / SPINNER
-********************************************************************* */
+// alternância programática (usada pelo seletor)
+let currentBase = osm;
+function setBase(mode) {
+  if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
+  if (mode === "sat") currentBase = esriSat;
+  else if (mode === "satlabels") currentBase = satComRotulos;
+  else currentBase = osm;
+  currentBase.addTo(map);
+}
+
+/* ====================================================================
+   Overlay de carregamento (spinner geral)
+==================================================================== */
 const overlay = document.getElementById("carregando");
 const overlayText = overlay ? overlay.querySelector(".texto-loading") : null;
 
@@ -470,9 +450,12 @@ function hideOverlay() {
   overlay.style.display = "none";
 }
 
-/* *********************************************************************
-   HELPERS GERAIS
-********************************************************************* */
+// mostra enquanto carrega a base
+showOverlay("Carregando base de postes…");
+
+/* ====================================================================
+   Helpers (escape / copiar / toggle empresa)
+==================================================================== */
 function escapeHtml(str) {
   if (str == null) return "";
   return String(str)
@@ -507,11 +490,9 @@ function copyBtnHandler(btn) {
 }
 function toggleEmpresaExtra(row) { row.classList.toggle("open"); }
 
-function keyId(id) { return String(id); }
-
-/* *********************************************************************
-   TRANSFORMADORES
-********************************************************************* */
+/* ====================================================================
+   TRANSFORMADORES — camada própria (lazy via checkbox)
+==================================================================== */
 const TRANSFORMADOR_PNG_URL = "/assets/transformador.png";
 
 const TRANSFORMADOR_FALLBACK_DATAURI = (() => {
@@ -596,6 +577,7 @@ async function ensureTransformadorIcon() {
     popupAnchor: [0, -40],
   });
 
+  // atualiza os ícones do HTML (sidebar/legenda)
   document.querySelectorAll('img[data-icon="transformador"]').forEach((el) => {
     el.src = TRANSFORMADOR_PNG_URL;
     el.onerror = () => { el.src = TRANSFORMADOR_FALLBACK_DATAURI; };
@@ -604,9 +586,11 @@ async function ensureTransformadorIcon() {
   return ICON_TRANSFORMADOR;
 }
 
+// pane transformadores
 const transformadoresPane = map.createPane("transformadores");
 transformadoresPane.style.zIndex = 635;
 
+// cluster transformadores
 const transformadoresMarkers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -624,26 +608,26 @@ const transformadores = [];
 const idToTransformadorMarker = new Map();
 let transformadoresCarregados = false;
 
-function normKey(k) {
+function normKey(k){
   return String(k || "")
     .toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 }
-function buildNormMap(obj) {
+function buildNormMap(obj){
   const m = new Map();
   for (const [k, v] of Object.entries(obj || {})) m.set(normKey(k), v);
   return m;
 }
-function pickAny(obj, candidates = []) {
+function pickAny(obj, candidates = []){
   const m = buildNormMap(obj);
-  for (const c of candidates) {
+  for (const c of candidates){
     const v = m.get(normKey(c));
     if (v !== undefined && v !== null && String(v).trim() !== "") return v;
   }
   return null;
 }
-function extractLatLon(t) {
+function extractLatLon(t){
   const coord = pickAny(t, ["coordenadas", "coord", "coordenada", "latlon", "geo", "geolocalizacao"]);
   if (coord && typeof coord === "string" && coord.includes(",")) {
     const [la, lo] = coord.split(/,\s*/).map(Number);
@@ -665,7 +649,7 @@ function flattenObject(obj, prefix = "", out = {}) {
   }
   return out;
 }
-function formatAny(v) {
+function formatAny(v){
   if (v === null || v === undefined || String(v).trim() === "") return "—";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
   if (typeof v === "object") return JSON.stringify(v);
@@ -766,9 +750,7 @@ function syncTransformadoresToggle() {
 }
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
-/* *********************************************************************
-   CLUSTER DE POSTES
-********************************************************************* */
+// -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -782,6 +764,7 @@ const markers = L.markerClusterGroup({
     new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
 
+// Clique no cluster: spiderfy + abre 1º filho
 markers.off("clusterclick");
 markers.on("clusterclick", (e) => {
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
@@ -800,18 +783,17 @@ markers.on("clusterclick", (e) => {
 
 map.addLayer(markers);
 
-const idToMarker = new Map();
+// -------------------- Carregamento GRADATIVO GLOBAL ------------------
+const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
-
-/* função simples p/ chunk: SEM requestIdleCallback (carrega mesmo em 2º plano) */
-function scheduleChunk(fn) {
-  setTimeout(fn, 0);
-}
+function keyId(id){ return String(id); }
+const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
+function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
 
-/* *********************************************************************
-   POPUP FIXO
-********************************************************************* */
+/* ====================================================================
+   Popup fixo: instância única, sem piscar
+==================================================================== */
 const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
 let popupPinned = false;
 let lastPopup = null;
@@ -828,11 +810,11 @@ map.on("popupclose", (e) => {
   if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
 });
 
-/* *********************************************************************
-   TOOLTIP FIXO
-********************************************************************* */
-let tipPinned = false;
-let lastTip = null;
+/* ====================================================================
+   Tooltip fixo (reabrir após cluster/reset)
+==================================================================== */
+let tipPinned = false;   // true após clique (para manter aberto)
+let lastTip = null;      // { id }
 
 function reabrirTooltipFixo(delay = 0) {
   if (!lastTip || !tipPinned) return;
@@ -843,18 +825,15 @@ function reabrirTooltipFixo(delay = 0) {
   delay ? setTimeout(open, delay) : open();
 }
 
-/* *********************************************************************
-   DADOS EM MEMÓRIA
-********************************************************************* */
+// Dados e sets para autocomplete
 const todosPostes = [];
 const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
 const logradourosSet = new Set();
-let censoMode = false;
-let censoIds = null;
+let censoMode = false, censoIds = null;
 
-/* Helpers de empresas */
+// Helpers pra lidar com empresas (nome + id_insercao)
 function getEmpresasNomesArray(p) {
   if (!Array.isArray(p.empresas)) return [];
   return p.empresas.map((e) =>
@@ -871,7 +850,7 @@ function hasEmpresaNome(p, buscaLower) {
   );
 }
 
-/* Cria (ou retorna do cache) o layer do poste */
+// Cria (ou retorna do cache) o layer do poste (BOLINHA)
 function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
@@ -894,7 +873,7 @@ function criarLayerPoste(p){
   return layer;
 }
 
-/* Hard reset: limpa cluster e recarrega com cache (se já carregou antes) */
+// Reconstrói todos (com cache) – usado em reset / modo "todos"
 function hardReset(){
   markers.clearLayers();
   if (todosCarregados) {
@@ -907,13 +886,13 @@ function hardReset(){
   }
 }
 
-/* Adiciona 1 poste */
+// Adiciona 1 poste
 function adicionarMarker(p) {
   const layer = criarLayerPoste(p);
   if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
 }
 
-/* Exibe todos os que já estão no cache */
+// Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
   const arr = Array.from(idToMarker.values());
   markers.clearLayers();
@@ -923,9 +902,9 @@ function exibirTodosPostes() {
   reabrirPopupFixo(0);
 }
 
-/* Carrega todos gradualmente */
+// Carrega gradativamente TODOS os postes (uma vez)
 function carregarTodosPostesGradualmente() {
-  const lote = 1200;
+  const lote = document.hidden ? 3500 : 1200;
   let i = 0;
   todosCarregados = false;
   markers.clearLayers();
@@ -937,7 +916,7 @@ function carregarTodosPostesGradualmente() {
     if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
     i += lote;
     if (i < todosPostes.length) {
-      scheduleChunk(addChunk);
+      scheduleIdle(addChunk);
     } else {
       todosCarregados = true;
       reabrirTooltipFixo(0);
@@ -945,64 +924,78 @@ function carregarTodosPostesGradualmente() {
       hideOverlay();
     }
   }
-  scheduleChunk(addChunk);
+  scheduleIdle(addChunk);
 }
 
-/* *********************************************************************
-   GEOJSON — POLÍGONOS DOS MUNICÍPIOS (sem pinos azuis!)
-********************************************************************* */
+/* ====================================================================
+   GEOJSON – polígonos de municípios
+==================================================================== */
 const GEOJSON_BASE = "/data/geojson";
 
-/* configuração: slug p/ GeoJSON, nome db (maiúsculo), label, brasão e cor */
-const MUNICIPIOS_CONFIG = [
-  { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg",          cor:"#22c55e" },
-  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg", cor:"#8b5cf6" },
-  { id:"cacapava",       db:"CAÇAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png", cor:"#0ea5e9" },
-  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png", cor:"#f97316" },
-  { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s", cor:"#ef4444" },
-  { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg", cor:"#22c55e" },
-  { id:"cruzeiro",       db:"CRUZEIRO",               label:"CRUZEIRO",               logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s", cor:"#eab308" },
-  { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG", cor:"#6366f1" },
-  { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png", cor:"#22c55e" },
-  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg", cor:"#14b8a6" },
-  { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png", cor:"#0ea5e9" },
-  { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",        label:"ITAQUAQUECETUBA",        logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg", cor:"#f97316" },
-  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg", cor:"#6366f1" },
-  { id:"jambeiro",       db:"JAMBEIRO",               label:"JAMBEIRO",               logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png", cor:"#22c55e" },
-  { id:"lorena",         db:"LORENA",                 label:"LORENA",                 logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png", cor:"#e11d48" },
-  { id:"mogi",           db:"MOGI DAS CRUZES",        label:"MOGI DAS CRUZES",        logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png", cor:"#22c55e" },
-  { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41", cor:"#0ea5e9" },
-  { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png", cor:"#f97316" },
-  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif", cor:"#22c55e" },
-  { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png", cor:"#8b5cf6" },
-  { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s", cor:"#eab308" },
-  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg", cor:"#6366f1" },
-  { id:"santabranca",    db:"SANTA BRANCA",           label:"SANTA BRANCA",           logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png", cor:"#22c55e" },
-  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s", cor:"#0ea5e9" },
-  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif", cor:"#22c55e" },
-  { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg", cor:"#f97316" },
-  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png", cor:"#8b5cf6" },
-  { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg", cor:"#22c55e" },
+const MUNICIPIOS_COLORS = [
+  "#22c55e", "#3b82f6", "#f97316", "#6366f1", "#ec4899", "#eab308",
+  "#14b8a6", "#a855f7", "#ef4444", "#0ea5e9", "#84cc16", "#f59e0b"
 ];
 
-const MUNICIPIOS_BY_DB = new Map();
-const MUNICIPIOS_BY_LABEL = new Map();
-MUNICIPIOS_CONFIG.forEach(m => {
-  const k = (m.db || m.label).toUpperCase();
-  MUNICIPIOS_BY_DB.set(k, m);
-  MUNICIPIOS_BY_LABEL.set((m.label || "").toUpperCase(), m);
-});
+function slugMunicipio(str){
+  return String(str || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]/g,"");
+}
+
+const MUNICIPIOS_META = [
+  { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
+  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
+  { id:"cacapava",       db:"CAÇAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
+  { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
+  { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
+  { id:"cruzeiro",       db:"CRUZEIRO",               label:"CRUZEIRO",               logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
+  { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
+  { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
+  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
+  { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",        label:"ITAQUAQUECETUBA",        logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
+  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { id:"jambeiro",       db:"JAMBEIRO",               label:"JAMBEIRO",               logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
+  { id:"lorena",         db:"LORENA",                 label:"LORENA",                 logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
+  { id:"mogi",           db:"MOGI DAS CRUZES",        label:"MOGI DAS CRUZES",        logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
+  { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
+  { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
+  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
+  { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
+  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { id:"santabranca",    db:"SANTA BRANCA",           label:"SANTA BRANCA",           logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
+  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
+  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
+].map((m, idx) => ({
+  ...m,
+  color: MUNICIPIOS_COLORS[idx % MUNICIPIOS_COLORS.length],
+  slug: slugMunicipio(m.db || m.label || m.id)
+}));
 
 const layerMunicipios = L.layerGroup().addTo(map);
 
-async function carregarPoligonosMunicipios(ids) {
+async function carregarPoligonosMunicipios(ids, limparPostes = false) {
+  if (limparPostes) {
+    markers.clearLayers();
+    refreshClustersSoon();
+  }
+
   layerMunicipios.clearLayers();
 
-  const alvo = ids && ids.length ? ids : MUNICIPIOS_CONFIG.map(m => m.id);
+  const alvo = ids && ids.length ? ids : MUNICIPIOS_META.map(m => m.id);
 
   await Promise.all(
     alvo.map(async (id) => {
-      const meta = MUNICIPIOS_CONFIG.find(m => m.id === id) || {};
+      const meta = MUNICIPIOS_META.find(m => m.id === id) || {};
+      const cor = meta.color || "#19d68f";
+
       const url = `${GEOJSON_BASE}/${id}.geojson`;
       try {
         const resp = await fetch(url, { cache: "no-store" });
@@ -1010,10 +1003,16 @@ async function carregarPoligonosMunicipios(ids) {
         const geo = await resp.json();
         const poly = L.geoJSON(geo, {
           style: {
-            color: meta.cor || "#19d68f",
+            color: cor,
             weight: 2,
-            fillColor: meta.cor || "#19d68f",
-            fillOpacity: 0.09
+            fillColor: cor,
+            fillOpacity: 0.18
+          },
+          // ignora features do tipo Point / MultiPoint (elimina pins azuis)
+          filter: (feature) => {
+            const g = feature && feature.geometry;
+            const t = g && g.type;
+            return t !== "Point" && t !== "MultiPoint";
           }
         });
         poly.addTo(layerMunicipios);
@@ -1024,9 +1023,9 @@ async function carregarPoligonosMunicipios(ids) {
   );
 }
 
-/* *********************************************************************
-   MODAL DE MODO INICIAL (VISUALIZAÇÃO)
-********************************************************************* */
+/* ====================================================================
+   Modo inicial / modal de seleção
+==================================================================== */
 let modoAtual = null; // "todos" ou "municipios"
 let modalModoEl = null;
 const selecionadosSet = new Set();
@@ -1044,10 +1043,10 @@ function buildModalModoInicial(){
     <div class="modo-head">
       <div>
         <h2>Como você quer visualizar os postes?</h2>
-        <p>Carregar todos os 620 mil postes ou focar em municípios específicos para o mapa ficar mais leve.</p>
+        <p>Você pode carregar todos os 620 mil postes de uma vez ou focar em um ou mais municípios para deixar o mapa mais leve.</p>
       </div>
       <div class="modo-tag">
-        <i class="fa fa-bolt"></i> Visualização inteligente
+        <i class="fa fa-bolt"></i> Carregamento inteligente
       </div>
     </div>
 
@@ -1087,7 +1086,7 @@ function buildModalModoInicial(){
   const grid = card.querySelector("#grid-municipios-modal");
   const counter = card.querySelector("#modoCounter");
 
-  MUNICIPIOS_CONFIG.forEach((m) => {
+  MUNICIPIOS_META.forEach((m) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "modo-card-muni";
@@ -1122,9 +1121,9 @@ function buildModalModoInicial(){
   btnTodos.addEventListener("click", () => {
     fecharModalModoInicial();
     modoAtual = "todos";
-    showOverlay("Carregando todos os postes…");
-    carregarPoligonosMunicipios();      // todos
-    carregarTodosPostesGradualmente();  // esconde overlay no final
+    showOverlay("Carregando todos os municípios e postes…");
+    carregarPoligonosMunicipios();      // todos os municípios
+    carregarTodosPostesGradualmente();  // usa overlay e esconde no final
   });
 
   btnSel.addEventListener("click", () => {
@@ -1135,14 +1134,16 @@ function buildModalModoInicial(){
     const ids = Array.from(selecionadosSet);
     fecharModalModoInicial();
     modoAtual = "municipios";
-    const muniDbSet = new Set();
+
+    const muniSlugSet = new Set();
     ids.forEach((id) => {
-      const meta = MUNICIPIOS_CONFIG.find((m) => m.id === id);
-      if (meta) muniDbSet.add(meta.db.toUpperCase());
+      const meta = MUNICIPIOS_META.find((m) => m.id === id);
+      if (meta && meta.slug) muniSlugSet.add(meta.slug);
     });
+
     showOverlay("Carregando postes dos municípios selecionados…");
-    carregarPoligonosMunicipios(ids);
-    carregarPostesPorMunicipiosGradual(muniDbSet);
+    carregarPoligonosMunicipios(ids, true);        // polígonos + limpa postes
+    carregarPostesPorMunicipiosGradual(muniSlugSet);
   });
 
   btnFechar.addEventListener("click", fecharModalModoInicial);
@@ -1160,13 +1161,13 @@ function fecharModalModoInicial(){
   if (modalModoEl) modalModoEl.style.display = "none";
 }
 
-/* Carrega somente alguns municípios (gradual) */
-function carregarPostesPorMunicipiosGradual(muniDbSet){
+// Carregamento gradual apenas para alguns municípios
+function carregarPostesPorMunicipiosGradual(muniSlugSet){
   markers.clearLayers();
   idToMarker.clear();
 
   const candidatos = todosPostes.filter((p) =>
-    muniDbSet.has((p.nome_municipio || "").toUpperCase())
+    muniSlugSet.has(p._muniSlug || "")
   );
 
   if (!candidatos.length) {
@@ -1175,7 +1176,7 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
     return;
   }
 
-  const lote = 1200;
+  const lote = document.hidden ? 3500 : 1200;
   let i = 0;
 
   function addChunk(){
@@ -1184,7 +1185,7 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
     if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
     i += lote;
     if (i < candidatos.length){
-      scheduleChunk(addChunk);
+      scheduleIdle(addChunk);
     } else {
       hideOverlay();
       reabrirTooltipFixo(0);
@@ -1195,12 +1196,13 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
       } catch {}
     }
   }
-  scheduleChunk(addChunk);
+  scheduleIdle(addChunk);
 }
 
-/* *********************************************************************
-   HUD NA LATERAL (HORA + CLIMA + BASE MAPA)
-********************************************************************* */
+// ---- Indicadores / BI (refs de gráfico) ----
+let chartMunicipiosRef = null;
+
+// ---------------------- HUD na lateral --------------------------------
 (function buildHud() {
   const hud = document.getElementById("tempo");
   const painel = document.querySelector(".painel-busca");
@@ -1250,11 +1252,9 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
   selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
-/* *********************************************************************
-   CARREGAMENTO INICIAL DOS POSTES
-********************************************************************* */
-showOverlay("Carregando base de postes…");
-
+// ---------------------------------------------------------------------
+// Carrega /api/postes, trata 401 redirecionando
+// ---------------------------------------------------------------------
 fetch("/api/postes", { credentials: "include" })
   .then((res) => {
     if (res.status === 401) {
@@ -1309,10 +1309,11 @@ fetch("/api/postes", { credentials: "include" })
     });
 
     postsArray.forEach((poste) => {
+      poste._muniSlug = slugMunicipio(poste.nome_municipio || "");
       todosPostes.push(poste);
-      if (poste.nome_municipio) municipiosSet.add(poste.nome_municipio);
-      if (poste.nome_bairro) bairrosSet.add(poste.nome_bairro);
-      if (poste.nome_logradouro) logradourosSet.add(poste.nome_logradouro);
+      municipiosSet.add(poste.nome_municipio);
+      bairrosSet.add(poste.nome_bairro);
+      logradourosSet.add(poste.nome_logradouro);
 
       poste.empresas.forEach((e) => {
         const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
@@ -1331,9 +1332,9 @@ fetch("/api/postes", { credentials: "include" })
     if (err.message !== "Não autorizado") alert("Erro ao carregar dados dos postes.");
   });
 
-/* *********************************************************************
-   AUTOCOMPLETE (datalists)
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Preenche datalists de autocomplete
+// ---------------------------------------------------------------------
 function preencherListas() {
   const mount = (set, id) => {
     const dl = document.getElementById(id);
@@ -1358,9 +1359,9 @@ function preencherListas() {
   }
 }
 
-/* *********************************************************************
-   EXCEL CLIENTE (quando filtra)
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Geração de Excel no cliente via SheetJS
+// ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
   const idSet = new Set((filtroIds || []).map(keyId));
   const dadosParaExcel = [];
@@ -1394,9 +1395,9 @@ function gerarExcelCliente(filtroIds) {
   XLSX.writeFile(wb, "relatorio_postes_filtrados.xlsx");
 }
 
-/* *********************************************************************
-   MODO CENSO
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Modo Censo
+// ---------------------------------------------------------------------
 document.getElementById("btnCenso")?.addEventListener("click", async () => {
   censoMode = !censoMode;
 
@@ -1450,9 +1451,9 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
   reabrirPopupFixo(0);
 });
 
-/* *********************************************************************
-   BUSCAS / FILTROS SIMPLES
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Interações / filtros
+// ---------------------------------------------------------------------
 function buscarID() {
   const id = document.getElementById("busca-id")?.value.trim();
   const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
@@ -1516,48 +1517,17 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-/* *********************************************************************
-   RESET & LIMPAR
-********************************************************************* */
-
-/* Limpa SOMENTE a análise de projeto (traçado) */
-function limparAnaliseProjeto(silent = false) {
-  if (window.tracadoMassivo) {
-    map.removeLayer(window.tracadoMassivo);
-    window.tracadoMassivo = null;
-  }
-  if (window.intermediarios && window.intermediarios.length) {
-    window.intermediarios.forEach(m => map.removeLayer(m));
-  }
-  window.intermediarios = [];
-  if (window.numeroMarkers && window.numeroMarkers.length) {
-    window.numeroMarkers.forEach(m => map.removeLayer(m));
-  }
-  window.numeroMarkers = [];
-  window.ultimoResumoPostes = null;
-
-  if (!silent) alert("Traçado da análise de projeto limpo.");
-}
-
-/* Reset geral: NÃO carrega todos; volta para o modal de visualização */
 function resetarMapa() {
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
-  censoMode = false;
-
-  limparAnaliseProjeto(true);
-
-  markers.clearLayers();
-  refreshClustersSoon();
-
-  modoAtual = null;
-  hideOverlay();
-  abrirModalModoInicial();
+  showOverlay("Carregando todos os postes…");
+  modoAtual = "todos";
+  hardReset();
 }
 
-/* *********************************************************************
-   STREET VIEW
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Street View (link público)
+// ---------------------------------------------------------------------
 function buildGoogleMapsPanoURL(lat, lng) {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
@@ -1597,9 +1567,9 @@ function streetImageryBlockHTML(lat, lng, label = "Abrir no Google Street View")
   map.addControl(new Control());
 })();
 
-/* *********************************************************************
-   POPUP CARD DOS POSTES
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Popup em formato de card com id_insercao + botões de copiar
+// ---------------------------------------------------------------------
 function montarPopupModeloCard(p) {
   const nomesEmpresas = getEmpresasNomesArray(p);
   const detalhes = Array.isArray(p.empresas) && p.empresas.length
@@ -1702,6 +1672,7 @@ function montarPopupModeloCard(p) {
   `;
 }
 
+// Abre popup fixo
 function abrirPopup(p) {
   const html = montarPopupModeloCard(p);
   lastPopup = { lat: p.lat, lon: p.lon, html };
@@ -1710,9 +1681,9 @@ function abrirPopup(p) {
   if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
 }
 
-/* *********************************************************************
-   MINHA LOCALIZAÇÃO + HORA + CLIMA
-********************************************************************* */
+// ---------------------------------------------------------------------
+// Minha localização
+// ---------------------------------------------------------------------
 document.getElementById("localizacaoUsuario")?.addEventListener("click", () => {
   if (!navigator.geolocation) return alert("Geolocalização não suportada.");
   navigator.geolocation.getCurrentPosition(
@@ -1727,6 +1698,9 @@ document.getElementById("localizacaoUsuario")?.addEventListener("click", () => {
   );
 });
 
+// ---------------------------------------------------------------------
+// Hora local
+// ---------------------------------------------------------------------
 function mostrarHoraLocal() {
   const s = document.querySelector("#hora span, #tempo .hora-row .hora");
   if (!s) return;
@@ -1735,6 +1709,9 @@ function mostrarHoraLocal() {
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
 
+// ---------------------------------------------------------------------
+// Clima via OpenWeatherMap
+// ---------------------------------------------------------------------
 function preencherClimaUI(data) {
   const card = document.querySelector("#tempo .weather-card");
   if (!card) return;
@@ -1775,36 +1752,9 @@ setInterval(() => {
   );
 }, 600000);
 
-/* *********************************************************************
-   ANÁLISE DE PROJETO (IDs EM MASSA + TRAÇADO)
-********************************************************************* */
-function getDistanciaMetros(lat1, lon1, lat2, lon2) {
-  const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function adicionarNumerado(p, num) {
-  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 5 ? "red" : "green";
-  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
-  const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
-  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
-  mk.on("click", (e) => {
-    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-    lastTip = { id: keyId(p.id) }; tipPinned = true;
-    try{ mk.openTooltip?.(); }catch{}
-    abrirPopup(p);
-  });
-  mk.posteData = p;
-  mk.addTo(markers);
-  refreshClustersSoon();
-  window.numeroMarkers = window.numeroMarkers || [];
-  window.numeroMarkers.push(mk);
-}
-
+// ---------------------------------------------------------------------
+// Verificar (Consulta massiva + traçado + intermediários)
+// ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
   const ids = (document.getElementById("ids-multiplos")?.value || "")
     .split(/[^0-9]+/).filter(Boolean);
@@ -1887,8 +1837,28 @@ function consultarIDsEmMassa() {
   hideOverlay();
 }
 
+// Adiciona marcador numerado (para análise)
+function adicionarNumerado(p, num) {
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const cor = qtd >= 5 ? "red" : "green";
+  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
+  const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
+  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
+  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
+  mk.on("click", (e) => {
+    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+    lastTip = { id: keyId(p.id) }; tipPinned = true;
+    try{ mk.openTooltip?.(); }catch{}
+    abrirPopup(p);
+  });
+  mk.posteData = p;
+  mk.addTo(markers);
+  refreshClustersSoon();
+  window.numeroMarkers.push(mk);
+}
+
 function gerarPDFComMapa() {
-  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado (Análise de Projeto).");
+  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
   leafletImage(map, (err, canvas) => {
     if (err) return alert("Erro ao capturar imagem.");
     const { jsPDF } = window.jspdf;
@@ -1897,22 +1867,28 @@ function gerarPDFComMapa() {
     const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
     let y = 140; doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
-    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
+    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
+    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
+      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
+    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
 }
 
-/* *********************************************************************
-   EXPORTAR EXCEL GENÉRICO
-********************************************************************* */
+// Distância em metros (haversine)
+function getDistanciaMetros(lat1, lon1, lat2, lon2) {
+  const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Exporta Excel genérico (backend)
 function exportarExcel(ids) {
   fetch("/api/postes/report", {
     method: "POST", credentials: "include",
@@ -1941,6 +1917,7 @@ function exportarExcel(ids) {
     .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
+// Botão Excel
 document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   const ids = (document.getElementById("ids-multiplos")?.value || "")
     .split(/[^0-9]+/).filter(Boolean);
@@ -1948,9 +1925,7 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   exportarExcel(ids);
 });
 
-/* *********************************************************************
-   TOGGLE PAINEL & LOGOUT
-********************************************************************* */
+// Toggle painel
 document.getElementById("togglePainel")?.addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
   const body = document.body;
@@ -1961,6 +1936,7 @@ document.getElementById("togglePainel")?.addEventListener("click", () => {
   p.addEventListener("transitionend", onEnd);
 });
 
+// Logout
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   try {
     localStorage.removeItem("auth_token");
@@ -1973,14 +1949,9 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   window.location.replace("/login.html");
 });
 
-/* *********************************************************************
-   INDICADORES (BI) — COM BRASÃO + BOTÕES
-********************************************************************* */
-let chartMunicipiosRef = null;
-let biUltimaAgg = null;
-let detAtualBI = null;
-let detViewMode = "empresas";
-
+/* --------------------------------------------------------------------
+   === Indicadores (BI)
+-------------------------------------------------------------------- */
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
@@ -1991,23 +1962,16 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
     if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
 
-    const key = (p.nome_municipio || "—").trim().toUpperCase();
+    const key = p.nome_municipio || "—";
     mapa.set(key, (mapa.get(key) || 0) + 1);
     total++;
   }
 
-  const labelToKey = {};
   const rows = Array.from(mapa.entries())
-    .map(([munKey, qtd]) => {
-      const meta = MUNICIPIOS_BY_DB.get(munKey);
-      const label = meta ? meta.label : munKey;
-      labelToKey[label] = munKey;
-      return { municipioKey: munKey, municipio: label, qtd, logo: meta?.logo || null };
-    })
+    .map(([municipio, qtd]) => ({ municipio, qtd }))
     .sort((a, b) => b.qtd - a.qtd);
 
-  biUltimaAgg = { rows, total, labelToKey };
-  return { rows, total, labelToKey };
+  return { rows, total };
 }
 
 function rowsToCSV(rows) {
@@ -2018,16 +1982,31 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
+// botão "Indicadores" no painel
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
   if (!document.getElementById("btnIndicadores")) {
     const btn = document.createElement("button");
     btn.id = "btnIndicadores";
-    btn.innerHTML = '<i class="fa fa-chart-column"></i>Indicadores';
+    btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
     btn.addEventListener("click", abrirIndicadores);
     actions.appendChild(btn);
   }
+})();
+
+// botão "Visualização" para reabrir modal de municípios
+(function injectVisualizacaoButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions) return;
+  if (document.getElementById("btnVisualizacao")) return;
+  const btn = document.createElement("button");
+  btn.id = "btnVisualizacao";
+  btn.innerHTML = '<i class="fa fa-layer-group"></i> Visualização';
+  btn.addEventListener("click", () => {
+    abrirModalModoInicial();
+  });
+  actions.insertBefore(btn, actions.firstChild);
 })();
 
 function ensureBIModal() {
@@ -2045,7 +2024,7 @@ function ensureBIModal() {
 
       <div class="bi-body">
         <div>
-          <canvas id="chartMunicipios" height="180"></canvas>
+          <canvas id="chartMunicipios" height="160"></canvas>
         </div>
         <div class="bi-side">
           <label>Filtrar por empresa (opcional)</label>
@@ -2078,27 +2057,12 @@ function ensureBIModal() {
         </div>
 
         <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
-          <div class="bi-detalhes-header">
-            <div>
-              <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
-              <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
-            </div>
-            <div class="bi-detalhes-toolbar">
-              <div class="bi-detalhes-buttons">
-                <button type="button" id="detBtnEmpresas" class="bi-pill bi-pill-active">Empresas</button>
-                <button type="button" id="detBtnBairros" class="bi-pill">Empresas por bairro</button>
-                <button type="button" id="detBtnRuas" class="bi-pill">Empresas por rua</button>
-              </div>
-              <div class="bi-detalhes-search">
-                <i class="fa fa-search"></i>
-                <input id="detFiltroTexto" type="text" placeholder="Pesquisar bairro ou rua…">
-              </div>
-            </div>
-          </div>
+          <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
+          <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
 
           <div class="bi-detalhes-cols">
             <div>
-              <strong>Empresas (top 20)</strong>
+              <strong>Empresas (top 15)</strong>
               <table id="detTabelaEmpresas" class="bi-mini-table">
                 <thead>
                   <tr><th>Empresa</th><th class="num">Qtd. postes</th></tr>
@@ -2107,7 +2071,7 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Bairros (top 20)</strong>
+              <strong>Bairros (top 15)</strong>
               <table id="detTabelaBairros" class="bi-mini-table">
                 <thead>
                   <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
@@ -2116,7 +2080,7 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Logradouros (top 20)</strong>
+              <strong>Logradouros (top 15)</strong>
               <table id="detTabelaLogradouros" class="bi-mini-table">
                 <thead>
                   <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
@@ -2141,37 +2105,6 @@ function ensureBIModal() {
     if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
       atualizarIndicadores();
     }
-  });
-
-  document.getElementById("detBtnEmpresas")?.addEventListener("click", () => {
-    detViewMode = "empresas";
-    atualizarPills();
-    renderDetalhesMunicipioView();
-  });
-  document.getElementById("detBtnBairros")?.addEventListener("click", () => {
-    detViewMode = "bairros";
-    atualizarPills();
-    renderDetalhesMunicipioView(true, "bairros");
-  });
-  document.getElementById("detBtnRuas")?.addEventListener("click", () => {
-    detViewMode = "ruas";
-    atualizarPills();
-    renderDetalhesMunicipioView(true, "ruas");
-  });
-  document.getElementById("detFiltroTexto")?.addEventListener("input", () => {
-    renderDetalhesMunicipioView();
-  });
-}
-
-function atualizarPills(){
-  const m = {
-    empresas: document.getElementById("detBtnEmpresas"),
-    bairros: document.getElementById("detBtnBairros"),
-    ruas: document.getElementById("detBtnRuas"),
-  };
-  Object.keys(m).forEach(k => {
-    if (!m[k]) return;
-    m[k].classList.toggle("bi-pill-active", detViewMode === k);
   });
 }
 
@@ -2201,8 +2134,8 @@ function fecharIndicadores() {
   if (m) m.style.display = "none";
 }
 
-function getDetalhesMunicipioAgregado(munKey, { empresa = "", apenasVisiveis = false } = {}) {
-  const muniKey = (munKey || "").toUpperCase();
+function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis = false } = {}) {
+  const muniNorm = (municipio || "").toLowerCase();
   const empresaNorm = (empresa || "").trim().toLowerCase();
   const bounds = apenasVisiveis ? map.getBounds() : null;
 
@@ -2213,7 +2146,7 @@ function getDetalhesMunicipioAgregado(munKey, { empresa = "", apenasVisiveis = f
 
   for (const p of todosPostes) {
     if (!p.nome_municipio) continue;
-    if ((p.nome_municipio || "").trim().toUpperCase() !== muniKey) continue;
+    if (p.nome_municipio.toLowerCase() !== muniNorm) continue;
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
     if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
 
@@ -2237,17 +2170,18 @@ function getDetalhesMunicipioAgregado(munKey, { empresa = "", apenasVisiveis = f
     }
   }
 
-  const toRows = (m) =>
+  const toRows = (m, limit = 15) =>
     Array.from(m.entries())
       .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd);
+      .sort((a, b) => b.qtd - a.qtd)
+      .slice(0, limit);
 
   return {
     totalPostes,
     totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts),
-    bairrosRows: toRows(bairroCounts),
-    logradourosRows: toRows(logCounts),
+    empresasRows: toRows(empCounts, 15),
+    bairrosRows: toRows(bairroCounts, 15),
+    logradourosRows: toRows(logCounts, 15),
   };
 }
 
@@ -2263,7 +2197,7 @@ function montarLinhasMiniTabela(rows) {
     .join("");
 }
 
-function mostrarDetalhesMunicipio(munKey, label, opts = {}) {
+function mostrarDetalhesMunicipio(municipio) {
   const box = document.getElementById("detalhesMunicipio");
   const nomeEl = document.getElementById("detMunicipioNome");
   const resumoEl = document.getElementById("detMunicipioResumo");
@@ -2272,55 +2206,23 @@ function mostrarDetalhesMunicipio(munKey, label, opts = {}) {
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
 
-  const det = getDetalhesMunicipioAgregado(munKey, { empresa, apenasVisiveis });
+  const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
 
-  const meta = MUNICIPIOS_BY_DB.get((munKey || "").toUpperCase());
-  const titulo = meta?.label || label || munKey;
-
-  detAtualBI = { munKey, titulo, det };
-  nomeEl.textContent = titulo;
+  nomeEl.textContent = municipio;
 
   resumoEl.innerHTML =
     `Postes no município${empresa ? ` para <b>${escapeHtml(empresa)}</b>` : ""}: <b>${det.totalPostes.toLocaleString("pt-BR")}</b>` +
     ` · Empresas distintas: <b>${det.totalEmpresas.toLocaleString("pt-BR")}</b>`;
 
-  box.style.display = det.totalPostes ? "block" : "none";
-
-  detViewMode = detViewMode || "empresas";
-  atualizarPills();
-  renderDetalhesMunicipioView(false, opts.scrollTo || null);
-
-  if (opts.scrollIntoView && box) {
-    box.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
-
-function renderDetalhesMunicipioView(scroll, foco) {
-  if (!detAtualBI) return;
-  const { det } = detAtualBI;
-  const filtro = (document.getElementById("detFiltroTexto")?.value || "").trim().toLowerCase();
-
-  const limite = 20;
-  const filtra = (rows) => {
-    let arr = rows;
-    if (filtro) {
-      arr = arr.filter(r => r.nome.toLowerCase().includes(filtro));
-    }
-    return arr.slice(0, limite);
-  };
-
   const empTb = document.querySelector("#detTabelaEmpresas tbody");
   const baiTb = document.querySelector("#detTabelaBairros tbody");
   const logTb = document.querySelector("#detTabelaLogradouros tbody");
 
-  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(det.empresasRows.slice(0, limite));
-  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(filtra(det.bairrosRows));
-  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(filtra(det.logradourosRows));
+  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(det.empresasRows);
+  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(det.bairrosRows);
+  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
 
-  if (scroll) {
-    if (foco === "bairros" && baiTb) baiTb.parentElement.scrollIntoView({ behavior:"smooth", block:"start" });
-    else if (foco === "ruas" && logTb) logTb.parentElement.scrollIntoView({ behavior:"smooth", block:"start" });
-  }
+  box.style.display = det.totalPostes ? "block" : "none";
 }
 
 function attachChartClickHandler() {
@@ -2330,9 +2232,7 @@ function attachChartClickHandler() {
     const first = elements[0];
     const idx = first.index;
     const label = chartMunicipiosRef.data.labels[idx];
-    if (!label) return;
-    const key = (biUltimaAgg && biUltimaAgg.labelToKey[label]) || label.toUpperCase();
-    mostrarDetalhesMunicipio(key, label, { scrollIntoView:true });
+    if (label) mostrarDetalhesMunicipio(label);
   };
   chartMunicipiosRef.update();
 }
@@ -2346,44 +2246,21 @@ function atualizarIndicadores() {
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
     tb.innerHTML =
-      rows.map((r) => {
-        const iniciais = (r.municipio || "—").split(" ").map(p => p[0]).join("").slice(0,3).toUpperCase();
-        const badge = r.logo
-          ? `<img src="${escapeAttr(r.logo)}" class="bi-muni-badge" alt="${escapeAttr(r.municipio)}">`
-          : `<div class="bi-muni-fallback">${escapeHtml(iniciais)}</div>`;
-        return `
-          <tr data-muni-key="${escapeAttr(r.municipioKey)}" data-muni-label="${escapeAttr(r.municipio)}">
-            <td>
-              <div class="bi-muni-cell">
-                ${badge}
-                <div class="bi-muni-text">
-                  <span class="bi-muni-nome">${escapeHtml(r.municipio)}</span>
-                  <button type="button" class="bi-muni-btn" data-muni-key="${escapeAttr(r.municipioKey)}" data-muni-label="${escapeAttr(r.municipio)}">
-                    Ver empresas neste município
-                  </button>
-                </div>
-              </div>
-            </td>
-            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
-          </tr>`;
-      }).join("") ||
+      rows.map((r) =>
+        `<tr data-municipio="${escapeAttr(r.municipio)}"><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`
+      ).join("") ||
       `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
 
     tb.onclick = (ev) => {
-      const btn = ev.target.closest(".bi-muni-btn");
-      if (btn && btn.dataset.muniKey) {
-        mostrarDetalhesMunicipio(btn.dataset.muniKey, btn.dataset.muniLabel, { scrollIntoView:true });
-        return;
-      }
-      const tr = ev.target.closest("tr[data-muni-key]");
-      if (!tr) return;
-      mostrarDetalhesMunicipio(tr.dataset.muniKey, tr.dataset.muniLabel, { scrollIntoView:true });
+      const tr = ev.target.closest("tr");
+      if (!tr || !tr.dataset || !tr.dataset.municipio) return;
+      mostrarDetalhesMunicipio(tr.dataset.municipio);
     };
   }
 
   const resumo = document.getElementById("resumoBI");
   if (resumo) {
-    const txtEmp = empresa ? ` para <b>${escapeHtml(empresa)}</b>` : "";
+    const txtEmp = empresa ? ` para <b>${empresa}</b>` : "";
     const txtScope = apenasVisiveis ? " (apenas área visível)" : "";
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
@@ -2407,17 +2284,9 @@ function atualizarIndicadores() {
         options: {
           responsive: true,
           plugins: { legend: { display: false } },
-          layout: { padding: { right: 16 } },
           scales: {
-            x: {
-              ticks: {
-                autoSkip: true,
-                maxRotation: 45,
-                minRotation: 45,
-                font: { size: 10 }
-              }
-            },
-            y: { beginAtZero: true }
+            x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 } },
+            y: { beginAtZero: true },
           },
         },
       });
@@ -2445,28 +2314,13 @@ function atualizarIndicadores() {
   if (!rows.length) {
     const box = document.getElementById("detalhesMunicipio");
     if (box) box.style.display = "none";
-  } else if (detAtualBI) {
-    // se já tem município selecionado, re-renderiza com novos filtros
-    renderDetalhesMunicipioView();
   }
 }
 
-/* *********************************************************************
-   REABERTURA DE TOOLTIP/POPUP APÓS ANIMAÇÕES DO CLUSTER
-********************************************************************* */
+/* ====================================================================
+   Reabertura do tooltip/popup após reconstrução do cluster
+==================================================================== */
 markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 map.on("layeradd", (ev) => { if (ev.layer === markers) reabrirTooltipFixo(120); });
-
-/* *********************************************************************
-   EXPORTA FUNÇÕES PARA O HTML (onclick inline)
-********************************************************************* */
-window.buscarID = buscarID;
-window.buscarCoordenada = buscarCoordenada;
-window.filtrarLocal = filtrarLocal;
-window.consultarIDsEmMassa = consultarIDsEmMassa;
-window.gerarPDFComMapa = gerarPDFComMapa;
-window.resetarMapa = resetarMapa;
-window.limparAnaliseProjeto = limparAnaliseProjeto;
-window.abrirModalModoInicial = abrirModalModoInicial;
