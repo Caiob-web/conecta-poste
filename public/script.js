@@ -413,17 +413,47 @@ const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
 osm.addTo(map);
 
-// Polyfill seguro para markercluster (evita erro se o plugin não carregar)
+// --------------------------------------------------------------------
+// Polyfill seguro para markercluster
+// --------------------------------------------------------------------
 if (typeof L !== "undefined" && typeof L.markerClusterGroup !== "function") {
   if (typeof L.MarkerClusterGroup === "function") {
     L.markerClusterGroup = function (options) {
       return new L.MarkerClusterGroup(options);
     };
   } else {
-    L.markerClusterGroup = function () {
-      console.warn("Leaflet.markercluster não carregado; usando LayerGroup como fallback.");
-      return L.layerGroup();
+    console.warn("Leaflet.markercluster não carregado; usando LayerGroup como fallback.");
+    const FallbackCluster = L.LayerGroup.extend({
+      addLayers: function (layers) {
+        if (Array.isArray(layers)) {
+          layers.forEach((l) => this.addLayer(l));
+        }
+        return this;
+      },
+      refreshClusters: function () {
+        return this;
+      },
+    });
+    L.MarkerClusterGroup = FallbackCluster;
+    L.markerClusterGroup = function (options) {
+      return new FallbackCluster(options);
     };
+  }
+}
+
+// helper pra garantir que o objeto tem os métodos addLayers / refreshClusters
+function ensureClusterMethods(group) {
+  if (!group) return;
+  if (typeof group.addLayers !== "function") {
+    group.addLayers = function (layers) {
+      if (Array.isArray(layers)) {
+        layers.forEach((l) => this.addLayer(l));
+      }
+      return this;
+    };
+  }
+  if (typeof group.refreshClusters !== "function") {
+    group.refreshClusters = function () { return this; };
   }
 }
 
@@ -617,6 +647,7 @@ const transformadoresMarkers = L.markerClusterGroup({
   iconCreateFunction: (cluster) =>
     new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null }),
 });
+ensureClusterMethods(transformadoresMarkers);
 
 const transformadores = [];
 const idToTransformadorMarker = new Map();
@@ -777,13 +808,15 @@ const markers = L.markerClusterGroup({
   iconCreateFunction: (cluster) =>
     new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
+ensureClusterMethods(markers);
 
 // Clique no cluster: spiderfy + abre 1º filho
 markers.off("clusterclick");
 markers.on("clusterclick", (e) => {
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const childs = e.layer.getAllChildMarkers();
-  e.layer.spiderfy();
+  const childs = e.layer.getAllChildMarkers && e.layer.getAllChildMarkers();
+  if (!childs || !childs.length) return;
+  if (e.layer.spiderfy) e.layer.spiderfy();
   requestAnimationFrame(() => {
     const first = childs && childs[0];
     if (first && first.posteData) {
@@ -803,7 +836,11 @@ let todosCarregados = false;
 function keyId(id){ return String(id); }
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
-function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
+function refreshClustersSoon(){
+  if (typeof markers.refreshClusters === "function") {
+    requestAnimationFrame(() => markers.refreshClusters());
+  }
+}
 
 /* ====================================================================
    Popup fixo: instância única, sem piscar
