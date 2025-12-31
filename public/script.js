@@ -3,7 +3,7 @@
 //  (Street View via link público do Google — sem API, sem custo)
 // =====================================================================
 
-// ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
+// ------------------------- Estilos do HUD / Indicadores --------------
 (function injectHudStyles() {
   const css = `
     /* HUD raiz (caixa externa) */
@@ -69,6 +69,15 @@
     .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
 
+    .bi-muni-cell{
+      display:flex; align-items:center; gap:8px;
+    }
+    .bi-muni-logo{
+      width:22px; height:22px; border-radius:50%; object-fit:cover;
+      box-shadow:0 0 0 1px rgba(148,163,184,.7);
+      background:#fff;
+    }
+
     /* Detalhes por município */
     .bi-detalhes{
       margin-top:10px;
@@ -83,6 +92,14 @@
       font-size:13px;
       font-weight:700;
       color:#111827;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .bi-detalhes h4 img{
+      width:26px; height:26px; border-radius:50%; object-fit:cover;
+      box-shadow:0 0 0 1px rgba(148,163,184,.8);
+      background:#fff;
     }
     .bi-detalhes-resumo{
       margin-bottom:6px;
@@ -94,10 +111,29 @@
       gap:8px;
     }
     .bi-detalhes-cols strong{
-      display:block;
-      margin-bottom:4px;
       font-size:11px;
       color:#4b5563;
+    }
+    .bi-mini-header{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:4px;
+    }
+    .bi-pill-btn{
+      border-radius:999px;
+      border:1px solid #d4d4d8;
+      background:#fff;
+      padding:3px 8px;
+      font-size:11px;
+      cursor:pointer;
+    }
+    .bi-mini-search{
+      width:100%;
+      padding:4px 8px;
+      margin-bottom:4px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      font-size:11px;
+      box-sizing:border-box;
     }
     .bi-mini-table{
       width:100%;
@@ -324,8 +360,7 @@
       font-size:11px;
       text-align:center;
       letter-spacing:.25px;
-      color:#e5e7eb;
-      font-weight:500;
+      color:#e5e7eb;          /* texto em branco para você enxergar melhor */
     }
     .modo-card-muni:hover{
       border-color:#38bdf8;
@@ -609,6 +644,7 @@ const transformadores = [];
 const idToTransformadorMarker = new Map();
 let transformadoresCarregados = false;
 
+/* Helpers genéricos ---------------------------*/
 function normKey(k){
   return String(k || "")
     .toLowerCase()
@@ -789,11 +825,10 @@ const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
 function keyId(id){ return String(id); }
 
-// Scheduler: forçar carregamento mesmo em aba em 2º plano
-function scheduleIdle(fn){
-  // Sem requestIdleCallback: sempre usa setTimeout
-  setTimeout(fn, 0);
-}
+// sempre carrega, mesmo se aba estiver em segundo plano
+const idle = (fn) => setTimeout(fn, 0);
+function scheduleIdle(fn){ idle(fn); }
+
 function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
 
 /* ====================================================================
@@ -855,7 +890,7 @@ function hasEmpresaNome(p, buscaLower) {
   );
 }
 
-// Cria (ou retorna do cache) o layer do poste (BOLINHA)
+// Cria (ou retorna do cache) o layer do poste (BOLINHA) – sem marker azul!
 function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
@@ -878,8 +913,8 @@ function criarLayerPoste(p){
   return layer;
 }
 
-// Reconstrói todos (com cache) – usado em reset / modo "todos"
-function hardReset(){
+// Reconstrói todos (com cache)
+function hardResetTodos(){
   markers.clearLayers();
   if (todosCarregados) {
     const arr = Array.from(idToMarker.values());
@@ -909,7 +944,7 @@ function exibirTodosPostes() {
 
 // Carrega gradativamente TODOS os postes (uma vez)
 function carregarTodosPostesGradualmente() {
-  const lote = document.hidden ? 3500 : 1200;
+  const lote = 1200;
   let i = 0;
   todosCarregados = false;
   markers.clearLayers();
@@ -968,6 +1003,13 @@ const MUNICIPIOS_META = [
   { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
 ];
 
+function getMunicipioColor(id) {
+  const idx = MUNICIPIOS_META.findIndex(m => m.id === id);
+  if (idx === -1) return "#19d68f";
+  const hue = (120 + idx * 37) % 360; // cores variadas em volta do verde
+  return `hsl(${hue},80%,45%)`;
+}
+
 const layerMunicipios = L.layerGroup().addTo(map);
 
 async function carregarPoligonosMunicipios(ids) {
@@ -978,15 +1020,16 @@ async function carregarPoligonosMunicipios(ids) {
   await Promise.all(
     alvo.map(async (id) => {
       const url = `${GEOJSON_BASE}/${id}.geojson`;
+      const color = getMunicipioColor(id);
       try {
         const resp = await fetch(url, { cache: "no-store" });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const geo = await resp.json();
         const poly = L.geoJSON(geo, {
           style: {
-            color: "#19d68f",
+            color,
             weight: 2,
-            fillColor: "#19d68f",
+            fillColor: color,
             fillOpacity: 0.12
           }
         });
@@ -1004,6 +1047,8 @@ async function carregarPoligonosMunicipios(ids) {
 let modoAtual = null; // "todos" ou "municipios"
 let modalModoEl = null;
 const selecionadosSet = new Set();
+let ultimoMuniKeySet = null; // para recarregar depois (Limpar)
+let ultimoMuniDbSet = null;
 
 function buildModalModoInicial(){
   if (modalModoEl) return modalModoEl;
@@ -1096,6 +1141,8 @@ function buildModalModoInicial(){
   btnTodos.addEventListener("click", () => {
     fecharModalModoInicial();
     modoAtual = "todos";
+    ultimoMuniKeySet = null;
+    ultimoMuniDbSet = null;
     showOverlay("Carregando todos os postes…");
     carregarPoligonosMunicipios();      // todos
     carregarTodosPostesGradualmente();  // usa overlay e esconde no final
@@ -1109,14 +1156,22 @@ function buildModalModoInicial(){
     const ids = Array.from(selecionadosSet);
     fecharModalModoInicial();
     modoAtual = "municipios";
+
+    const muniKeySet = new Set();
     const muniDbSet = new Set();
     ids.forEach((id) => {
       const meta = MUNICIPIOS_META.find((m) => m.id === id);
-      if (meta) muniDbSet.add(meta.db.toUpperCase());
+      if (meta) {
+        muniKeySet.add(normKey(meta.db));
+        muniDbSet.add(meta.db.toUpperCase());
+      }
     });
+    ultimoMuniKeySet = muniKeySet;
+    ultimoMuniDbSet = muniDbSet;
+
     showOverlay("Carregando postes dos municípios selecionados…");
     carregarPoligonosMunicipios(ids);
-    carregarPostesPorMunicipiosGradual(muniDbSet);
+    carregarPostesPorMunicipiosGradual(muniKeySet);
   });
 
   btnFechar.addEventListener("click", fecharModalModoInicial);
@@ -1135,12 +1190,12 @@ function fecharModalModoInicial(){
 }
 
 // Carregamento gradual apenas para alguns municípios
-function carregarPostesPorMunicipiosGradual(muniDbSet){
+function carregarPostesPorMunicipiosGradual(muniKeySet){
   markers.clearLayers();
   idToMarker.clear();
 
   const candidatos = todosPostes.filter((p) =>
-    muniDbSet.has((p.nome_municipio || "").toUpperCase())
+    muniKeySet.has(normKey(p.nome_municipio || ""))
   );
 
   if (!candidatos.length) {
@@ -1149,7 +1204,7 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
     return;
   }
 
-  const lote = document.hidden ? 3500 : 1200;
+  const lote = 1200;
   let i = 0;
 
   function addChunk(){
@@ -1283,9 +1338,9 @@ fetch("/api/postes", { credentials: "include" })
 
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
-      municipiosSet.add(poste.nome_municipio);
-      bairrosSet.add(poste.nome_bairro);
-      logradourosSet.add(poste.nome_logradouro);
+      if (poste.nome_municipio) municipiosSet.add(poste.nome_municipio);
+      if (poste.nome_bairro) bairrosSet.add(poste.nome_bairro);
+      if (poste.nome_logradouro) logradourosSet.add(poste.nome_logradouro);
 
       poste.empresas.forEach((e) => {
         const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
@@ -1377,9 +1432,8 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
   refreshClustersSoon();
 
   if (!censoMode) {
-    exibirTodosPostes();
-    reabrirTooltipFixo(0);
-    reabrirPopupFixo(0);
+    // volta pro modo atual
+    aplicarModoAtual();
     return;
   }
 
@@ -1392,9 +1446,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
     } catch {
       alert("Não foi possível carregar dados do censo.");
       censoMode = false;
-      exibirTodosPostes();
-      reabrirTooltipFixo(0);
-      reabrirPopupFixo(0);
+      aplicarModoAtual();
       return;
     }
   }
@@ -1489,25 +1541,33 @@ function filtrarLocal() {
   gerarExcelCliente(filtro.map((p) => p.id));
 }
 
-// -------- RESET: volta para escolha de visualização (não carrega tudo direto)
+// aplica o modo atual após limpar / censo / etc
+function aplicarModoAtual() {
+  markers.clearLayers();
+  if (modoAtual === "municipios" && ultimoMuniKeySet && ultimoMuniKeySet.size) {
+    showOverlay("Carregando postes dos municípios selecionados…");
+    carregarPostesPorMunicipiosGradual(ultimoMuniKeySet);
+  } else {
+    modoAtual = "todos";
+    showOverlay("Carregando todos os postes…");
+    hardResetTodos();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Resetar mapa: NÃO carrega automaticamente; força usuário a escolher
+// ---------------------------------------------------------------------
 function resetarMapa() {
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
+  censoMode = false;
 
-  // Limpa marcadores atuais (clusters) mas não recarrega tudo automaticamente
+  // limpa análise de projeto também
+  limparAnaliseProjeto(true);
+
   markers.clearLayers();
-  refreshClustersSoon();
-
-  // Limpa possíveis elementos de análise de projeto
-  if (typeof limparAnaliseProjeto === "function") {
-    limparAnaliseProjeto();
-  }
-
-  modoAtual = null;
   hideOverlay();
-
-  // Reabre o modal de visualização (todos x municípios)
-  abrirModalModoInicial();
+  abrirModalModoInicial(); // usuário escolhe novamente o modo
 }
 
 // ---------------------------------------------------------------------
@@ -1729,7 +1789,6 @@ function obterPrevisaoDoTempo(lat, lon) {
     { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
   );
 })();
-
 setInterval(() => {
   const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
   navigator.geolocation.getCurrentPosition(
@@ -1741,31 +1800,6 @@ setInterval(() => {
 // ---------------------------------------------------------------------
 // Verificar (Consulta massiva + traçado + intermediários)
 // ---------------------------------------------------------------------
-
-// Limpar análise de projeto (traçado + intermediários + marcadores numerados)
-function limparAnaliseProjeto() {
-  if (window.tracadoMassivo) {
-    try { map.removeLayer(window.tracadoMassivo); } catch {}
-    window.tracadoMassivo = null;
-  }
-
-  if (Array.isArray(window.intermediarios)) {
-    window.intermediarios.forEach((m) => {
-      try { map.removeLayer(m); } catch {}
-    });
-    window.intermediarios = [];
-  }
-
-  if (Array.isArray(window.numeroMarkers)) {
-    window.numeroMarkers.forEach((m) => {
-      try { markers.removeLayer(m); } catch {}
-    });
-    window.numeroMarkers = [];
-  }
-
-  window.ultimoResumoPostes = null;
-}
-
 function consultarIDsEmMassa() {
   const ids = (document.getElementById("ids-multiplos")?.value || "")
     .split(/[^0-9]+/).filter(Boolean);
@@ -1777,8 +1811,10 @@ function consultarIDsEmMassa() {
   markers.clearLayers();
   refreshClustersSoon();
 
-  // Limpa qualquer análise anterior
-  limparAnaliseProjeto();
+  if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
+  if (window.intermediarios?.length) window.intermediarios.forEach((m) => map.removeLayer(m));
+  window.intermediarios = [];
+  window.numeroMarkers = [];
 
   const encontrados = ids
     .map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id)))
@@ -1848,20 +1884,6 @@ function consultarIDsEmMassa() {
   hideOverlay();
 }
 
-// Botão LIMPAR ANÁLISE (apenas quando houver traçado / análise ativa)
-document.getElementById("btnLimparAnalise")?.addEventListener("click", () => {
-  const temAlgo =
-    !!window.tracadoMassivo ||
-    (Array.isArray(window.intermediarios) && window.intermediarios.length) ||
-    (Array.isArray(window.numeroMarkers) && window.numeroMarkers.length);
-
-  if (!temAlgo) {
-    alert("Nenhuma análise de projeto ativa para limpar.");
-    return;
-  }
-  limparAnaliseProjeto();
-});
-
 // Adiciona marcador numerado (para análise)
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
@@ -1892,15 +1914,15 @@ function gerarPDFComMapa() {
     const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
     let y = 140; doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
-    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
+    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
+    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
+      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
+    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
 }
@@ -1948,6 +1970,48 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
     .split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Informe ao menos um ID.");
   exportarExcel(ids);
+});
+
+// Botão Visualização (abre o mesmo modal do início)
+document.getElementById("btnVisualizacao")?.addEventListener("click", () => {
+  abrirModalModoInicial();
+});
+
+// Botão Resetar do painel
+document.getElementById("btnResetar")?.addEventListener("click", resetarMapa);
+
+// Botão Limpar – somente para análise de projeto
+function limparAnaliseProjeto(silencioso = false) {
+  let algoPraLimpar = false;
+
+  if (window.tracadoMassivo) {
+    map.removeLayer(window.tracadoMassivo);
+    window.tracadoMassivo = null;
+    algoPraLimpar = true;
+  }
+  if (window.intermediarios?.length) {
+    window.intermediarios.forEach((m) => map.removeLayer(m));
+    window.intermediarios = [];
+    algoPraLimpar = true;
+  }
+  if (window.numeroMarkers?.length) {
+    window.numeroMarkers.forEach((m) => markers.removeLayer(m));
+    window.numeroMarkers = [];
+    algoPraLimpar = true;
+  }
+  window.ultimoResumoPostes = null;
+
+  if (!algoPraLimpar && !silencioso) {
+    alert("Não há análise de projeto para limpar.");
+    return;
+  }
+
+  // Recarrega postes de acordo com o modo atual
+  aplicarModoAtual();
+}
+
+document.getElementById("btnLimparAnalise")?.addEventListener("click", () => {
+  limparAnaliseProjeto(false);
 });
 
 // Toggle painel
@@ -2020,20 +2084,8 @@ function rowsToCSV(rows) {
   }
 })();
 
-// botão "Visualização" no painel (abre modal ver todos / por município)
-(function injectVisualizacaoButton(){
-  const actions = document.querySelector(".painel-busca .actions");
-  if (!actions) return;
-  if (!document.getElementById("btnVisualizacao")) {
-    const btn = document.createElement("button");
-    btn.id = "btnVisualizacao";
-    btn.innerHTML = '<i class="fa fa-layer-group"></i> Visualização';
-    btn.addEventListener("click", () => {
-      abrirModalModoInicial();
-    });
-    actions.appendChild(btn);
-  }
-})();
+let ultimoDetalheMunicipio = null;
+let detalhesEmpresasModo = "top";
 
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
@@ -2083,12 +2135,19 @@ function ensureBIModal() {
         </div>
 
         <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
-          <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
+          <h4>
+            <img id="detMunicipioLogo" alt="">
+            <span id="detMunicipioNome"></span>
+          </h4>
           <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
 
           <div class="bi-detalhes-cols">
             <div>
-              <strong>Empresas (top 15)</strong>
+              <div class="bi-mini-header">
+                <strong>Empresas</strong>
+                <button type="button" id="btnToggleEmpresasDet" class="bi-pill-btn">Ver todas as empresas</button>
+              </div>
+              <input id="filtroEmpresasDet" class="bi-mini-search" placeholder="Filtrar empresa...">
               <table id="detTabelaEmpresas" class="bi-mini-table">
                 <thead>
                   <tr><th>Empresa</th><th class="num">Qtd. postes</th></tr>
@@ -2097,7 +2156,10 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Bairros (top 15)</strong>
+              <div class="bi-mini-header">
+                <strong>Bairros</strong>
+              </div>
+              <input id="filtroBairrosDet" class="bi-mini-search" placeholder="Filtrar bairro...">
               <table id="detTabelaBairros" class="bi-mini-table">
                 <thead>
                   <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
@@ -2106,7 +2168,10 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Logradouros (top 15)</strong>
+              <div class="bi-mini-header">
+                <strong>Ruas</strong>
+              </div>
+              <input id="filtroLogradourosDet" class="bi-mini-search" placeholder="Filtrar rua...">
               <table id="detTabelaLogradouros" class="bi-mini-table">
                 <thead>
                   <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
@@ -2124,6 +2189,11 @@ function ensureBIModal() {
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
   document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
+
+  ["filtroEmpresasDet","filtroBairrosDet","filtroLogradourosDet"].forEach(id => {
+    document.getElementById(id)?.addEventListener("input", renderDetalhesTabelas);
+  });
+  document.getElementById("btnToggleEmpresasDet")?.addEventListener("click", toggleEmpresasDetMode);
 
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
@@ -2172,7 +2242,7 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
 
   for (const p of todosPostes) {
     if (!p.nome_municipio) continue;
-    if (p.nome_municipio.toLowerCase() !== muniNorm) continue;
+    if ((p.nome_municipio || "").toLowerCase() !== muniNorm) continue;
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
     if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
 
@@ -2196,18 +2266,13 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
     }
   }
 
-  const toRows = (m, limit = 15) =>
-    Array.from(m.entries())
-      .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd)
-      .slice(0, limit);
-
   return {
+    municipio,
     totalPostes,
     totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts, 15),
-    bairrosRows: toRows(bairroCounts, 15),
-    logradourosRows: toRows(logCounts, 15),
+    empCounts,
+    bairroCounts,
+    logCounts,
   };
 }
 
@@ -2223,16 +2288,71 @@ function montarLinhasMiniTabela(rows) {
     .join("");
 }
 
+function getRowsFromMap(map, limit) {
+  const arr = Array.from(map.entries()).map(([nome, qtd]) => ({ nome, qtd }))
+    .sort((a, b) => b.qtd - a.qtd);
+  if (limit) return arr.slice(0, limit);
+  return arr;
+}
+
+function renderDetalhesTabelas() {
+  if (!ultimoDetalheMunicipio) return;
+  const { empCounts, bairroCounts, logCounts } = ultimoDetalheMunicipio;
+
+  const empLimit = detalhesEmpresasModo === "top" ? 15 : null;
+  const empRows = getRowsFromMap(empCounts, empLimit);
+  const baiRows = getRowsFromMap(bairroCounts, 15);
+  const logRows = getRowsFromMap(logCounts, 15);
+
+  const filtroEmp = (document.getElementById("filtroEmpresasDet")?.value || "").toLowerCase();
+  const filtroBai = (document.getElementById("filtroBairrosDet")?.value || "").toLowerCase();
+  const filtroLog = (document.getElementById("filtroLogradourosDet")?.value || "").toLowerCase();
+
+  const empFiltrados = filtroEmp ? empRows.filter(r => r.nome.toLowerCase().includes(filtroEmp)) : empRows;
+  const baiFiltrados = filtroBai ? baiRows.filter(r => r.nome.toLowerCase().includes(filtroBai)) : baiRows;
+  const logFiltrados = filtroLog ? logRows.filter(r => r.nome.toLowerCase().includes(filtroLog)) : logRows;
+
+  const empTb = document.querySelector("#detTabelaEmpresas tbody");
+  const baiTb = document.querySelector("#detTabelaBairros tbody");
+  const logTb = document.querySelector("#detTabelaLogradouros tbody");
+
+  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(empFiltrados);
+  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(baiFiltrados);
+  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(logFiltrados);
+}
+
+function toggleEmpresasDetMode() {
+  detalhesEmpresasModo = detalhesEmpresasModo === "top" ? "all" : "top";
+  const btn = document.getElementById("btnToggleEmpresasDet");
+  if (btn) {
+    btn.textContent = detalhesEmpresasModo === "top"
+      ? "Ver todas as empresas"
+      : "Ver top 15";
+  }
+  renderDetalhesTabelas();
+}
+
 function mostrarDetalhesMunicipio(municipio) {
   const box = document.getElementById("detalhesMunicipio");
   const nomeEl = document.getElementById("detMunicipioNome");
   const resumoEl = document.getElementById("detMunicipioResumo");
-  if (!box || !nomeEl || !resumoEl) return;
+  const logoEl = document.getElementById("detMunicipioLogo");
+  if (!box || !nomeEl || !resumoEl || !logoEl) return;
 
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
 
   const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
+  ultimoDetalheMunicipio = det;
+  detalhesEmpresasModo = "top";
+
+  const meta = MUNICIPIOS_META.find(m => (m.db || "").toUpperCase() === (municipio || "").toUpperCase());
+  if (meta) {
+    logoEl.src = meta.logo;
+    logoEl.style.display = "inline-block";
+  } else {
+    logoEl.style.display = "none";
+  }
 
   nomeEl.textContent = municipio;
 
@@ -2240,13 +2360,14 @@ function mostrarDetalhesMunicipio(municipio) {
     `Postes no município${empresa ? ` para <b>${escapeHtml(empresa)}</b>` : ""}: <b>${det.totalPostes.toLocaleString("pt-BR")}</b>` +
     ` · Empresas distintas: <b>${det.totalEmpresas.toLocaleString("pt-BR")}</b>`;
 
-  const empTb = document.querySelector("#detTabelaEmpresas tbody");
-  const baiTb = document.querySelector("#detTabelaBairros tbody");
-  const logTb = document.querySelector("#detTabelaLogradouros tbody");
+  const btnEmp = document.getElementById("btnToggleEmpresasDet");
+  if (btnEmp) btnEmp.textContent = "Ver todas as empresas";
 
-  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(det.empresasRows);
-  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(det.bairrosRows);
-  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
+  document.getElementById("filtroEmpresasDet")?.setAttribute("value", "");
+  document.getElementById("filtroBairrosDet")?.setAttribute("value", "");
+  document.getElementById("filtroLogradourosDet")?.setAttribute("value", "");
+
+  renderDetalhesTabelas();
 
   box.style.display = det.totalPostes ? "block" : "none";
 }
@@ -2272,9 +2393,19 @@ function atualizarIndicadores() {
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
     tb.innerHTML =
-      rows.map((r) =>
-        `<tr data-municipio="${escapeAttr(r.municipio)}"><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`
-      ).join("") ||
+      rows.map((r) => {
+        const meta = MUNICIPIOS_META.find(m => (m.db || "").toUpperCase() === (r.municipio || "").toUpperCase());
+        const logo = meta?.logo || "";
+        return `<tr data-municipio="${escapeAttr(r.municipio)}">
+            <td>
+              <div class="bi-muni-cell">
+                ${logo ? `<img src="${logo}" class="bi-muni-logo" alt="">` : ""}
+                <span>${escapeHtml(r.municipio)}</span>
+              </div>
+            </td>
+            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
+          </tr>`;
+      }).join("") ||
       `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
 
     tb.onclick = (ev) => {
@@ -2291,8 +2422,10 @@ function atualizarIndicadores() {
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
 
-  const labels = rows.map((r) => r.municipio);
-  const data = rows.map((r) => r.qtd);
+  // gráfico usa apenas top 25 pra não embolar
+  const chartRows = rows.slice(0, 25);
+  const labels = chartRows.map((r) => r.municipio);
+  const data = chartRows.map((r) => r.qtd);
   const ctx = document.getElementById("chartMunicipios");
 
   if (typeof Chart !== "undefined" && ctx) {
@@ -2311,7 +2444,15 @@ function atualizarIndicadores() {
           responsive: true,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 } },
+            x: {
+              ticks: {
+                autoSkip: true,
+                autoSkipPadding: 10,
+                maxRotation: 60,
+                minRotation: 60,
+                font: { size: 9 },
+              },
+            },
             y: { beginAtZero: true },
           },
         },
