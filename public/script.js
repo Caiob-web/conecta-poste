@@ -1,6 +1,9 @@
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
+//  IMPORTANTE: no index.html, carregar ANTES deste arquivo:
+//    1) leaflet.js
+//    2) leaflet.markercluster.js
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
