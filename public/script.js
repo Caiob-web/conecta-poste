@@ -324,6 +324,8 @@
       font-size:11px;
       text-align:center;
       letter-spacing:.25px;
+      color:#f9fafb;
+      font-weight:400;
     }
     .modo-card-muni:hover{
       border-color:#38bdf8;
@@ -927,254 +929,83 @@ function carregarTodosPostesGradualmente() {
 }
 
 /* ====================================================================
-   GEOJSON – municípios + mapeamento (brasões, arquivos)
+   GEOJSON – polígonos de municípios
 ==================================================================== */
 const GEOJSON_BASE = "/data/geojson";
 
-/**
- * MUNICIPIOS_CONFIG
- *  - chave: slug usado no sistema / arquivo GeoJSON
- *  - nome: nome amigável
- *  - db: como o município vem no campo nome_municipio do banco
- *  - brasao: URL do brasão (usado nos cards)
- *  - geojson: nome do arquivo GeoJSON (relativo a GEOJSON_BASE)
- */
-const MUNICIPIOS_CONFIG = {
-  aparecida: {
-    nome: "Aparecida",
-    db: "APARECIDA",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg",
-    geojson: "aparecida.geojson",
-  },
-  biritiba: {
-    nome: "Biritiba Mirim",
-    db: "BIRITIBA MIRIM",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg",
-    geojson: "biritiba.geojson",
-  },
-  cacapava: {
-    nome: "Caçapava",
-    db: "CAÇAPAVA",
-    brasao:
-      "https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png",
-    geojson: "cacapava.geojson",
-  },
-  cachoeira: {
-    nome: "Cachoeira Paulista",
-    db: "CACHOEIRA PAULISTA",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png",
-    geojson: "cachoeira.geojson",
-  },
-  canas: {
-    nome: "Canas",
-    db: "CANAS",
-    brasao:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s",
-    geojson: "canas.geojson",
-  },
-  caraguatatuba: {
-    nome: "Caraguatatuba",
-    db: "CARAGUATATUBA",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg",
-    geojson: "caraguatatuba.geojson",
-  },
-  cruzeiro: {
-    nome: "Cruzeiro",
-    db: "CRUZEIRO",
-    brasao:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s",
-    geojson: "cruzeiro.geojson",
-  },
-  ferraz: {
-    nome: "Ferraz de Vasconcelos",
-    db: "FERRAZ DE VASCONCELOS",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG",
-    geojson: "ferraz.geojson",
-  },
-  guararema: {
-    nome: "Guararema",
-    db: "GUARAREMA",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png",
-    geojson: "guararema.geojson",
-  },
-  guaratingueta: {
-    nome: "Guaratinguetá",
-    db: "GUARATINGUETÁ",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg",
-    geojson: "guaratingueta.geojson",
-  },
-  guarulhos: {
-    nome: "Guarulhos",
-    db: "GUARULHOS",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png",
-    geojson: "guarulhos.geojson",
-  },
-  itaquaquecetuba: {
-    nome: "Itaquaquecetuba",
-    db: "ITAQUAQUECETUBA",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg",
-    geojson: "itaquaquecetuba.geojson",
-  },
-  jacarei: {
-    nome: "Jacareí",
-    db: "JACAREÍ",
-    brasao:
-      "https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg",
-    geojson: "jacarei.geojson",
-  },
-  jambeiro: {
-    nome: "Jambeiro",
-    db: "JAMBEIRO",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png",
-    geojson: "jambeiro.geojson",
-  },
-  lorena: {
-    nome: "Lorena",
-    db: "LORENA",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png",
-    geojson: "lorena.geojson",
-  },
-  mogi: {
-    nome: "Mogi das Cruzes",
-    db: "MOGI DAS CRUZES",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png",
-    geojson: "mogi.geojson",
-  },
-  monteirolobato: {
-    nome: "Monteiro Lobato",
-    db: "MONTEIRO LOBATO",
-    brasao: "https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41",
-    geojson: "monteirolobato.geojson",
-  },
-  pindamonhangaba: {
-    nome: "Pindamonhangaba",
-    db: "PINDAMONHANGABA",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png",
-    geojson: "pindamonhangaba.geojson",
-  },
-  poa: {
-    nome: "Poá",
-    db: "POÁ",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif",
-    geojson: "poa.geojson",
-  },
-  potim: {
-    nome: "Potim",
-    db: "POTIM",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png",
-    geojson: "potim.geojson",
-  },
-  roseira: {
-    nome: "Roseira",
-    db: "ROSEIRA",
-    brasao:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s",
-    geojson: "roseira.geojson",
-  },
-  salesopolis: {
-    nome: "Salesópolis",
-    db: "SALESÓPOLIS",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg",
-    geojson: "salesopolis.geojson",
-  },
-  santabranca: {
-    nome: "Santa Branca",
-    db: "SANTA BRANCA",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png",
-    geojson: "santabranca.geojson",
-  },
-  sjc: {
-    nome: "São José dos Campos",
-    db: "SÃO JOSÉ DOS CAMPOS",
-    brasao:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s",
-    geojson: "sjc.geojson",
-  },
-  saosebastiao: {
-    nome: "São Sebastião",
-    db: "SÃO SEBASTIÃO",
-    brasao:
-      "https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif",
-    geojson: "saosebastiao.geojson",
-  },
-  suzano: {
-    nome: "Suzano",
-    db: "SUZANO",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg",
-    geojson: "suzano.geojson",
-  },
-  taubate: {
-    nome: "Taubaté",
-    db: "TAUBATÉ",
-    brasao: "https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png",
-    geojson: "taubate.geojson",
-  },
-  tremembe: {
-    nome: "Tremembé",
-    db: "TREMEMBÉ",
-    brasao:
-      "https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg",
-    geojson: "tremembe.geojson",
-  },
-};
+const MUNICIPIOS_META = [
+  { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
+  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
+  { id:"cacapava",       db:"CAÇAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
+  { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
+  { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
+  { id:"cruzeiro",       db:"CRUZEIRO",               label:"CRUZEIRO",               logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
+  { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
+  { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
+  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
+  { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",        label:"ITAQUAQUECETUBA",        logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
+  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { id:"jambeiro",       db:"JAMBEIRO",               label:"JAMBEIRO",               logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
+  { id:"lorena",         db:"LORENA",                 label:"LORENA",                 logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
+  { id:"mogi",           db:"MOGI DAS CRUZES",        label:"MOGI DAS CRUZES",        logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
+  { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
+  { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
+  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
+  { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
+  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { id:"santabranca",    db:"SANTA BRANCA",           label:"SANTA BRANCA",           logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
+  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
+  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
+];
 
 const layerMunicipios = L.layerGroup().addTo(map);
 
-async function carregarPoligonosMunicipios(slugsSelecionados) {
+async function carregarPoligonosMunicipios(ids) {
   layerMunicipios.clearLayers();
 
-  const slugs =
-    Array.isArray(slugsSelecionados) && slugsSelecionados.length
-      ? slugsSelecionados
-      : Object.keys(MUNICIPIOS_CONFIG);
+  const alvo = ids && ids.length ? ids : MUNICIPIOS_META.map(m => m.id);
 
-  const boundsGerais = L.latLngBounds([]);
+  await Promise.all(
+    alvo.map(async (id) => {
+      const urls = [
+        `${GEOJSON_BASE}/${id}.geojson`,
+        `/geojson/${id}.geojson`,
+        `/data/geojson/${id}.geojson`,
+      ];
+      let ultimoErro = null;
 
-  const promessas = slugs.map(async (slug) => {
-    const cfg = MUNICIPIOS_CONFIG[slug];
-    if (!cfg) return;
+      for (const url of urls) {
+        try {
+          const resp = await fetch(url, { cache: "no-store" });
+          if (!resp.ok) {
+            ultimoErro = new Error(`HTTP ${resp.status}`);
+            continue;
+          }
+          const geo = await resp.json();
+          const poly = L.geoJSON(geo, {
+            style: {
+              color: "#19d68f",
+              weight: 2,
+              fillColor: "#19d68f",
+              fillOpacity: 0.12
+            }
+          });
+          poly.addTo(layerMunicipios);
+          return;
+        } catch (e) {
+          ultimoErro = e;
+        }
+      }
 
-    const url = `${GEOJSON_BASE}/${cfg.geojson}`;
-    try {
-      const resp = await fetch(url, { cache: "no-store" });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const geo = await resp.json();
-
-      const poly = L.geoJSON(geo, {
-        style: {
-          color: "#19d68f",
-          weight: 2,
-          fillColor: "#19d68f",
-          fillOpacity: 0.12,
-        },
-      });
-
-      poly.addTo(layerMunicipios);
-
-      try {
-        const b = poly.getBounds();
-        if (b.isValid()) boundsGerais.extend(b);
-      } catch (_) {}
-    } catch (e) {
-      console.error("Erro ao carregar GeoJSON do município:", slug, "URL:", url, e);
-    }
-  });
-
-  await Promise.all(promessas);
-
-  if (boundsGerais.isValid()) {
-    map.fitBounds(boundsGerais, { padding: [40, 40] });
-  }
+      console.error("Erro ao carregar GeoJSON do município:", id, "Detalhe:", ultimoErro);
+    })
+  );
 }
 
 /* ====================================================================
@@ -1240,22 +1071,21 @@ function buildModalModoInicial(){
   const grid = card.querySelector("#grid-municipios-modal");
   const counter = card.querySelector("#modoCounter");
 
-  // monta cards a partir do MUNICIPIOS_CONFIG (brasões + nomes)
-  Object.entries(MUNICIPIOS_CONFIG).forEach(([slug, cfg]) => {
+  MUNICIPIOS_META.forEach((m) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "modo-card-muni";
-    btn.dataset.id = slug;
+    btn.dataset.id = m.id;
     btn.innerHTML = `
-      <img src="${cfg.brasao}" alt="Brasão de ${escapeHtml(cfg.nome)}">
-      <span>${escapeHtml(cfg.nome.toUpperCase())}</span>
+      <img src="${m.logo}" alt="Prefeitura de ${escapeHtml(m.label)}">
+      <span>${escapeHtml(m.label)}</span>
     `;
     btn.addEventListener("click", () => {
-      if (selecionadosSet.has(slug)) {
-        selecionadosSet.delete(slug);
+      if (selecionadosSet.has(m.id)) {
+        selecionadosSet.delete(m.id);
         btn.classList.remove("selected");
       } else {
-        selecionadosSet.add(slug);
+        selecionadosSet.add(m.id);
         btn.classList.add("selected");
       }
       const n = selecionadosSet.size;
@@ -1273,32 +1103,29 @@ function buildModalModoInicial(){
   const btnSel = card.querySelector("#btnModoSelecionados");
   const btnFechar = card.querySelector("#btnModoFechar");
 
-  btnTodos.addEventListener("click", async () => {
+  btnTodos.addEventListener("click", () => {
     fecharModalModoInicial();
     modoAtual = "todos";
-    showOverlay("Carregando todos os municípios…");
-    await carregarPoligonosMunicipios();      // todos os polígonos
-    hardReset();                              // posta os postes (e esconde overlay no final)
+    showOverlay("Carregando todos os municípios e postes…");
+    carregarPoligonosMunicipios();      // todos
+    carregarTodosPostesGradualmente();  // usa overlay e esconde no final
   });
 
-  btnSel.addEventListener("click", async () => {
+  btnSel.addEventListener("click", () => {
     if (!selecionadosSet.size) {
       alert("Selecione ao menos um município para carregar.");
       return;
     }
-    const ids = Array.from(selecionadosSet); // slugs selecionados
-
+    const ids = Array.from(selecionadosSet);
     fecharModalModoInicial();
     modoAtual = "municipios";
-
     const muniDbSet = new Set();
-    ids.forEach((slug) => {
-      const cfg = MUNICIPIOS_CONFIG[slug];
-      if (cfg && cfg.db) muniDbSet.add(cfg.db.toUpperCase());
+    ids.forEach((id) => {
+      const meta = MUNICIPIOS_META.find((m) => m.id === id);
+      if (meta) muniDbSet.add(meta.db.toUpperCase());
     });
-
-    showOverlay("Carregando municípios selecionados…");
-    await carregarPoligonosMunicipios(ids);
+    showOverlay("Carregando municípios selecionados e respectivos postes…");
+    carregarPoligonosMunicipios(ids);
     carregarPostesPorMunicipiosGradual(muniDbSet);
   });
 
@@ -2137,16 +1964,25 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-// botão "Indicadores" no painel
-(function injectBIButton(){
+// botões extras no painel (Visualização + Indicadores)
+(function injectExtraPanelButtons(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
+
+  if (!document.getElementById("btnVisualizacao")) {
+    const btnV = document.createElement("button");
+    btnV.id = "btnVisualizacao";
+    btnV.innerHTML = '<i class="fa fa-eye"></i> Visualização';
+    btnV.addEventListener("click", abrirModalModoInicial);
+    actions.appendChild(btnV);
+  }
+
   if (!document.getElementById("btnIndicadores")) {
-    const btn = document.createElement("button");
-    btn.id = "btnIndicadores";
-    btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
-    btn.addEventListener("click", abrirIndicadores);
-    actions.appendChild(btn);
+    const btnI = document.createElement("button");
+    btnI.id = "btnIndicadores";
+    btnI.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
+    btnI.addEventListener("click", abrirIndicadores);
+    actions.appendChild(btnI);
   }
 })();
 
