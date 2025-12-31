@@ -54,51 +54,125 @@
     /* ---- Modal Indicadores (BI) ---- */
     .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
     .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
-    .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
-    .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
-    .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
+    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee; background:linear-gradient(90deg,#0f172a,#020617); color:#e5e7eb;}
+    .bi-head h3{margin:0; font-weight:700; color:#e5e7eb; font-size:16px}
+    .bi-close{border:0; background:#111827; color:#e5e7eb; border-radius:999px; padding:6px 12px; cursor:pointer}
+    .bi-body{padding:16px 18px 12px; display:grid; grid-template-columns:minmax(0,1.7fr) minmax(260px,0.9fr); gap:16px;}
     .bi-side label{font-size:13px; color:#374151}
-    .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
+    .bi-input{padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; width:100%}
     .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
-    .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
-    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
-    .bi-table-wrap{padding:0 16px 16px 16px;}
-    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
+    .bi-resumo{margin-top:6px; font-size:13px; color:#111827;}
+    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:999px; padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-size:13px;}
+    .bi-table-wrap{padding:0 18px 16px 18px;}
+    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border-radius:10px; overflow:hidden}
     .bi-table thead{background:#f9fafb}
-    .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
+    .bi-table th,.bi-table td{padding:9px 10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
+    .bi-table tbody tr{cursor:pointer;}
+    .bi-table tbody tr:hover{background:#f1f5f9;}
+
+    .bi-muni-cell{display:flex; align-items:center; gap:8px;}
+    .bi-muni-logo{
+      width:24px; height:24px; border-radius:4px; object-fit:contain;
+      background:#ffffff; box-shadow:0 1px 3px rgba(15,23,42,.2); flex-shrink:0;
+    }
+    .bi-muni-name{
+      white-space:nowrap; text-overflow:ellipsis; overflow:hidden; max-width:220px;
+    }
 
     /* Detalhes por município */
     .bi-detalhes{
-      margin-top:10px;
+      margin-top:12px;
       border-top:1px solid #e5e7eb;
       padding:10px 12px 12px;
       font-size:12px;
       background:#f9fafb;
       border-radius:0 0 10px 10px;
     }
+    .bi-detalhes-header{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      margin-bottom:6px;
+    }
+    .bi-detalhes-main{
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+    }
+    #detMunicipioBrasao{
+      width:32px; height:32px; border-radius:6px; object-fit:contain;
+      background:#ffffff; box-shadow:0 1px 2px rgba(15,23,42,.3);
+    }
     .bi-detalhes h4{
-      margin:0 0 6px 0;
+      margin:0 0 3px 0;
       font-size:13px;
       font-weight:700;
       color:#111827;
     }
     .bi-detalhes-resumo{
-      margin-bottom:6px;
+      margin:0;
       color:#374151;
+      font-size:12px;
     }
-    .bi-detalhes-cols{
-      display:grid;
-      grid-template-columns:2fr 1.5fr 1.5fr;
+
+    .bi-detalhes-actions{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .bi-tab-btn{
+      border-radius:999px;
+      border:1px solid #cbd5f5;
+      background:#e5e7ff;
+      padding:6px 10px;
+      font-size:11px;
+      cursor:pointer;
+      color:#111827;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      white-space:nowrap;
+    }
+    .bi-tab-btn.active{
+      background:#4f46e5;
+      border-color:#4338ca;
+      color:#f9fafb;
+      box-shadow:0 3px 10px rgba(79,70,229,.4);
+    }
+
+    .bi-detalhes-toolbar{
+      margin:6px 0 8px;
+      display:flex;
       gap:8px;
+      align-items:center;
     }
-    .bi-detalhes-cols strong{
+    #detBusca{
+      flex:1; min-width:0;
+      padding:6px 9px;
+      border-radius:999px;
+      border:1px solid #d1d5db;
+      font-size:12px;
+    }
+    #detBusca:focus{
+      outline:none;
+      border-color:#4f46e5;
+      box-shadow:0 0 0 2px rgba(79,70,229,.25);
+    }
+
+    .bi-detalhes-views{ margin-top:4px; }
+    .bi-tab-view{ display:none; }
+    .bi-tab-view.active{ display:block; }
+
+    .bi-tab-view > strong{
       display:block;
       margin-bottom:4px;
       font-size:11px;
       color:#4b5563;
     }
+
     .bi-mini-table{
       width:100%;
       border-collapse:collapse;
@@ -313,6 +387,7 @@
       gap:8px;
       cursor:pointer;
       transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease,background .12s ease;
+      color:#e5e7eb;
     }
     .modo-card-muni img{
       width:64px; height:64px; object-fit:contain;
@@ -324,7 +399,7 @@
       font-size:11px;
       text-align:center;
       letter-spacing:.25px;
-      color:#f9fafb; /* texto dos municípios em branco */
+      color:#e5e7eb;
     }
     .modo-card-muni:hover{
       border-color:#38bdf8;
@@ -932,89 +1007,76 @@ function carregarTodosPostesGradualmente() {
 ==================================================================== */
 const GEOJSON_BASE = "/data/geojson";
 
-const MUNICIPIOS_COLORS = [
-  "#22c55e", "#3b82f6", "#f97316", "#6366f1", "#ec4899", "#eab308",
-  "#14b8a6", "#a855f7", "#ef4444", "#0ea5e9", "#84cc16", "#f59e0b"
-];
-
-function slugMunicipio(str){
-  return String(str || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9]/g,"");
-}
-
 const MUNICIPIOS_META = [
   { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
   { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
-  { id:"cacapava",       db:"CAÇAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { id:"cacapava",       db:"CACAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
   { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
   { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
   { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
   { id:"cruzeiro",       db:"CRUZEIRO",               label:"CRUZEIRO",               logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
   { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
   { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
-  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { id:"guaratingueta",  db:"GUARATINGUETA",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
   { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
   { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",        label:"ITAQUAQUECETUBA",        logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
-  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { id:"jacarei",        db:"JACAREI",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
   { id:"jambeiro",       db:"JAMBEIRO",               label:"JAMBEIRO",               logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
   { id:"lorena",         db:"LORENA",                 label:"LORENA",                 logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
   { id:"mogi",           db:"MOGI DAS CRUZES",        label:"MOGI DAS CRUZES",        logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
   { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
   { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
-  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { id:"poa",            db:"POA",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
   { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
   { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
-  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { id:"salesopolis",    db:"SALESOPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
   { id:"santabranca",    db:"SANTA BRANCA",           label:"SANTA BRANCA",           logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
-  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
-  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { id:"sjc",            db:"SAO JOSE DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { id:"saosebastiao",   db:"SAO SEBASTIAO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
   { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
-  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
-  { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
-].map((m, idx) => ({
-  ...m,
-  color: MUNICIPIOS_COLORS[idx % MUNICIPIOS_COLORS.length],
-  slug: slugMunicipio(m.db || m.label || m.id)
-}));
+  { id:"taubate",        db:"TAUBATE",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { id:"tremembe",       db:"TREMEMBE",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
+];
+
+// mapa de cores por município
+const MUNICIPIO_COLOR_MAP = {};
+(() => {
+  const cores = [
+    "#22c55e","#0ea5e9","#a855f7","#f97316",
+    "#e11d48","#14b8a6","#6366f1","#84cc16"
+  ];
+  MUNICIPIOS_META.forEach((m, idx) => {
+    MUNICIPIO_COLOR_MAP[m.id] = cores[idx % cores.length];
+  });
+})();
 
 const layerMunicipios = L.layerGroup().addTo(map);
 
-async function carregarPoligonosMunicipios(ids, limparPostes = false) {
-  if (limparPostes) {
-    markers.clearLayers();
-    refreshClustersSoon();
-  }
-
+async function carregarPoligonosMunicipios(ids) {
   layerMunicipios.clearLayers();
 
   const alvo = ids && ids.length ? ids : MUNICIPIOS_META.map(m => m.id);
 
   await Promise.all(
     alvo.map(async (id) => {
-      const meta = MUNICIPIOS_META.find(m => m.id === id) || {};
-      const cor = meta.color || "#19d68f";
-
       const url = `${GEOJSON_BASE}/${id}.geojson`;
       try {
         const resp = await fetch(url, { cache: "no-store" });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const geo = await resp.json();
+
+        const meta = MUNICIPIOS_META.find((m) => m.id === id);
+        const cor = MUNICIPIO_COLOR_MAP[id] || "#19d68f";
+
         const poly = L.geoJSON(geo, {
           style: {
             color: cor,
             weight: 2,
             fillColor: cor,
-            fillOpacity: 0.18
-          },
-          // ignora features do tipo Point / MultiPoint (elimina pins azuis)
-          filter: (feature) => {
-            const g = feature && feature.geometry;
-            const t = g && g.type;
-            return t !== "Point" && t !== "MultiPoint";
+            fillOpacity: 0.15
           }
         });
+
         poly.addTo(layerMunicipios);
       } catch (e) {
         console.error("Erro ao carregar GeoJSON do município:", id, "URL:", url, e);
@@ -1121,8 +1183,8 @@ function buildModalModoInicial(){
   btnTodos.addEventListener("click", () => {
     fecharModalModoInicial();
     modoAtual = "todos";
-    showOverlay("Carregando todos os municípios e postes…");
-    carregarPoligonosMunicipios();      // todos os municípios
+    showOverlay("Carregando todos os postes…");
+    carregarPoligonosMunicipios();      // todos
     carregarTodosPostesGradualmente();  // usa overlay e esconde no final
   });
 
@@ -1134,16 +1196,14 @@ function buildModalModoInicial(){
     const ids = Array.from(selecionadosSet);
     fecharModalModoInicial();
     modoAtual = "municipios";
-
-    const muniSlugSet = new Set();
+    const muniDbSet = new Set();
     ids.forEach((id) => {
       const meta = MUNICIPIOS_META.find((m) => m.id === id);
-      if (meta && meta.slug) muniSlugSet.add(meta.slug);
+      if (meta) muniDbSet.add(meta.db.toUpperCase());
     });
-
-    showOverlay("Carregando postes dos municípios selecionados…");
-    carregarPoligonosMunicipios(ids, true);        // polígonos + limpa postes
-    carregarPostesPorMunicipiosGradual(muniSlugSet);
+    showOverlay("Carregando municípios selecionados…");
+    carregarPoligonosMunicipios(ids);
+    carregarPostesPorMunicipiosGradual(muniDbSet);
   });
 
   btnFechar.addEventListener("click", fecharModalModoInicial);
@@ -1162,12 +1222,16 @@ function fecharModalModoInicial(){
 }
 
 // Carregamento gradual apenas para alguns municípios
-function carregarPostesPorMunicipiosGradual(muniSlugSet){
+function carregarPostesPorMunicipiosGradual(muniDbSet){
   markers.clearLayers();
   idToMarker.clear();
 
+  // normaliza para remover acentos e diferenças de caixa
+  const muniNormSet = new Set();
+  muniDbSet.forEach((nome) => muniNormSet.add(normKey(nome)));
+
   const candidatos = todosPostes.filter((p) =>
-    muniSlugSet.has(p._muniSlug || "")
+    muniNormSet.has(normKey(p.nome_municipio || ""))
   );
 
   if (!candidatos.length) {
@@ -1309,7 +1373,6 @@ fetch("/api/postes", { credentials: "include" })
     });
 
     postsArray.forEach((poste) => {
-      poste._muniSlug = slugMunicipio(poste.nome_municipio || "");
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
@@ -1867,15 +1930,15 @@ function gerarPDFComMapa() {
     const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
     let y = 140; doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
-    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
+    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
+    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
+      doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
+    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
 }
@@ -1995,20 +2058,6 @@ function rowsToCSV(rows) {
   }
 })();
 
-// botão "Visualização" para reabrir modal de municípios
-(function injectVisualizacaoButton(){
-  const actions = document.querySelector(".painel-busca .actions");
-  if (!actions) return;
-  if (document.getElementById("btnVisualizacao")) return;
-  const btn = document.createElement("button");
-  btn.id = "btnVisualizacao";
-  btn.innerHTML = '<i class="fa fa-layer-group"></i> Visualização';
-  btn.addEventListener("click", () => {
-    abrirModalModoInicial();
-  });
-  actions.insertBefore(btn, actions.firstChild);
-})();
-
 function ensureBIModal() {
   if (document.getElementById("modalIndicadores")) return;
 
@@ -2024,7 +2073,7 @@ function ensureBIModal() {
 
       <div class="bi-body">
         <div>
-          <canvas id="chartMunicipios" height="160"></canvas>
+          <canvas id="chartMunicipios"></canvas>
         </div>
         <div class="bi-side">
           <label>Filtrar por empresa (opcional)</label>
@@ -2044,7 +2093,7 @@ function ensureBIModal() {
       </div>
 
       <div class="bi-table-wrap">
-        <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
+        <div style="overflow:auto;border:1px solid #eee;border-radius:10px;">
           <table id="tabelaMunicipios" class="bi-table">
             <thead>
               <tr>
@@ -2057,35 +2106,59 @@ function ensureBIModal() {
         </div>
 
         <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
-          <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
-          <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
+          <div class="bi-detalhes-header">
+            <div class="bi-detalhes-main">
+              <img id="detMunicipioBrasao" alt="Brasão do município">
+              <div>
+                <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
+                <p id="detMunicipioResumo" class="bi-detalhes-resumo"></p>
+              </div>
+            </div>
+            <div class="bi-detalhes-actions">
+              <button type="button" id="detTabEmpresas" class="bi-tab-btn">
+                <i class="fa fa-building"></i> Ver empresas
+              </button>
+              <button type="button" id="detTabBairros" class="bi-tab-btn">
+                <i class="fa fa-map-marker-alt"></i> Empresas por bairro
+              </button>
+              <button type="button" id="detTabLogradouros" class="bi-tab-btn">
+                <i class="fa fa-road"></i> Postes por rua
+              </button>
+            </div>
+          </div>
 
-          <div class="bi-detalhes-cols">
-            <div>
-              <strong>Empresas (top 15)</strong>
-              <table id="detTabelaEmpresas" class="bi-mini-table">
+          <div class="bi-detalhes-toolbar">
+            <input id="detBusca" placeholder="Pesquisar empresa, bairro ou rua..." />
+          </div>
+
+          <div class="bi-detalhes-views">
+            <div id="viewEmpresas" class="bi-tab-view">
+              <strong>Empresas neste município</strong>
+              <table class="bi-mini-table">
                 <thead>
                   <tr><th>Empresa</th><th class="num">Qtd. postes</th></tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="detTabelaEmpresas"></tbody>
               </table>
             </div>
-            <div>
-              <strong>Bairros (top 15)</strong>
-              <table id="detTabelaBairros" class="bi-mini-table">
+
+            <div id="viewBairros" class="bi-tab-view">
+              <strong>Bairros</strong>
+              <table class="bi-mini-table">
                 <thead>
                   <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="detTabelaBairros"></tbody>
               </table>
             </div>
-            <div>
-              <strong>Logradouros (top 15)</strong>
-              <table id="detTabelaLogradouros" class="bi-mini-table">
+
+            <div id="viewLogradouros" class="bi-tab-view">
+              <strong>Logradouros</strong>
+              <table class="bi-mini-table">
                 <thead>
                   <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="detTabelaLogradouros"></tbody>
               </table>
             </div>
           </div>
@@ -2098,6 +2171,12 @@ function ensureBIModal() {
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
   document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
+
+  // eventos de abas + busca
+  document.getElementById("detTabEmpresas")?.addEventListener("click", () => setAbaDetalhes("empresas"));
+  document.getElementById("detTabBairros")?.addEventListener("click", () => setAbaDetalhes("bairros"));
+  document.getElementById("detTabLogradouros")?.addEventListener("click", () => setAbaDetalhes("logradouros"));
+  document.getElementById("detBusca")?.addEventListener("input", () => renderDetalhesView());
 
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
@@ -2146,7 +2225,7 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
 
   for (const p of todosPostes) {
     if (!p.nome_municipio) continue;
-    if (p.nome_municipio.toLowerCase() !== muniNorm) continue;
+    if ((p.nome_municipio || "").toLowerCase() !== muniNorm) continue;
     if (bounds && !bounds.contains([p.lat, p.lon])) continue;
     if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
 
@@ -2170,18 +2249,17 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
     }
   }
 
-  const toRows = (m, limit = 15) =>
+  const toRows = (m) =>
     Array.from(m.entries())
       .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd)
-      .slice(0, limit);
+      .sort((a, b) => b.qtd - a.qtd);
 
   return {
     totalPostes,
     totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts, 15),
-    bairrosRows: toRows(bairroCounts, 15),
-    logradourosRows: toRows(logCounts, 15),
+    empresasRows: toRows(empCounts),
+    bairrosRows: toRows(bairroCounts),
+    logradourosRows: toRows(logCounts),
   };
 }
 
@@ -2197,10 +2275,71 @@ function montarLinhasMiniTabela(rows) {
     .join("");
 }
 
+// estado interno da aba de detalhes
+const detEstado = {
+  municipio: null,
+  dados: null,
+  aba: "empresas",
+  busca: ""
+};
+
+function setAbaDetalhes(aba) {
+  detEstado.aba = aba;
+  atualizarAbasUI();
+  renderDetalhesView();
+}
+
+function atualizarAbasUI() {
+  const abas = {
+    empresas: document.getElementById("detTabEmpresas"),
+    bairros: document.getElementById("detTabBairros"),
+    logradouros: document.getElementById("detTabLogradouros"),
+  };
+  const views = {
+    empresas: document.getElementById("viewEmpresas"),
+    bairros: document.getElementById("viewBairros"),
+    logradouros: document.getElementById("viewLogradouros"),
+  };
+  Object.keys(abas).forEach((k) => {
+    abas[k]?.classList.toggle("active", detEstado.aba === k);
+    views[k]?.classList.toggle("active", detEstado.aba === k);
+  });
+}
+
+function aplicarBusca(rows) {
+  const q = (document.getElementById("detBusca")?.value || "").trim().toLowerCase();
+  detEstado.busca = q;
+  if (!q) return rows;
+  return rows.filter((r) => (r.nome || "").toLowerCase().includes(q));
+}
+
+function renderDetalhesView() {
+  const dados = detEstado.dados;
+  if (!dados) return;
+
+  const empTb = document.querySelector("#detTabelaEmpresas");
+  const baiTb = document.querySelector("#detTabelaBairros");
+  const logTb = document.querySelector("#detTabelaLogradouros");
+
+  if (empTb) {
+    const rows = detEstado.aba === "empresas" ? aplicarBusca(dados.empresasRows) : dados.empresasRows;
+    empTb.innerHTML = montarLinhasMiniTabela(rows);
+  }
+  if (baiTb) {
+    const rows = detEstado.aba === "bairros" ? aplicarBusca(dados.bairrosRows) : dados.bairrosRows;
+    baiTb.innerHTML = montarLinhasMiniTabela(rows);
+  }
+  if (logTb) {
+    const rows = detEstado.aba === "logradouros" ? aplicarBusca(dados.logradourosRows) : dados.logradourosRows;
+    logTb.innerHTML = montarLinhasMiniTabela(rows);
+  }
+}
+
 function mostrarDetalhesMunicipio(municipio) {
   const box = document.getElementById("detalhesMunicipio");
   const nomeEl = document.getElementById("detMunicipioNome");
   const resumoEl = document.getElementById("detMunicipioResumo");
+  const brasaoEl = document.getElementById("detMunicipioBrasao");
   if (!box || !nomeEl || !resumoEl) return;
 
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
@@ -2208,20 +2347,33 @@ function mostrarDetalhesMunicipio(municipio) {
 
   const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
 
+  detEstado.municipio = municipio;
+  detEstado.dados = det;
+  detEstado.aba = "empresas";
+  document.getElementById("detBusca").value = "";
+  atualizarAbasUI();
+
   nomeEl.textContent = municipio;
 
   resumoEl.innerHTML =
     `Postes no município${empresa ? ` para <b>${escapeHtml(empresa)}</b>` : ""}: <b>${det.totalPostes.toLocaleString("pt-BR")}</b>` +
     ` · Empresas distintas: <b>${det.totalEmpresas.toLocaleString("pt-BR")}</b>`;
 
-  const empTb = document.querySelector("#detTabelaEmpresas tbody");
-  const baiTb = document.querySelector("#detTabelaBairros tbody");
-  const logTb = document.querySelector("#detTabelaLogradouros tbody");
+  // brasão
+  if (brasaoEl) {
+    const meta = MUNICIPIOS_META.find(
+      (m) => normKey(m.db) === normKey(municipio) || normKey(m.label) === normKey(municipio)
+    );
+    if (meta && meta.logo) {
+      brasaoEl.src = meta.logo;
+      brasaoEl.style.display = "block";
+    } else {
+      brasaoEl.src = "";
+      brasaoEl.style.display = "none";
+    }
+  }
 
-  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(det.empresasRows);
-  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(det.bairrosRows);
-  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
-
+  renderDetalhesView();
   box.style.display = det.totalPostes ? "block" : "none";
 }
 
@@ -2246,9 +2398,24 @@ function atualizarIndicadores() {
   const tb = document.querySelector("#tabelaMunicipios tbody");
   if (tb) {
     tb.innerHTML =
-      rows.map((r) =>
-        `<tr data-municipio="${escapeAttr(r.municipio)}"><td>${r.municipio}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`
-      ).join("") ||
+      rows.map((r) => {
+        const meta = MUNICIPIOS_META.find(
+          (m) => normKey(m.db) === normKey(r.municipio) || normKey(m.label) === normKey(r.municipio)
+        );
+        const logoHtml = meta && meta.logo
+          ? `<img class="bi-muni-logo" src="${meta.logo}" alt="Brasão de ${escapeAttr(meta.label || meta.db || r.municipio)}">`
+          : `<div class="bi-muni-logo" style="background:#e5e7eb;"></div>`;
+        return `
+          <tr data-municipio="${escapeAttr(r.municipio)}">
+            <td>
+              <div class="bi-muni-cell">
+                ${logoHtml}
+                <span class="bi-muni-name">${escapeHtml(r.municipio)}</span>
+              </div>
+            </td>
+            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
+          </tr>`;
+      }).join("") ||
       `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
 
     tb.onclick = (ev) => {
@@ -2266,27 +2433,33 @@ function atualizarIndicadores() {
   }
 
   const labels = rows.map((r) => r.municipio);
-  const data = rows.map((r) => r.qtd);
+  const dataVals = rows.map((r) => r.qtd);
   const ctx = document.getElementById("chartMunicipios");
 
   if (typeof Chart !== "undefined" && ctx) {
     if (chartMunicipiosRef) {
       chartMunicipiosRef.data.labels = labels;
-      chartMunicipiosRef.data.datasets[0].data = data;
+      chartMunicipiosRef.data.datasets[0].data = dataVals;
       chartMunicipiosRef.update();
     } else {
       chartMunicipiosRef = new Chart(ctx, {
         type: "bar",
         data: {
           labels,
-          datasets: [{ label: "Postes por município", data }],
+          datasets: [{ label: "Postes por município", data: dataVals }],
         },
         options: {
+          indexAxis: "y",
           responsive: true,
-          plugins: { legend: { display: false } },
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: "nearest", intersect: false }
+          },
+          layout: { padding: { left: 4, right: 4, top: 6, bottom: 6 } },
           scales: {
-            x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 } },
-            y: { beginAtZero: true },
+            x: { beginAtZero: true, ticks: { font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } },
           },
         },
       });
