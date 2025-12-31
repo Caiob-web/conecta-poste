@@ -413,50 +413,6 @@ const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
 osm.addTo(map);
 
-// --------------------------------------------------------------------
-// Polyfill seguro para markercluster
-// --------------------------------------------------------------------
-if (typeof L !== "undefined" && typeof L.markerClusterGroup !== "function") {
-  if (typeof L.MarkerClusterGroup === "function") {
-    L.markerClusterGroup = function (options) {
-      return new L.MarkerClusterGroup(options);
-    };
-  } else {
-    console.warn("Leaflet.markercluster não carregado; usando LayerGroup como fallback.");
-    const FallbackCluster = L.LayerGroup.extend({
-      addLayers: function (layers) {
-        if (Array.isArray(layers)) {
-          layers.forEach((l) => this.addLayer(l));
-        }
-        return this;
-      },
-      refreshClusters: function () {
-        return this;
-      },
-    });
-    L.MarkerClusterGroup = FallbackCluster;
-    L.markerClusterGroup = function (options) {
-      return new FallbackCluster(options);
-    };
-  }
-}
-
-// helper pra garantir que o objeto tem os métodos addLayers / refreshClusters
-function ensureClusterMethods(group) {
-  if (!group) return;
-  if (typeof group.addLayers !== "function") {
-    group.addLayers = function (layers) {
-      if (Array.isArray(layers)) {
-        layers.forEach((l) => this.addLayer(l));
-      }
-      return this;
-    };
-  }
-  if (typeof group.refreshClusters !== "function") {
-    group.refreshClusters = function () { return this; };
-  }
-}
-
 // estilo dos pontos (postes) — menor e mais leve
 function dotStyle(qtdEmpresas){
   return {
@@ -634,20 +590,35 @@ async function ensureTransformadorIcon() {
 const transformadoresPane = map.createPane("transformadores");
 transformadoresPane.style.zIndex = 635;
 
-// cluster transformadores
-const transformadoresMarkers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
-  maxClusterRadius: 60,
-  disableClusteringAtZoom: 18,
-  chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null }),
-});
-ensureClusterMethods(transformadoresMarkers);
+// cluster transformadores (com fallback)
+let transformadoresMarkers;
+(function initTransformadoresCluster() {
+  const hasCluster =
+    typeof L !== "undefined" &&
+    (typeof L.markerClusterGroup === "function" || typeof L.MarkerClusterGroup !== "undefined");
+
+  if (hasCluster && typeof L.markerClusterGroup === "function") {
+    transformadoresMarkers = L.markerClusterGroup({
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: false,
+      maxClusterRadius: 60,
+      disableClusteringAtZoom: 18,
+      chunkedLoading: true,
+      chunkDelay: 5,
+      chunkInterval: 50,
+      iconCreateFunction: (cluster) =>
+        new L.DivIcon({
+          html: String(cluster.getChildCount()),
+          className: "cluster-num-only",
+          iconSize: null,
+        }),
+    });
+  } else {
+    console.warn("Leaflet.markercluster não carregado; usando L.layerGroup para transformadores.");
+    transformadoresMarkers = L.layerGroup();
+  }
+})();
 
 const transformadores = [];
 const idToTransformadorMarker = new Map();
@@ -796,27 +767,59 @@ function syncTransformadoresToggle() {
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
 // -------------------- Cluster (só números) ---------------------------
-const markers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
-  maxClusterRadius: 60,
-  disableClusteringAtZoom: 17,
-  chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
-});
-ensureClusterMethods(markers);
+let markers;
+
+(function initMarkersCluster() {
+  const hasCluster =
+    typeof L !== "undefined" &&
+    (typeof L.markerClusterGroup === "function" || typeof L.MarkerClusterGroup !== "undefined");
+
+  if (hasCluster && typeof L.markerClusterGroup === "function") {
+    markers = L.markerClusterGroup({
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: false,
+      maxClusterRadius: 60,
+      disableClusteringAtZoom: 17,
+      chunkedLoading: true,
+      chunkDelay: 5,
+      chunkInterval: 50,
+      iconCreateFunction: (cluster) =>
+        new L.DivIcon({
+          html: String(cluster.getChildCount()),
+          className: "cluster-num-only",
+          iconSize: null,
+        }),
+    });
+  } else {
+    console.warn("Leaflet.markercluster não carregado; usando L.layerGroup para markers.");
+    markers = L.layerGroup();
+  }
+
+  // polyfills para manter o resto do código intacto
+  if (typeof markers.addLayers !== "function") {
+    markers.addLayers = function (layers) {
+      if (Array.isArray(layers)) {
+        layers.forEach((l) => this.addLayer(l));
+      }
+      return this;
+    };
+  }
+  if (typeof markers.refreshClusters !== "function") {
+    markers.refreshClusters = function () {
+      return this;
+    };
+  }
+
+  map.addLayer(markers);
+})();
 
 // Clique no cluster: spiderfy + abre 1º filho
 markers.off("clusterclick");
 markers.on("clusterclick", (e) => {
   if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const childs = e.layer.getAllChildMarkers && e.layer.getAllChildMarkers();
-  if (!childs || !childs.length) return;
-  if (e.layer.spiderfy) e.layer.spiderfy();
+  const childs = e.layer.getAllChildMarkers();
+  e.layer.spiderfy();
   requestAnimationFrame(() => {
     const first = childs && childs[0];
     if (first && first.posteData) {
@@ -828,8 +831,6 @@ markers.on("clusterclick", (e) => {
   });
 });
 
-map.addLayer(markers);
-
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
 const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
@@ -837,9 +838,8 @@ function keyId(id){ return String(id); }
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 function refreshClustersSoon(){
-  if (typeof markers.refreshClusters === "function") {
-    requestAnimationFrame(() => markers.refreshClusters());
-  }
+  if (!markers || typeof markers.refreshClusters !== "function") return;
+  requestAnimationFrame(() => markers.refreshClusters());
 }
 
 /* ====================================================================
@@ -1029,6 +1029,11 @@ const MUNICIPIOS_META = [
   color: MUNICIPIOS_COLORS[idx % MUNICIPIOS_COLORS.length],
   slug: slugMunicipio(m.db || m.label || m.id)
 }));
+
+function findMunicipioMeta(nome) {
+  const s = slugMunicipio(nome || "");
+  return MUNICIPIOS_META.find((m) => m.slug === s) || null;
+}
 
 const layerMunicipios = L.layerGroup().addTo(map);
 
@@ -1252,7 +1257,7 @@ function carregarPostesPorMunicipiosGradual(muniSlugSet){
 
 // ---- Indicadores / BI (refs de gráfico) ----
 let chartMunicipiosRef = null;
-let municipioSelecionadoBI = null;
+let ultimoDetalheMunicipio = null;
 
 // ---------------------- HUD na lateral --------------------------------
 (function buildHud() {
@@ -1572,9 +1577,9 @@ function filtrarLocal() {
 function resetarMapa() {
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
-  showOverlay("Carregando todos os municípios e postes…");
+  showOverlay("Carregando todos os postes…");
   modoAtual = "todos";
-  carregarPoligonosMunicipios(); // redesenha todos os polígonos
+  carregarPoligonosMunicipios(); // garante polígonos
   hardReset();
 }
 
@@ -1978,32 +1983,6 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   exportarExcel(ids);
 });
 
-// Botão Limpar Análise
-document.getElementById("btnLimparAnalise")?.addEventListener("click", () => {
-  if (window.tracadoMassivo) {
-    try { map.removeLayer(window.tracadoMassivo); } catch {}
-    window.tracadoMassivo = null;
-  }
-  if (window.intermediarios && Array.isArray(window.intermediarios)) {
-    window.intermediarios.forEach((m) => {
-      try { map.removeLayer(m); } catch {}
-    });
-    window.intermediarios = [];
-  }
-  if (window.numeroMarkers && Array.isArray(window.numeroMarkers)) {
-    window.numeroMarkers.forEach((m) => {
-      try { markers.removeLayer(m); map.removeLayer(m); } catch {}
-    });
-    window.numeroMarkers = [];
-  }
-  window.ultimoResumoPostes = null;
-  markers.clearLayers();
-  refreshClustersSoon();
-  exibirTodosPostes();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
-});
-
 // Toggle painel
 document.getElementById("togglePainel")?.addEventListener("click", () => {
   const p = document.querySelector(".painel-busca");
@@ -2061,45 +2040,6 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-function empresasMunicipioToCSV(municipio, { empresa = "", apenasVisiveis = false } = {}) {
-  const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
-  const linhas = det.empresasRows || [];
-  const header = "Municipio,Empresa,QuantidadePostes\n";
-  if (!linhas.length) return header;
-  const muniSafe = (municipio || "").replace(/"/g, '""');
-  const body = linhas
-    .map((r) => `"${muniSafe}","${(r.nome || "").replace(/"/g, '""')}",${r.qtd}`)
-    .join("\n");
-  return header + body + "\n";
-}
-
-function exportarEmpresasMunicipioCSV() {
-  const municipio = municipioSelecionadoBI;
-  if (!municipio) {
-    alert("Selecione um município na tabela para exportar as empresas.");
-    return;
-  }
-  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
-  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
-
-  const csv = empresasMunicipioToCSV(municipio, { empresa, apenasVisiveis });
-  if (!csv || csv.trim().split("\n").length <= 1) {
-    alert("Não há empresas para exportar neste município com os filtros atuais.");
-    return;
-  }
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const empSlug = empresa ? `_${empresa.replace(/\W+/g, "_")}` : "";
-  a.href = url;
-  a.download = `empresas_${municipio.replace(/\W+/g, "_")}${empSlug}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 // botão "Indicadores" no painel
 (function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
@@ -2113,22 +2053,28 @@ function exportarEmpresasMunicipioCSV() {
   }
 })();
 
-// botão "Visualização" para reabrir modal de municípios (usa botão já existente)
-(function bindVisualizacaoButton(){
-  function attach() {
-    const btn = document.getElementById("btnVisualizacao");
-    if (!btn) return;
-    if (btn.dataset.boundVisualizacao === "1") return;
-    btn.dataset.boundVisualizacao = "1";
+// botão "Visualização" para reabrir modal de municípios
+(function ensureVisualizacaoButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions) return;
+
+  function wire(btn){
     btn.addEventListener("click", () => {
       abrirModalModoInicial();
     });
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", attach);
-  } else {
-    attach();
+
+  const existing = document.getElementById("btnVisualizacao");
+  if (existing) {
+    wire(existing);
+    return;
   }
+
+  const btn = document.createElement("button");
+  btn.id = "btnVisualizacao";
+  btn.innerHTML = '<i class="fa fa-layer-group"></i> Visualização';
+  wire(btn);
+  actions.insertBefore(btn, actions.firstChild);
 })();
 
 function ensureBIModal() {
@@ -2160,7 +2106,7 @@ function ensureBIModal() {
           </label>
           <div id="resumoBI" class="bi-resumo"></div>
           <button id="exportarCsvBI" class="bi-btn">
-            <i class="fa fa-file-csv"></i> Exportar CSV (tabela)
+            <i class="fa fa-file-csv"></i> Exportar CSV (postes por município)
           </button>
         </div>
       </div>
@@ -2172,7 +2118,6 @@ function ensureBIModal() {
               <tr>
                 <th style="text-align:left;">Município</th>
                 <th style="text-align:right;">Qtd. de Postes</th>
-                <th style="text-align:center;">Ações</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -2183,13 +2128,9 @@ function ensureBIModal() {
           <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
           <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
 
-          <button id="detExportarEmpresasCsv" class="bi-btn" style="margin-bottom:6px;">
-            <i class="fa fa-file-csv"></i> Exportar empresas (CSV)
-          </button>
-
           <div class="bi-detalhes-cols">
             <div>
-              <strong>Empresas</strong>
+              <strong>Empresas (todas)</strong>
               <table id="detTabelaEmpresas" class="bi-mini-table">
                 <thead>
                   <tr><th>Empresa</th><th class="num">Qtd. postes</th></tr>
@@ -2198,7 +2139,7 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Bairros</strong>
+              <strong>Bairros (top 15)</strong>
               <table id="detTabelaBairros" class="bi-mini-table">
                 <thead>
                   <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
@@ -2207,7 +2148,7 @@ function ensureBIModal() {
               </table>
             </div>
             <div>
-              <strong>Logradouros</strong>
+              <strong>Logradouros (top 15)</strong>
               <table id="detTabelaLogradouros" class="bi-mini-table">
                 <thead>
                   <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
@@ -2216,6 +2157,10 @@ function ensureBIModal() {
               </table>
             </div>
           </div>
+
+          <button id="btnExportEmpresasMunicipio" class="bi-btn" style="margin-top:10px;">
+            <i class="fa fa-file-csv"></i> Exportar empresas deste município
+          </button>
         </div>
       </div>
     </div>`;
@@ -2225,7 +2170,7 @@ function ensureBIModal() {
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
   document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
-  document.getElementById("detExportarEmpresasCsv")?.addEventListener("click", exportarEmpresasMunicipioCSV);
+  document.getElementById("btnExportEmpresasMunicipio")?.addEventListener("click", exportarEmpresasDoMunicipioAtual);
 
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
@@ -2298,17 +2243,20 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
     }
   }
 
-  const toRows = (m) =>
-    Array.from(m.entries())
+  const toRows = (m, limit) => {
+    const arr = Array.from(m.entries())
       .map(([nome, qtd]) => ({ nome, qtd }))
       .sort((a, b) => b.qtd - a.qtd);
+    if (typeof limit === "number" && limit > 0) return arr.slice(0, limit);
+    return arr;
+  };
 
   return {
     totalPostes,
     totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts),
-    bairrosRows: toRows(bairroCounts),
-    logradourosRows: toRows(logCounts),
+    empresasRows: toRows(empCounts),        // todas as empresas
+    bairrosRows: toRows(bairroCounts, 15),  // top 15
+    logradourosRows: toRows(logCounts, 15), // top 15
   };
 }
 
@@ -2330,8 +2278,6 @@ function mostrarDetalhesMunicipio(municipio) {
   const resumoEl = document.getElementById("detMunicipioResumo");
   if (!box || !nomeEl || !resumoEl) return;
 
-  municipioSelecionadoBI = municipio;
-
   const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
 
@@ -2352,6 +2298,47 @@ function mostrarDetalhesMunicipio(municipio) {
   if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
 
   box.style.display = det.totalPostes ? "block" : "none";
+
+  ultimoDetalheMunicipio = {
+    municipio,
+    filtros: { empresa, apenasVisiveis },
+    dados: det,
+  };
+
+  if (det.totalPostes) {
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function exportarEmpresasDoMunicipioAtual() {
+  if (!ultimoDetalheMunicipio || !ultimoDetalheMunicipio.dados) {
+    alert("Selecione um município na tabela e clique em Empresas para ver os detalhes.");
+    return;
+  }
+  const { municipio, dados } = ultimoDetalheMunicipio;
+  const rows = dados.empresasRows || [];
+  if (!rows.length) {
+    alert("Não há empresas para este município nos filtros atuais.");
+    return;
+  }
+
+  const header = "Municipio,Empresa,QuantidadePostes\n";
+  const body = rows
+    .map((r) =>
+      `"${(municipio || "").replace(/"/g, '""')}","${(r.nome || "").replace(/"/g, '""')}",${r.qtd}`
+    )
+    .join("\n");
+  const csv = header + body + "\n";
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const safeMunicipio = (municipio || "").replace(/\W+/g, "_");
+  a.download = `empresas_${safeMunicipio}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function attachChartClickHandler() {
@@ -2376,40 +2363,36 @@ function atualizarIndicadores() {
   if (tb) {
     tb.innerHTML =
       rows.map((r) => {
-        const slug = slugMunicipio(r.municipio);
-        const meta = MUNICIPIOS_META.find((m) => m.slug === slug);
-        const brasaoHtml = meta && meta.logo
-          ? `<img src="${meta.logo}" alt="Brasão de ${escapeHtml(meta.label || r.municipio)}" style="width:22px;height:22px;object-fit:contain;margin-right:6px;border-radius:4px;">`
+        const meta = findMunicipioMeta(r.municipio);
+        const logoHtml = meta && meta.logo
+          ? `<img src="${meta.logo}" alt="${escapeAttr(r.municipio)}" style="width:20px;height:20px;object-fit:contain;border-radius:50%;margin-right:6px;">`
           : "";
         return `
           <tr data-municipio="${escapeAttr(r.municipio)}">
             <td>
-              <div style="display:flex;align-items:center;gap:8px;">
-                ${brasaoHtml}
-                <span>${escapeHtml(r.municipio)}</span>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  ${logoHtml}${escapeHtml(r.municipio)}
+                </span>
+                <button type="button"
+                        class="bi-btn-ver-empresas"
+                        data-municipio="${escapeAttr(r.municipio)}"
+                        style="border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;font-size:11px;background:#fff;cursor:pointer;">
+                  Empresas
+                </button>
               </div>
             </td>
             <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
-            <td style="text-align:center;">
-              <button type="button"
-                      class="bi-btn"
-                      data-bi-ver-empresas="${escapeAttr(r.municipio)}"
-                      style="margin-top:0;padding:4px 8px;font-size:11px;">
-                Ver empresas
-              </button>
-            </td>
           </tr>`;
       }).join("") ||
-      `<tr><td colspan="3" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+      `<tr><td colspan="2" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
 
     tb.onclick = (ev) => {
-      const btnMuni = ev.target.getAttribute && ev.target.getAttribute("data-bi-ver-empresas");
+      const btn = ev.target.closest(".bi-btn-ver-empresas");
       const tr = ev.target.closest("tr");
-      const muni = btnMuni || (tr && tr.dataset && tr.dataset.municipio);
+      const muni = (btn && btn.dataset.municipio) || (tr && tr.dataset && tr.dataset.municipio);
       if (!muni) return;
       mostrarDetalhesMunicipio(muni);
-      const box = document.getElementById("detalhesMunicipio");
-      if (box) box.scrollIntoView({ behavior: "smooth", block: "start" });
     };
   }
 
