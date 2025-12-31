@@ -89,7 +89,12 @@
       .painel-busca .field input:focus, .painel-busca .field textarea:focus { outline: none; border-color: var(--ui-accent); box-shadow: 0 0 0 3px rgba(24,199,127,.22); }
       .painel-busca .field .fa { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--ui-muted); font-size: 14px; pointer-events:none; }
 
-      .painel-busca .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+      .painel-busca .actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 6px;
+      }
       .painel-busca .actions button {
         display: flex; align-items: center; justify-content: center; padding: 10px 0;
         background: var(--ui-accent); color: #07251a; border: 1px solid var(--ui-border); border-radius: 10px;
@@ -229,11 +234,17 @@
         <button onclick="buscarID()"><i class="fa fa-search"></i>Buscar</button>
         <button onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
         <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
-        <button onclick="consultarIDsEmMassa()"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
+
+        <!-- Análise de Projeto + Limpar traçado -->
+        <button onclick="consultarIDsEmMassa()" id="btnAnaliseProjeto"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
+        <button id="btnLimparAnalise"><i class="fa fa-eraser"></i>Limpar</button>
+
+        <!-- Resetar + PDF + Excel + Censo + Visualização -->
         <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
         <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
         <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
+        <button id="btnVisualizacao"><i class="fa fa-layer-group"></i>Visualização</button>
       </div>
 
       <!-- ✅ Toggle Transformadores (começa desligado, sem src, sem 404) -->
