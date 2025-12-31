@@ -324,8 +324,7 @@
       font-size:11px;
       text-align:center;
       letter-spacing:.25px;
-      color:#f9fafb;
-      font-weight:400;
+      color:#f9fafb; /* texto dos municípios em branco */
     }
     .modo-card-muni:hover{
       border-color:#38bdf8;
@@ -933,6 +932,18 @@ function carregarTodosPostesGradualmente() {
 ==================================================================== */
 const GEOJSON_BASE = "/data/geojson";
 
+const MUNICIPIOS_COLORS = [
+  "#22c55e", "#3b82f6", "#f97316", "#6366f1", "#ec4899", "#eab308",
+  "#14b8a6", "#a855f7", "#ef4444", "#0ea5e9", "#84cc16", "#f59e0b"
+];
+
+function slugMunicipio(str){
+  return String(str || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]/g,"");
+}
+
 const MUNICIPIOS_META = [
   { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
   { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
@@ -962,48 +973,52 @@ const MUNICIPIOS_META = [
   { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
   { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
   { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
-];
+].map((m, idx) => ({
+  ...m,
+  color: MUNICIPIOS_COLORS[idx % MUNICIPIOS_COLORS.length],
+  slug: slugMunicipio(m.db || m.label || m.id)
+}));
 
 const layerMunicipios = L.layerGroup().addTo(map);
 
-async function carregarPoligonosMunicipios(ids) {
+async function carregarPoligonosMunicipios(ids, limparPostes = false) {
+  if (limparPostes) {
+    markers.clearLayers();
+    refreshClustersSoon();
+  }
+
   layerMunicipios.clearLayers();
 
   const alvo = ids && ids.length ? ids : MUNICIPIOS_META.map(m => m.id);
 
   await Promise.all(
     alvo.map(async (id) => {
-      const urls = [
-        `${GEOJSON_BASE}/${id}.geojson`,
-        `/geojson/${id}.geojson`,
-        `/data/geojson/${id}.geojson`,
-      ];
-      let ultimoErro = null;
+      const meta = MUNICIPIOS_META.find(m => m.id === id) || {};
+      const cor = meta.color || "#19d68f";
 
-      for (const url of urls) {
-        try {
-          const resp = await fetch(url, { cache: "no-store" });
-          if (!resp.ok) {
-            ultimoErro = new Error(`HTTP ${resp.status}`);
-            continue;
+      const url = `${GEOJSON_BASE}/${id}.geojson`;
+      try {
+        const resp = await fetch(url, { cache: "no-store" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const geo = await resp.json();
+        const poly = L.geoJSON(geo, {
+          style: {
+            color: cor,
+            weight: 2,
+            fillColor: cor,
+            fillOpacity: 0.18
+          },
+          // ignora features do tipo Point / MultiPoint (elimina pins azuis)
+          filter: (feature) => {
+            const g = feature && feature.geometry;
+            const t = g && g.type;
+            return t !== "Point" && t !== "MultiPoint";
           }
-          const geo = await resp.json();
-          const poly = L.geoJSON(geo, {
-            style: {
-              color: "#19d68f",
-              weight: 2,
-              fillColor: "#19d68f",
-              fillOpacity: 0.12
-            }
-          });
-          poly.addTo(layerMunicipios);
-          return;
-        } catch (e) {
-          ultimoErro = e;
-        }
+        });
+        poly.addTo(layerMunicipios);
+      } catch (e) {
+        console.error("Erro ao carregar GeoJSON do município:", id, "URL:", url, e);
       }
-
-      console.error("Erro ao carregar GeoJSON do município:", id, "Detalhe:", ultimoErro);
     })
   );
 }
@@ -1107,7 +1122,7 @@ function buildModalModoInicial(){
     fecharModalModoInicial();
     modoAtual = "todos";
     showOverlay("Carregando todos os municípios e postes…");
-    carregarPoligonosMunicipios();      // todos
+    carregarPoligonosMunicipios();      // todos os municípios
     carregarTodosPostesGradualmente();  // usa overlay e esconde no final
   });
 
@@ -1119,14 +1134,16 @@ function buildModalModoInicial(){
     const ids = Array.from(selecionadosSet);
     fecharModalModoInicial();
     modoAtual = "municipios";
-    const muniDbSet = new Set();
+
+    const muniSlugSet = new Set();
     ids.forEach((id) => {
       const meta = MUNICIPIOS_META.find((m) => m.id === id);
-      if (meta) muniDbSet.add(meta.db.toUpperCase());
+      if (meta && meta.slug) muniSlugSet.add(meta.slug);
     });
-    showOverlay("Carregando municípios selecionados e respectivos postes…");
-    carregarPoligonosMunicipios(ids);
-    carregarPostesPorMunicipiosGradual(muniDbSet);
+
+    showOverlay("Carregando postes dos municípios selecionados…");
+    carregarPoligonosMunicipios(ids, true);        // polígonos + limpa postes
+    carregarPostesPorMunicipiosGradual(muniSlugSet);
   });
 
   btnFechar.addEventListener("click", fecharModalModoInicial);
@@ -1145,12 +1162,12 @@ function fecharModalModoInicial(){
 }
 
 // Carregamento gradual apenas para alguns municípios
-function carregarPostesPorMunicipiosGradual(muniDbSet){
+function carregarPostesPorMunicipiosGradual(muniSlugSet){
   markers.clearLayers();
   idToMarker.clear();
 
   const candidatos = todosPostes.filter((p) =>
-    muniDbSet.has((p.nome_municipio || "").toUpperCase())
+    muniSlugSet.has(p._muniSlug || "")
   );
 
   if (!candidatos.length) {
@@ -1292,6 +1309,7 @@ fetch("/api/postes", { credentials: "include" })
     });
 
     postsArray.forEach((poste) => {
+      poste._muniSlug = slugMunicipio(poste.nome_municipio || "");
       todosPostes.push(poste);
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
@@ -1849,15 +1867,15 @@ function gerarPDFComMapa() {
     const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
     let y = 140; doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
-    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
+    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
+    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
+      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
+    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
 }
@@ -1964,26 +1982,31 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-// botões extras no painel (Visualização + Indicadores)
-(function injectExtraPanelButtons(){
+// botão "Indicadores" no painel
+(function injectBIButton(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
-
-  if (!document.getElementById("btnVisualizacao")) {
-    const btnV = document.createElement("button");
-    btnV.id = "btnVisualizacao";
-    btnV.innerHTML = '<i class="fa fa-eye"></i> Visualização';
-    btnV.addEventListener("click", abrirModalModoInicial);
-    actions.appendChild(btnV);
-  }
-
   if (!document.getElementById("btnIndicadores")) {
-    const btnI = document.createElement("button");
-    btnI.id = "btnIndicadores";
-    btnI.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
-    btnI.addEventListener("click", abrirIndicadores);
-    actions.appendChild(btnI);
+    const btn = document.createElement("button");
+    btn.id = "btnIndicadores";
+    btn.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
+    btn.addEventListener("click", abrirIndicadores);
+    actions.appendChild(btn);
   }
+})();
+
+// botão "Visualização" para reabrir modal de municípios
+(function injectVisualizacaoButton(){
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions) return;
+  if (document.getElementById("btnVisualizacao")) return;
+  const btn = document.createElement("button");
+  btn.id = "btnVisualizacao";
+  btn.innerHTML = '<i class="fa fa-layer-group"></i> Visualização';
+  btn.addEventListener("click", () => {
+    abrirModalModoInicial();
+  });
+  actions.insertBefore(btn, actions.firstChild);
 })();
 
 function ensureBIModal() {
