@@ -1,3 +1,4 @@
+
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
@@ -1041,6 +1042,11 @@ async function carregarPoligonosMunicipios(ids) {
               weight: 2,
               fillColor: color,
               fillOpacity: 0.15
+            },
+            // ✅ NÃO desenhar os pontos (centroides) do GeoJSON
+            filter: (feature) => {
+              const type = feature?.geometry?.type;
+              return type !== "Point" && type !== "MultiPoint";
             }
           });
           poly.addTo(layerMunicipios);
@@ -1154,7 +1160,7 @@ function buildModalModoInicial(){
     fecharModalModoInicial();
     modoAtual = "todos";
     showOverlay("Carregando todos os municípios e postes…");
-    // remove marcador azul de localização ao carregar todos
+    // remove marcador azul de localização ao carregar todos (se existir)
     if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
       map.removeLayer(window.userLocationMarker);
       window.userLocationMarker = null;
@@ -1171,11 +1177,14 @@ function buildModalModoInicial(){
     const ids = Array.from(selecionadosSet);
     fecharModalModoInicial();
     modoAtual = "municipios";
+
+    // ✅ usa normKey para ignorar acentos e caracteres
     const muniDbSet = new Set();
     ids.forEach((id) => {
       const meta = MUNICIPIOS_META.find((m) => m.id === id);
-      if (meta) muniDbSet.add(meta.db.toUpperCase());
+      if (meta) muniDbSet.add(normKey(meta.db));
     });
+
     showOverlay("Carregando municípios selecionados e respectivos postes…");
     carregarPoligonosMunicipios(ids);
     carregarPostesPorMunicipiosGradual(muniDbSet);
@@ -1201,8 +1210,9 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
   markers.clearLayers();
   idToMarker.clear();
 
+  // ✅ compara nome de município normalizado (sem acento)
   const candidatos = todosPostes.filter((p) =>
-    muniDbSet.has((p.nome_municipio || "").toUpperCase())
+    muniDbSet.has(normKey(p.nome_municipio || ""))
   );
 
   if (!candidatos.length) {
