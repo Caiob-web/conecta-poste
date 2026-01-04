@@ -1,4 +1,3 @@
-
 // =====================================================================
 //  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
 //  (Street View via link público do Google — sem API, sem custo)
@@ -907,17 +906,9 @@ function criarLayerPoste(p){
   return layer;
 }
 
-// Reconstrói todos (com cache) – usado em reset / modo "todos"
+// ✅ Reset agora sempre usa o cache se já carregou uma vez
 function hardReset(){
-  markers.clearLayers();
-  if (todosCarregados) {
-    const arr = Array.from(idToMarker.values());
-    if (arr.length) markers.addLayers(arr);
-    refreshClustersSoon();
-  } else {
-    idToMarker.clear();
-    carregarTodosPostesGradualmente();
-  }
+  carregarTodosPostesGradualmente();
 }
 
 // Adiciona 1 poste
@@ -936,10 +927,25 @@ function exibirTodosPostes() {
   reabrirPopupFixo(0);
 }
 
-// Carrega gradativamente TODOS os postes (uma vez)
+// ✅ Carrega todos os postes UMA vez; depois só reaproveita o cache
 function carregarTodosPostesGradualmente() {
   const lote = document.hidden ? 3500 : 1200;
   let i = 0;
+
+  // Se já carregamos todos antes, apenas reanexa os marcadores existentes
+  if (todosCarregados && idToMarker.size) {
+    markers.clearLayers();
+    const arr = Array.from(idToMarker.values());
+    if (arr.length) {
+      markers.addLayers(arr);
+      refreshClustersSoon();
+    }
+    reabrirTooltipFixo(0);
+    reabrirPopupFixo(0);
+    hideOverlay();
+    return;
+  }
+
   todosCarregados = false;
   markers.clearLayers();
   idToMarker.clear();
@@ -1166,7 +1172,7 @@ function buildModalModoInicial(){
       window.userLocationMarker = null;
     }
     carregarPoligonosMunicipios();      // todos
-    carregarTodosPostesGradualmente();  // usa overlay e esconde no final
+    carregarTodosPostesGradualmente();  // usa cache se já tiver
   });
 
   btnSel.addEventListener("click", () => {
@@ -1205,12 +1211,11 @@ function fecharModalModoInicial(){
   if (modalModoEl) modalModoEl.style.display = "none";
 }
 
-// Carregamento gradual apenas para alguns municípios
+// ✅ Carregamento gradual apenas para alguns municípios (reutiliza cache global)
 function carregarPostesPorMunicipiosGradual(muniDbSet){
   markers.clearLayers();
-  idToMarker.clear();
 
-  // ✅ compara nome de município normalizado (sem acento)
+  // Cache global (idToMarker) é mantido
   const candidatos = todosPostes.filter((p) =>
     muniDbSet.has(normKey(p.nome_municipio || ""))
   );
