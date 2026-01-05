@@ -289,139 +289,13 @@
 })();
 
 /* ====================================================================
-   Modal inicial: modo de carregamento (todos / por município)
+   Estilo do botão de seleção de postes (estado ativo)
 ==================================================================== */
-(function injectModoInicialStyles(){
+(function injectSelecaoButtonStyles(){
   const css = `
-    .modo-backdrop{
-      position:fixed; inset:0; z-index:3500;
-      background:rgba(15,23,42,.88);
-      display:none; align-items:center; justify-content:center;
-    }
-    .modo-card{
-      width:min(980px,96vw);
-      max-height:90vh;
-      overflow:auto;
-      background:#020617;
-      border-radius:16px;
-      border:1px solid rgba(25,214,143,.5);
-      box-shadow:0 24px 60px rgba(0,0,0,.7);
-      color:#e5e7eb;
-      font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
-      padding:18px 20px 20px;
-    }
-    .modo-head{
-      display:flex; justify-content:space-between; gap:12px; align-items:flex-start;
-      margin-bottom:10px;
-    }
-    .modo-head h2{
-      margin:0; font-size:18px; font-weight:800; letter-spacing:.3px;
-    }
-    .modo-head p{
-      margin:4px 0 0; font-size:13px; color:#9ca3af;
-    }
-    .modo-tag{
-      font-size:11px;
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid rgba(148,163,184,.6);
-      color:#e5e7eb;
-      white-space:nowrap;
-    }
-    .modo-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-      gap:10px;
-      margin-top:10px;
-    }
-    .modo-card-muni{
-      border-radius:12px;
-      border:1px solid #1f2937;
-      background:#020617;
-      padding:10px 8px 8px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:8px;
-      cursor:pointer;
-      transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease,background .12s ease;
-    }
-    .modo-card-muni img{
-      width:64px; height:64px; object-fit:contain;
-      border-radius:6px;
-      background:#020617;
-      box-shadow:0 4px 10px rgba(0,0,0,.6);
-    }
-    .modo-card-muni span{
-      font-size:11px;
-      text-align:center;
-      letter-spacing:.25px;
-      color:#f9fafb;
-      font-weight:400;
-    }
-    .modo-card-muni:hover{
-      border-color:#38bdf8;
-      box-shadow:0 0 0 1px rgba(56,189,248,.5);
-      transform:translateY(-1px);
-    }
-    .modo-card-muni.selected{
-      border-color:#22c55e;
-      background:#022c22;
-      box-shadow:0 0 0 1px rgba(34,197,94,.7),0 14px 30px rgba(0,0,0,.8);
-    }
-    .modo-footer{
-      margin-top:14px;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .modo-footer-left,
-    .modo-footer-right{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .modo-btn-primary,
-    .modo-btn-secondary{
-      border-radius:999px;
-      padding:8px 14px;
-      font-size:13px;
-      font-weight:700;
-      cursor:pointer;
-      border:1px solid transparent;
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-    }
-    .modo-btn-primary{
-      background:#22c55e;
-      border-color:#22c55e;
-      color:#022c22;
-      box-shadow:0 8px 18px rgba(34,197,94,.35);
-    }
-    .modo-btn-primary:hover{
-      background:#16a34a;
-      border-color:#16a34a;
-    }
-    .modo-btn-secondary{
-      background:transparent;
-      border-color:#4b5563;
-      color:#e5e7eb;
-    }
-    .modo-btn-secondary:hover{
-      border-color:#9ca3af;
-      background:#020617;
-    }
-    .modo-counter{
-      font-size:12px;
-      color:#9ca3af;
-    }
-    @media (max-width:640px){
-      .modo-footer{flex-direction:column; align-items:stretch;}
-      .modo-footer-right{justify-content:flex-end;}
+    .painel-busca .actions button.selecionando{
+      box-shadow:0 0 0 2px rgba(59,130,246,.6);
+      filter:saturate(1.1);
     }
   `;
   const style = document.createElement("style");
@@ -457,7 +331,130 @@ function dotStyle(qtdEmpresas){
   };
 }
 
-// alternância programática (usada pelo seletor)
+// ====================================================================
+// MODO SELECIONAR POSTES (até 300) + linha azul + export
+// ====================================================================
+let selecaoAtiva = false;
+let postesSelecionados = [];   // [{ poste, layer }]
+let selecaoPolyline = null;
+
+function atualizarEstadoBotaoSelecao() {
+  const btnSel = document.getElementById("btnSelecionarPostes");
+  const btnLimpar = document.getElementById("btnLimparSelecao");
+  const qtd = postesSelecionados.length;
+
+  if (btnSel) {
+    btnSel.classList.toggle("selecionando", selecaoAtiva);
+    btnSel.innerHTML = selecaoAtiva
+      ? `<i class="fa fa-hand-pointer"></i> Selecionando (${qtd})`
+      : `<i class="fa fa-hand-pointer"></i> Selecionar Postes`;
+  }
+  if (btnLimpar) {
+    btnLimpar.disabled = !selecaoAtiva || !qtd;
+  }
+}
+
+function entrarModoSelecao() {
+  if (selecaoAtiva) return;
+  selecaoAtiva = true;
+  postesSelecionados = [];
+  if (selecaoPolyline) {
+    map.removeLayer(selecaoPolyline);
+    selecaoPolyline = null;
+  }
+  atualizarEstadoBotaoSelecao();
+  alert("Modo SELECIONAR POSTES ativado. Clique nos postes para selecioná-los (máx. 300).");
+}
+
+function limparSelecaoESair(opts = {}) {
+  const manterMarcadores = !!opts.manterMarcadores;
+
+  if (!manterMarcadores) {
+    postesSelecionados.forEach(({ layer, poste }) => {
+      if (layer && layer.setStyle && poste) {
+        const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
+        try {
+          layer.setStyle(dotStyle(qtd));
+          if (layer.getRadius) layer.setRadius(4);
+        } catch {}
+      }
+    });
+  }
+
+  postesSelecionados = [];
+  selecaoAtiva = false;
+
+  if (selecaoPolyline) {
+    map.removeLayer(selecaoPolyline);
+    selecaoPolyline = null;
+  }
+  atualizarEstadoBotaoSelecao();
+}
+
+// trata clique em um poste quando modo seleção está ativo
+function handleSelecaoClick(poste, layer) {
+  if (!selecaoAtiva) return false;
+
+  const idAtual = String(poste.id);
+  const idx = postesSelecionados.findIndex((r) => String(r.poste.id) === idAtual);
+
+  if (idx >= 0) {
+    // desmarca
+    const reg = postesSelecionados[idx];
+    postesSelecionados.splice(idx, 1);
+    if (reg.layer && reg.layer.setStyle) {
+      const qtd = Array.isArray(reg.poste.empresas) ? reg.poste.empresas.length : 0;
+      try {
+        reg.layer.setStyle(dotStyle(qtd));
+        if (reg.layer.getRadius) reg.layer.setRadius(4);
+      } catch {}
+    }
+  } else {
+    // adiciona
+    if (postesSelecionados.length >= 300) {
+      alert("Limite máximo de 300 postes na seleção.");
+      return true;
+    }
+    postesSelecionados.push({ poste, layer });
+
+    if (layer && layer.setStyle) {
+      const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
+      try {
+        layer.setStyle({
+          ...dotStyle(qtd),
+          color: "#1d4ed8",
+          fillColor: "#3b82f6"
+        });
+        if (layer.getRadius) {
+          const base = layer.getRadius();
+          layer.setRadius(base + 2);
+          setTimeout(() => {
+            try { layer.setRadius(base + 1); } catch {}
+          }, 150);
+        }
+      } catch {}
+    }
+  }
+
+  // redesenha a linha azul de trajeto
+  if (selecaoPolyline) {
+    map.removeLayer(selecaoPolyline);
+    selecaoPolyline = null;
+  }
+  if (postesSelecionados.length >= 2) {
+    const coords = postesSelecionados.map((r) => [r.poste.lat, r.poste.lon]);
+    selecaoPolyline = L.polyline(coords, {
+      color: "#1d4ed8",
+      weight: 3,
+      dashArray: "4,6"
+    }).addTo(map);
+  }
+
+  atualizarEstadoBotaoSelecao();
+  return true;
+}
+
+// --------------------- base layer switcher ---------------------------
 let currentBase = osm;
 function setBase(mode) {
   if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
@@ -896,6 +893,8 @@ function criarLayerPoste(p){
     .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      // se estiver no modo seleção, trata aqui e não abre popup normal
+      if (handleSelecaoClick(p, layer)) return;
       lastTip = { id: key }; tipPinned = true;
       try { layer.openTooltip?.(); } catch {}
       abrirPopup(p);
@@ -1486,6 +1485,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
       c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
       c.on("click", (e) => {
         if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+        if (handleSelecaoClick(poste, c)) return;
         lastTip = { id: keyId(poste.id) }; tipPinned = true;
         try{ c.openTooltip?.(); } catch{}
         abrirPopup(poste);
@@ -1567,6 +1567,9 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
+  // sair do modo seleção (sem tentar restaurar estilos, o reset já recria marcadores)
+  limparSelecaoESair({ manterMarcadores: true });
+
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
   showOverlay("Carregando todos os postes…");
@@ -1855,6 +1858,7 @@ function consultarIDsEmMassa() {
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
             .on("click", (e) => {
               if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+              if (handleSelecaoClick(p, m)) return;
               lastTip = { id: keyId(p.id) }; tipPinned = true;
               try{ m.openTooltip?.(); }catch{}
               abrirPopup(p);
@@ -1901,6 +1905,7 @@ function adicionarNumerado(p, num) {
   mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
   mk.on("click", (e) => {
     if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+    if (handleSelecaoClick(p, mk)) return;
     lastTip = { id: keyId(p.id) }; tipPinned = true;
     try{ mk.openTooltip?.(); }catch{}
     abrirPopup(p);
@@ -1973,9 +1978,17 @@ function exportarExcel(ids) {
 
 // Botão Excel
 document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
+  // Se estiver no modo seleção e houver postes selecionados, usa esse conjunto
+  if (postesSelecionados.length) {
+    const ids = postesSelecionados.map((r) => r.poste.id);
+    exportarExcel(ids);
+    gerarExcelCliente(ids);
+    return;
+  }
+
   const ids = (document.getElementById("ids-multiplos")?.value || "")
     .split(/[^0-9]+/).filter(Boolean);
-  if (!ids.length) return alert("Informe ao menos um ID.");
+  if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
   exportarExcel(ids);
 });
 
@@ -2004,7 +2017,7 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
 });
 
 /* --------------------------------------------------------------------
-   === Indicadores (BI)
+   === Indicadores (BI) + Botões extra (Visualização / Indicadores / Seleção)
 -------------------------------------------------------------------- */
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
@@ -2046,10 +2059,32 @@ function getMunicipioMetaByName(nome) {
   );
 }
 
-// botões extras no painel (Visualização + Indicadores)
+// botões extras no painel (Selecionar / Limpar seleção / Visualização / Indicadores)
 (function injectExtraPanelButtons(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
+
+  // Selecionar Postes
+  let btnSel = document.getElementById("btnSelecionarPostes");
+  if (!btnSel) {
+    btnSel = document.createElement("button");
+    btnSel.id = "btnSelecionarPostes";
+    btnSel.innerHTML = '<i class="fa fa-hand-pointer"></i> Selecionar Postes';
+    btnSel.addEventListener("click", () => {
+      if (!selecaoAtiva) entrarModoSelecao();
+    });
+    actions.appendChild(btnSel);
+  }
+
+  // Limpar seleção / sair
+  let btnLimpar = document.getElementById("btnLimparSelecao");
+  if (!btnLimpar) {
+    btnLimpar = document.createElement("button");
+    btnLimpar.id = "btnLimparSelecao";
+    btnLimpar.innerHTML = '<i class="fa fa-xmark"></i> Limpar seleção';
+    btnLimpar.addEventListener("click", () => limparSelecaoESair());
+    actions.appendChild(btnLimpar);
+  }
 
   // Visualização: se já existe no HTML, só conecta o clique
   let btnV = document.getElementById("btnVisualizacao");
@@ -2074,6 +2109,8 @@ function getMunicipioMetaByName(nome) {
     btnI.addEventListener("click", abrirIndicadores);
     actions.appendChild(btnI);
   }
+
+  atualizarEstadoBotaoSelecao();
 })();
 
 function ensureBIModal() {
