@@ -303,6 +303,164 @@
   document.head.appendChild(style);
 })();
 
+/* ====================================================================
+   Estilos da tela de visualização inicial (modo de carregamento)
+==================================================================== */
+(function injectModoInicialStyles(){
+  const css = `
+    .modo-backdrop{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(15,23,42,.55);
+      z-index:3500;
+      padding:16px;
+      box-sizing:border-box;
+    }
+    .modo-card{
+      width:min(960px,100%);
+      max-height:90vh;
+      overflow:auto;
+      background:#ffffff;
+      border-radius:12px;
+      box-shadow:0 18px 40px rgba(15,23,42,.32);
+      padding:18px 20px 20px;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    }
+    .modo-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .modo-head h2{
+      margin:0 0 4px;
+      font-size:18px;
+      font-weight:700;
+      color:#111827;
+    }
+    .modo-head p{
+      margin:0;
+      font-size:13px;
+      color:#4b5563;
+    }
+    .modo-tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#e0f2fe;
+      font-size:11px;
+      color:#0f172a;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .modo-tag i{
+      font-size:11px;
+    }
+    .modo-footer{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+    .modo-footer-left{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    .modo-footer-right{
+      font-size:12px;
+      color:#6b7280;
+    }
+    .modo-btn-primary,
+    .modo-btn-secondary{
+      border-radius:999px;
+      border:1px solid transparent;
+      padding:8px 14px;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .modo-btn-primary{
+      background:#111827;
+      color:#f9fafb;
+    }
+    .modo-btn-secondary{
+      background:#f9fafb;
+      color:#111827;
+      border-color:#e5e7eb;
+    }
+    .modo-btn-primary i,
+    .modo-btn-secondary i{
+      font-size:13px;
+    }
+    .modo-counter{
+      font-size:12px;
+      color:#6b7280;
+    }
+    .modo-grid{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+      gap:8px;
+    }
+    .modo-card-muni{
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:8px 10px;
+      background:#ffffff;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      text-align:left;
+      font-size:13px;
+      color:#111827;
+      transition:border-color .15s ease, box-shadow .15s ease, transform .08s ease;
+    }
+    .modo-card-muni img{
+      width:28px;
+      height:28px;
+      border-radius:999px;
+      object-fit:cover;
+      box-shadow:0 1px 3px rgba(15,23,42,.25);
+      flex-shrink:0;
+    }
+    .modo-card-muni:hover{
+      border-color:#38bdf8;
+      box-shadow:0 4px 12px rgba(15,23,42,.12);
+      transform:translateY(-1px);
+    }
+    .modo-card-muni.selected{
+      border-color:#111827;
+      box-shadow:0 0 0 1px #111827;
+    }
+    @media (max-width:768px){
+      .modo-card{
+        padding:14px 12px 16px;
+      }
+      .modo-head{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
 // ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map").setView([-23.2, -45.9], 8);
 
@@ -1990,6 +2148,7 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
     .split(/[^0-9]+/).filter(Boolean);
   if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
   exportarExcel(ids);
+  gerarExcelCliente(ids);
 });
 
 // Toggle painel
