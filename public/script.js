@@ -1581,7 +1581,13 @@ function gerarExcelCliente(filtroIds) {
 
       detalhes.forEach((e) => {
         const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
-        const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
+        let idIns = "";
+        if (typeof e === "object" && e !== null) {
+          idIns = e.id_insercao ?? "";
+        } else if (p.id_insercao != null) {
+          // fallback caso o backend mande o id de inserção só no nível do poste
+          idIns = p.id_insercao;
+        }
 
         dadosParaExcel.push({
           "ID POSTE": p.id,
@@ -2084,15 +2090,15 @@ function gerarPDFComMapa() {
     const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
     let y = 140; doc.setFontSize(12);
     doc.text("Resumo da Verificação:", 10, y);
-    doc.text(`✔️ Disponíveis: ${resumo.disponiveis}`, 10, y + 10);
-    doc.text(`❌ Indisponíveis: ${resumo.ocupados}`, 10, y + 20);
+    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
+    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
     if (resumo.naoEncontrados.length) {
       const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text([`⚠️ Não encontrados (${resumo.naoEncontrados.length}):`, textoIds], 10, y + 30);
+      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
     } else {
       doc.text("⚠️ Não encontrados: 0", 10, y + 30);
     }
-    doc.text(`🟡 Intermediários: ${resumo.intermediarios}`, 10, y + 50);
+    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
     doc.save("tracado_postes.pdf");
   });
 }
