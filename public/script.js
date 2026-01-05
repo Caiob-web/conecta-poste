@@ -454,7 +454,7 @@ function handleSelecaoClick(poste, layer) {
   return true;
 }
 
-// --------------------- base layer switcher ---------------------------
+// -------------------- base layer switcher ---------------------------
 let currentBase = osm;
 function setBase(mode) {
   if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
@@ -1284,7 +1284,7 @@ let chartMunicipiosRef = null;
         <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
           <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
-          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="#111827" stroke-width="2"/>
+          <path d="M12 2c3.5 3.5 3.5 16.5 0 20M12 2c-3.5 3.5-3.5 16.5 0 20" fill="none" stroke="#111827" stroke-width="2"/>
         </svg>
         <select id="select-base">
           <option value="rua">Rua</option>
@@ -1487,7 +1487,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
         if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
         if (handleSelecaoClick(poste, c)) return;
         lastTip = { id: keyId(poste.id) }; tipPinned = true;
-        try{ c.openTooltip?.(); } catch{}
+        try{ c.openTooltip?.(); }catch{}
         abrirPopup(poste);
       });
 
@@ -1895,6 +1895,40 @@ function consultarIDsEmMassa() {
   hideOverlay();
 }
 
+// 👉 NOVO: limpar análise de projeto (linha + marcadores numerados + intermediários)
+function limparAnaliseProjeto() {
+  // limpa modo seleção se estiver ativo
+  limparSelecaoESair({ manterMarcadores: true });
+
+  if (window.tracadoMassivo) {
+    map.removeLayer(window.tracadoMassivo);
+    window.tracadoMassivo = null;
+  }
+
+  if (window.intermediarios && window.intermediarios.length) {
+    window.intermediarios.forEach((m) => {
+      try { map.removeLayer(m); } catch {}
+    });
+    window.intermediarios = [];
+  }
+
+  if (window.numeroMarkers && window.numeroMarkers.length) {
+    window.numeroMarkers.forEach((mk) => {
+      try {
+        if (markers.hasLayer(mk)) markers.removeLayer(mk);
+      } catch {}
+    });
+    window.numeroMarkers = [];
+  }
+
+  window.ultimoResumoPostes = null;
+
+  // volta a exibir os postes padrão
+  exibirTodosPostes();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
+}
+
 // Adiciona marcador numerado (para análise)
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
@@ -1991,6 +2025,9 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
   exportarExcel(ids);
 });
+
+// 👉 liga o botão de LIMPAR ANÁLISE à função nova
+document.getElementById("btnLimparAnalise")?.addEventListener("click", limparAnaliseProjeto);
 
 // Toggle painel
 document.getElementById("togglePainel")?.addEventListener("click", () => {
