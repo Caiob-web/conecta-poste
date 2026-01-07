@@ -304,7 +304,7 @@
 })();
 
 /* ====================================================================
-   Estilos dos ícones de poste + fios
+   Estilos dos ícones de poste
 ==================================================================== */
 (function injectPosteIconStyles(){
   const css = `
@@ -315,9 +315,6 @@
     .poste-marker-selected{
       transform:translateY(-2px) scale(1.06);
       filter:drop-shadow(0 0 4px rgba(59,130,246,.85));
-    }
-    .fios-energia{
-      pointer-events:none;
     }
   `;
   const style = document.createElement("style");
@@ -498,34 +495,31 @@ const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_la
 });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
-// panes para postes e fios
-const fiosPane = map.createPane("fios");
-fiosPane.style.zIndex = 625;
+// pane para postes
 const postesPane = map.createPane("postes");
 postesPane.style.zIndex = 630;
-const fiosLayer = L.layerGroup().addTo(map);
 
 osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) =========
-const SVG_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="85" y="60" width="30" height="520" rx="10" fill="#d6dbe1" stroke="#8b96a5" stroke-width="3"/><rect x="78" y="40" width="44" height="25" rx="8" fill="#c8cfd8" stroke="#8b96a5" stroke-width="3"/><circle cx="100" cy="180" r="4" fill="#8b96a5"/><circle cx="100" cy="240" r="4" fill="#8b96a5"/><circle cx="100" cy="300" r="4" fill="#8b96a5"/><circle cx="100" cy="360" r="4" fill="#8b96a5"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#b9c2cd"/></svg>';
-const SVG_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="85" y="60" width="30" height="520" rx="12" fill="#8b5a2b" stroke="#5c3a1e" stroke-width="3"/><rect x="80" y="40" width="40" height="25" rx="10" fill="#7a4c24" stroke="#5c3a1e" stroke-width="3"/><path d="M92 120 C88 150,100 170,92 210" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><path d="M108 140 C104 180,114 210,108 250" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><path d="M95 300 C90 330,102 360,95 390" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#6f4523"/></svg>';
+const SVG_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="78" y="60" width="44" height="520" rx="14" fill="#d6dbe1" stroke="#8b96a5" stroke-width="3"/><rect x="78" y="40" width="44" height="25" rx="8" fill="#c8cfd8" stroke="#8b96a5" stroke-width="3"/><circle cx="100" cy="180" r="4" fill="#8b96a5"/><circle cx="100" cy="240" r="4" fill="#8b96a5"/><circle cx="100" cy="300" r="4" fill="#8b96a5"/><circle cx="100" cy="360" r="4" fill="#8b96a5"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#b9c2cd"/></svg>';
+const SVG_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="78" y="60" width="44" height="520" rx="14" fill="#8b5a2b" stroke="#5c3a1e" stroke-width="3"/><rect x="80" y="40" width="40" height="25" rx="10" fill="#7a4c24" stroke="#5c3a1e" stroke-width="3"/><path d="M92 120 C88 150,100 170,92 210" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><path d="M108 140 C104 180,114 210,108 250" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><path d="M95 300 C90 330,102 360,95 390" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#6f4523"/></svg>';
 
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
-  iconSize: [20, 60],
-  iconAnchor: [10, 52],
-  tooltipAnchor: [0, -48],
-  popupAnchor: [0, -52],
+  iconSize: [22, 44],
+  iconAnchor: [11, 40],
+  tooltipAnchor: [0, -36],
+  popupAnchor: [0, -40],
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
 const ICON_POSTE_MADEIRA = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
-  iconSize: [20, 60],
-  iconAnchor: [10, 52],
-  tooltipAnchor: [0, -48],
-  popupAnchor: [0, -52],
+  iconSize: [22, 44],
+  iconAnchor: [11, 40],
+  tooltipAnchor: [0, -36],
+  popupAnchor: [0, -40],
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
@@ -1047,43 +1041,6 @@ markers.on("clusterclick", (e) => {
 
 map.addLayer(markers);
 
-// -------------------- FIOS ENTRE POSTES ------------------------------
-function atualizarFios() {
-  fiosLayer.clearLayers();
-  const zoom = map.getZoom();
-  if (zoom < 16) return; // só desenha fios quando estiver bem aproximado
-
-  const bounds = map.getBounds();
-  const grupos = new Map(); // key = municipio|logradouro
-
-  markers.eachLayer((layer) => {
-    const p = layer.posteData;
-    if (!p || !layer.getLatLng) return;
-    const latlng = layer.getLatLng();
-    if (!bounds.contains(latlng)) return;
-
-    const muni = p.nome_municipio || "";
-    const log = p.nome_logradouro || "";
-    const key = `${normKey(muni)}|${normKey(log)}`;
-    if (!grupos.has(key)) grupos.set(key, []);
-    grupos.get(key).push(latlng);
-  });
-
-  grupos.forEach((lista) => {
-    if (lista.length < 2) return;
-    // ordena para o fio seguir o traçado
-    lista.sort((a, b) => (a.lng === b.lng ? a.lat - b.lat : a.lng - b.lng));
-    const coords = lista.map((ll) => [ll.lat, ll.lng]);
-    L.polyline(coords, {
-      color: "#111827",
-      weight: 1.3,
-      opacity: 0.75,
-      pane: "fios",
-      className: "fios-energia"
-    }).addTo(fiosLayer);
-  });
-}
-
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
 const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
@@ -1199,7 +1156,6 @@ function exibirTodosPostes() {
   refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
-  atualizarFios();
 }
 
 // ✅ Carrega todos os postes UMA vez; depois só reaproveita o cache
@@ -1218,7 +1174,6 @@ function carregarTodosPostesGradualmente() {
     reabrirTooltipFixo(0);
     reabrirPopupFixo(0);
     hideOverlay();
-    atualizarFios();
     return;
   }
 
@@ -1238,7 +1193,6 @@ function carregarTodosPostesGradualmente() {
       reabrirTooltipFixo(0);
       reabrirPopupFixo(0);
       hideOverlay();
-      atualizarFios();
     }
   }
   scheduleIdle(addChunk);
@@ -1521,7 +1475,6 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
         const bounds = L.latLngBounds(candidatos.map(p => [p.lat, p.lon]));
         map.fitBounds(bounds);
       } catch {}
-      atualizarFios();
     }
   }
   scheduleIdle(addChunk);
@@ -1736,7 +1689,6 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
 
   markers.clearLayers();
   refreshClustersSoon();
-  fiosLayer.clearLayers();
 
   if (!censoMode) {
     exibirTodosPostes();
@@ -1825,7 +1777,6 @@ function filtrarLocal() {
   refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
-  atualizarFios();
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -2109,7 +2060,6 @@ function consultarIDsEmMassa() {
 
   markers.clearLayers();
   refreshClustersSoon();
-  fiosLayer.clearLayers();
 
   if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
   window.intermediarios?.forEach((m) => map.removeLayer(m));
@@ -2739,10 +2689,8 @@ function atualizarIndicadores() {
 
 /* ====================================================================
    Reabertura do tooltip/popup após reconstrução do cluster
-   + atualização dos fios
 ==================================================================== */
-markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); atualizarFios(); });
-markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); atualizarFios(); });
-markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); atualizarFios(); });
-map.on("layeradd", (ev) => { if (ev.layer === markers) { reabrirTooltipFixo(120); atualizarFios(); } });
-map.on("moveend zoomend", () => atualizarFios());
+markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+map.on("layeradd", (ev) => { if (ev.layer === markers) { reabrirTooltipFixo(120); } });
