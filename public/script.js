@@ -416,7 +416,7 @@
       color:#f9fafb;
     }
     .modo-btn-secondary{
-      background:#f9fafb;
+     background:#f9fafb;
       color:#111827;
       border-color:#e5e7eb;
     }
@@ -503,7 +503,8 @@ osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) =========
 const SVG_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="78" y="60" width="44" height="520" rx="14" fill="#d6dbe1" stroke="#8b96a5" stroke-width="3"/><rect x="78" y="40" width="44" height="25" rx="8" fill="#c8cfd8" stroke="#8b96a5" stroke-width="3"/><circle cx="100" cy="180" r="4" fill="#8b96a5"/><circle cx="100" cy="240" r="4" fill="#8b96a5"/><circle cx="100" cy="300" r="4" fill="#8b96a5"/><circle cx="100" cy="360" r="4" fill="#8b96a5"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#b9c2cd"/></svg>';
-const SVG_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="78" y="60" width="44" height="520" rx="14" fill="#8b5a2b" stroke="#5c3a1e" stroke-width="3"/><rect x="80" y="40" width="40" height="25" rx="10" fill="#7a4c24" stroke="#5c3a1e" stroke-width="3"/><path d="M92 120 C88 150,100 170,92 210" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><path d="M108 140 C104 180,114 210,108 250" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><path d="M95 300 C90 330,102 360,95 390" fill="none" stroke="#5c3a1e" stroke-width="2" opacity=".7"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#6f4523"/></svg>';
+
+const SVG_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="86" y="90" width="28" height="460" rx="12" fill="#8b5a2b" stroke="#5c3a1e" stroke-width="3"/><rect x="70" y="70" width="60" height="24" rx="10" fill="#7a4c24" stroke="#5c3a1e" stroke-width="3"/><circle cx="82" cy="102" r="9" fill="#f9fafb" stroke="#5c3a1e" stroke-width="2"/><circle cx="100" cy="102" r="9" fill="#f9fafb" stroke="#5c3a1e" stroke-width="2"/><circle cx="118" cy="102" r="9" fill="#f9fafb" stroke="#5c3a1e" stroke-width="2"/><rect x="80" y="550" width="40" height="20" rx="8" fill="#6f4523"/></svg>';
 
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
@@ -923,8 +924,8 @@ function popupTransformadorHTML(t) {
   const linhas = Object.entries(flat)
     .map(([k, v]) => `
       <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#334155;white-space:nowrap;"><b>${escapeHtml(k)}</b></td>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#111827;word-break:break-word;">${escapeHtml(formatAny(v))}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#334155;white-space:nowrap;"><b>${escapeHtml(k)}</b></td>
+        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#111827;word-break:break-word;">${escapeHtml(formatAny(v))}</td>
       </tr>
     `).join("");
 
