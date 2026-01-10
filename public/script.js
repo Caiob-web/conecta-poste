@@ -527,24 +527,26 @@ const SVG_POSTE_MADEIRA = `
   <circle cx="42" cy="34" r="2" fill="#DDD"/>
 </svg>`;
 
+// Ajuste de tamanho: [Largura, Altura]
+// Sugestão atual: [34, 68] (Antes era [22, 44])
+
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
-  iconSize: [22, 44],
-  iconAnchor: [11, 40],
-  tooltipAnchor: [0, -36],
-  popupAnchor: [0, -40],
+  iconSize: [34, 68],       // <--- AUMENTAR AQUI (Tamanho do ícone)
+  iconAnchor: [17, 64],     // <--- AJUSTAR AQUI (Ponto que toca o mapa: Metade da largura, Quase o total da altura)
+  tooltipAnchor: [0, -60],  // <--- AJUSTAR AQUI (Onde aparece o texto: Acima do topo)
+  popupAnchor: [0, -64],    // <--- AJUSTAR AQUI (Onde abre o balão)
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
 const ICON_POSTE_MADEIRA = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
-  iconSize: [22, 44],
-  iconAnchor: [11, 40],
-  tooltipAnchor: [0, -36],
-  popupAnchor: [0, -40],
+  iconSize: [34, 68],       // <--- AUMENTAR AQUI
+  iconAnchor: [17, 64],     // <--- AJUSTAR AQUI
+  tooltipAnchor: [0, -60],  // <--- AJUSTAR AQUI
+  popupAnchor: [0, -64],    // <--- AJUSTAR AQUI
   className: "leaflet-marker-icon poste-marker-icon"
 });
-
 function getPosteIcon(poste) {
   const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
   if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
