@@ -529,6 +529,8 @@ const SVG_POSTE_MADEIRA = `
 
 // Ajuste de tamanho: [Largura, Altura]
 // Sugestão atual: [34, 68] (Antes era [22, 44])
+// Ajuste de tamanho: [Largura, Altura]
+// Sugestão atual: [34, 68] (Antes era [22, 44])
 
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
@@ -547,6 +549,7 @@ const ICON_POSTE_MADEIRA = L.icon({
   popupAnchor: [0, -64],    // <--- AJUSTAR AQUI
   className: "leaflet-marker-icon poste-marker-icon"
 });
+
 function getPosteIcon(poste) {
   const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
   if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
