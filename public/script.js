@@ -1,483 +1,483 @@
 // =====================================================================
-//  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
-//  (Street View via link público do Google — sem API, sem custo)
+//  script.js — Mapa de Postes + Excel, PDF, Censo, Coordenadas
+//  (Street View via link público do Google — sem API, sem custo)
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
 (function injectHudStyles() {
-  const css = `
-    /* HUD raiz (caixa externa) */
-    #tempo{
-      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
-      border-radius:14px; background:rgba(255,255,255,0.92);
-      box-shadow:0 8px 24px rgba(0,0,0,0.12); backdrop-filter:saturate(1.15) blur(2px);
-    }
-    /* Hora */
-    #tempo .hora-row{
-      display:flex; align-items:center; gap:8px;
-      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:#0f172a; font-weight:700;
-    }
-    #tempo .hora-row .dot{
-      width:10px; height:10px; border-radius:50%;
-      background:linear-gradient(180deg,#1e3a8a,#2563eb);
-      box-shadow:0 0 0 2px #e5e7eb inset; display:inline-block;
-    }
-    /* Cartão do clima + seletor */
-    #tempo .weather-card{
-      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
-      border-radius:12px; background:rgba(255,255,255,0.95);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
-      min-width:260px;
-    }
-    #tempo .weather-row{ display:flex; align-items:center; gap:10px; min-height:40px; }
-    #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
-    #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
-    #tempo .tempo-text b{ font-weight:700; } #tempo .tempo-text small{ color:#6b7280; }
-    /* Linha do seletor de mapa dentro do cartão */
-    #tempo .map-row{
-      margin-top:6px; padding-top:8px; border-top:1px dashed rgba(0,0,0,.10);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-    }
-    #tempo .map-row .lbl{ font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial; letter-spacing:.2px; color:#475569; font-weight:700; }
-    #tempo .select-wrap{
-      position:relative; display:inline-flex; align-items:center; gap:8px;
-      padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
-      background:#fff; transition:border-color .15s ease, box-shadow .15s ease;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
-    }
-    #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
-    #tempo .select-wrap .ico-globe{ width:16px; height:16px; opacity:.75; }
-    #tempo .select-wrap .ico-caret{ position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none; }
-    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui,-apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
+  const css = `
+    /* HUD raiz (caixa externa) */
+    #tempo{
+      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
+      border-radius:14px; background:rgba(255,255,255,0.92);
+      box-shadow:0 8px 24px rgba(0,0,0,0.12); backdrop-filter:saturate(1.15) blur(2px);
+    }
+    /* Hora */
+    #tempo .hora-row{
+      display:flex; align-items:center; gap:8px;
+      font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#0f172a; font-weight:700;
+    }
+    #tempo .hora-row .dot{
+      width:10px; height:10px; border-radius:50%;
+      background:linear-gradient(180deg,#1e3a8a,#2563eb);
+      box-shadow:0 0 0 2px #e5e7eb inset; display:inline-block;
+    }
+    /* Cartão do clima + seletor */
+    #tempo .weather-card{
+      display:flex; flex-direction:column; gap:10px; padding:12px 14px;
+      border-radius:12px; background:rgba(255,255,255,0.95);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+      min-width:260px;
+    }
+    #tempo .weather-row{ display:flex; align-items:center; gap:10px; min-height:40px; }
+    #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
+    #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
+    #tempo .tempo-text b{ font-weight:700; } #tempo .tempo-text small{ color:#6b7280; }
+    /* Linha do seletor de mapa dentro do cartão */
+    #tempo .map-row{
+      margin-top:6px; padding-top:8px; border-top:1px dashed rgba(0,0,0,.10);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    #tempo .map-row .lbl{ font: 12px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial; letter-spacing:.2px; color:#475569; font-weight:700; }
+    #tempo .select-wrap{
+      position:relative; display:inline-flex; align-items:center; gap:8px;
+      padding:8px 36px 8px 12px; border:1px solid #e5e7eb; border-radius:999px;
+      background:#fff; transition:border-color .15s ease, box-shadow .15s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.06);
+    }
+    #tempo .select-wrap:focus-within{ border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.20); }
+    #tempo .select-wrap .ico-globe{ width:16px; height:16px; opacity:.75; }
+    #tempo .select-wrap .ico-caret{ position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none; }
+    #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui,-apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
 
-    /* ---- Modal Indicadores (BI) ---- */
-    .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
-    .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
-    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
-    .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
-    .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
-    .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
-    .bi-side label{font-size:13px; color:#374151}
-    .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
-    .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
-    .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
-    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
-    .bi-table-wrap{padding:0 16px 16px 16px;}
-    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
-    .bi-table thead{background:#f9fafb}
-    .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
-    .bi-table td.num{text-align:right}
+    /* ---- Modal Indicadores (BI) ---- */
+    .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
+    .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
+    .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
+    .bi-head h3{margin:0; font-weight:700; color:#111827; font-size:16px}
+    .bi-close{border:0; background:#f3f4f6; color:#111827; border-radius:8px; padding:6px 10px; cursor:pointer}
+    .bi-body{padding:12px 16px; display:grid; grid-template-columns:1fr 320px; gap:12px;}
+    .bi-side label{font-size:13px; color:#374151}
+    .bi-input{padding:8px; border:1px solid #ddd; border-radius:8px; width:100%}
+    .bi-chk{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:#374151;}
+    .bi-resumo{margin-top:8px; font-size:13px; color:#111827;}
+    .bi-btn{margin-top:8px; border:1px solid #ddd; background:#fff; border-radius:8px; padding:8px; cursor:pointer}
+    .bi-table-wrap{padding:0 16px 16px 16px;}
+    .bi-table{width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:8px; overflow:auto}
+    .bi-table thead{background:#f9fafb}
+    .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
+    .bi-table td.num{text-align:right}
 
-    /* Célula com logo do município */
-    .bi-muni-cell{
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
-    .bi-muni-logo{
-      width:22px;
-      height:22px;
-      border-radius:999px;
-      object-fit:cover;
-      box-shadow:0 1px 3px rgba(0,0,0,.25);
-      background:#fff;
-    }
-    .bi-muni-name{
-      white-space:nowrap;
-    }
-    .bi-ver-empresas{
-      border:0;
-      background:#e5f0ff;
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:11px;
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:4px;
-    }
-    .bi-ver-empresas i{
-      font-size:11px;
-    }
+    /* Célula com logo do município */
+    .bi-muni-cell{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .bi-muni-logo{
+      width:22px;
+      height:22px;
+      border-radius:999px;
+      object-fit:cover;
+      box-shadow:0 1px 3px rgba(0,0,0,.25);
+      background:#fff;
+    }
+    .bi-muni-name{
+      white-space:nowrap;
+    }
+    .bi-ver-empresas{
+      border:0;
+      background:#e5f0ff;
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:11px;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+    }
+    .bi-ver-empresas i{
+      font-size:11px;
+    }
 
-    /* Detalhes por município */
-    .bi-detalhes{
-      margin-top:10px;
-      border-top:1px solid #e5e7eb;
-      padding:10px 12px 12px;
-      font-size:12px;
-      background:#f9fafb;
-      border-radius:0 0 10px 10px;
-    }
-    .bi-detalhes h4{
-      margin:0 0 6px 0;
-      font-size:13px;
-      font-weight:700;
-      color:#111827;
-    }
-    .bi-detalhes-resumo{
-      margin-bottom:6px;
-      color:#374151;
-    }
-    .bi-detalhes-cols{
-      display:grid;
-      grid-template-columns:2fr 1.5fr 1.5fr;
-      gap:8px;
-    }
-    .bi-detalhes-cols strong{
-      display:block;
-      margin-bottom:4px;
-      font-size:11px;
-      color:#4b5563;
-    }
-    .bi-mini-table{
-      width:100%;
-      border-collapse:collapse;
-      font-size:11px;
-      background:#ffffff;
-      border-radius:8px;
-      overflow:hidden;
-    }
-    .bi-mini-table th,
-    .bi-mini-table td{
-      padding:4px 6px;
-      border-bottom:1px solid #e5e7eb;
-    }
-    .bi-mini-table th{
-      text-align:left;
-      background:#f3f4f6;
-      color:#4b5563;
-    }
-    .bi-mini-table td.num{
-      text-align:right;
-    }
+    /* Detalhes por município */
+    .bi-detalhes{
+      margin-top:10px;
+      border-top:1px solid #e5e7eb;
+      padding:10px 12px 12px;
+      font-size:12px;
+      background:#f9fafb;
+      border-radius:0 0 10px 10px;
+    }
+    .bi-detalhes h4{
+      margin:0 0 6px 0;
+      font-size:13px;
+      font-weight:700;
+      color:#111827;
+    }
+    .bi-detalhes-resumo{
+      margin-bottom:6px;
+      color:#374151;
+    }
+    .bi-detalhes-cols{
+      display:grid;
+      grid-template-columns:2fr 1.5fr 1.5fr;
+      gap:8px;
+    }
+    .bi-detalhes-cols strong{
+      display:block;
+      margin-bottom:4px;
+      font-size:11px;
+      color:#4b5563;
+    }
+    .bi-mini-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+      background:#ffffff;
+      border-radius:8px;
+      overflow:hidden;
+    }
+    .bi-mini-table th,
+    .bi-mini-table td{
+      padding:4px 6px;
+      border-bottom:1px solid #e5e7eb;
+    }
+    .bi-mini-table th{
+      text-align:left;
+      background:#f3f4f6;
+      color:#4b5563;
+    }
+    .bi-mini-table td.num{
+      text-align:right;
+    }
 
-    /* Garante tooltip acima de labels/polylines */
-    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
+    /* Garante tooltip acima de labels/polylines */
+    .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 /* ====================================================================
-   Estilos do popup tipo “card”
+   Estilos do popup tipo “card”
 ==================================================================== */
 (function injectPopupCardStyles() {
-  const css = `
-    .leaflet-popup-content { margin: 0; padding: 0; }
-    .mp-card {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 12px;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-      padding: 10px 12px;
-      min-width: 220px;
-      max-width: 420px;
-    }
-    .mp-header { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px; }
-    .mp-header-title { font-weight: 600; font-size: 13px; }
-    .mp-header-sub { font-size: 11px; color: #777; }
-    .mp-local { margin-bottom: 4px; }
-    .mp-local-principal { font-weight: 500; font-size: 12px; }
-    .mp-local-secundario, .mp-local-coord { font-size: 11px; color: #666; }
+  const css = `
+    .leaflet-popup-content { margin: 0; padding: 0; }
+    .mp-card {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      padding: 10px 12px;
+      min-width: 220px;
+      max-width: 420px;
+    }
+    .mp-header { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px; }
+    .mp-header-title { font-weight: 600; font-size: 13px; }
+    .mp-header-sub { font-size: 11px; color: #777; }
+    .mp-local { margin-bottom: 4px; }
+    .mp-local-principal { font-weight: 500; font-size: 12px; }
+    .mp-local-secundario, .mp-local-coord { font-size: 11px; color: #666; }
 
-    /* Linhas com botão de copiar */
-    .mp-copy-line{
-      display:flex; align-items:center; gap:6px; font-size:11px; margin:2px 0;
-    }
-    .mp-copy-label{ font-weight:600; min-width:48px; }
-    .mp-copy-value{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .mp-copy-btn{
-      border:none; background:#e5f0ff; border-radius:999px; padding:3px 6px;
-      cursor:pointer; font-size:11px; display:flex; align-items:center; gap:4px;
-    }
-    .mp-copy-btn i{ font-size:11px; }
+    /* Linhas com botão de copiar */
+    .mp-copy-line{
+      display:flex; align-items:center; gap:6px; font-size:11px; margin:2px 0;
+    }
+    .mp-copy-label{ font-weight:600; min-width:48px; }
+    .mp-copy-value{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-copy-btn{
+      border:none; background:#e5f0ff; border-radius:999px; padding:3px 6px;
+      cursor:pointer; font-size:11px; display:flex; align-items:center; gap:4px;
+    }
+    .mp-copy-btn i{ font-size:11px; }
 
-    .mp-empresas-lista {
-      border-radius: 6px; overflow: hidden; border: 1px solid #e6e6e6; margin-top:6px;
-    }
-    .mp-empresa-item {
-      display: flex; align-items: center; padding: 6px 8px; background: #fdfdfd; cursor:pointer;
-    }
-    .mp-empresa-item + .mp-empresa-item { border-top: 1px solid #eee; }
-    .mp-empresa-status { margin-right: 8px; }
-    .mp-status-badge {
-      display: inline-block; width: 18px; height: 18px; border-radius: 999px; background: #18c167; position: relative;
-    }
-    .mp-status-badge::after {
-      content: "✔"; position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -57%); font-size: 11px; color: #fff;
-    }
-    .mp-empresa-textos { flex: 1; }
-    .mp-empresa-nome { font-size: 12px; font-weight: 500; }
-    .mp-empresa-extra{ display:none; font-size:10px; color:#555; margin-top:2px; }
-    .mp-empresa-item.open .mp-empresa-extra{ display:block; }
-    .mp-empresa-arrow { font-size: 14px; color: #999; margin-left: 6px; transition: transform .15s ease; }
-    .mp-empresa-item.open .mp-empresa-arrow{ transform: rotate(90deg); }
-    .mp-empresa-empty{ padding:8px 10px; font-size:11px; color:#6b7280; background:#f9fafb; }
+    .mp-empresas-lista {
+      border-radius: 6px; overflow: hidden; border: 1px solid #e6e6e6; margin-top:6px;
+    }
+    .mp-empresa-item {
+      display: flex; align-items: center; padding: 6px 8px; background: #fdfdfd; cursor:pointer;
+    }
+    .mp-empresa-item + .mp-empresa-item { border-top: 1px solid #eee; }
+    .mp-empresa-status { margin-right: 8px; }
+    .mp-status-badge {
+      display: inline-block; width: 18px; height: 18px; border-radius: 999px; background: #18c167; position: relative;
+    }
+    .mp-status-badge::after {
+      content: "✔"; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -57%); font-size: 11px; color: #fff;
+    }
+    .mp-empresa-textos { flex: 1; }
+    .mp-empresa-nome { font-size: 12px; font-weight: 500; }
+    .mp-empresa-extra{ display:none; font-size:10px; color:#555; margin-top:2px; }
+    .mp-empresa-item.open .mp-empresa-extra{ display:block; }
+    .mp-empresa-arrow { font-size: 14px; color: #999; margin-left: 6px; transition: transform .15s ease; }
+    .mp-empresa-item.open .mp-empresa-arrow{ transform: rotate(90deg); }
+    .mp-empresa-empty{ padding:8px 10px; font-size:11px; color:#6b7280; background:#f9fafb; }
 
-    .mp-btn-street {
-      margin-top: 8px; width: 100%; border: none; border-radius: 6px;
-      padding: 6px 8px; font-size: 12px; font-weight: 500;
-      cursor: pointer; background: #0078ff; color: #fff;
-    }
-    .mp-btn-street:hover { opacity: 0.9; }
-    .mp-street-note { margin-top: 4px; color: #777; font-size: 10px; }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
+    .mp-btn-street {
+      margin-top: 8px; width: 100%; border: none; border-radius: 6px;
+      padding: 6px 8px; font-size: 12px; font-weight: 500;
+      cursor: pointer; background: #0078ff; color: #fff;
+    }
+    .mp-btn-street:hover { opacity: 0.9; }
+    .mp-street-note { margin-top: 4px; color: #777; font-size: 10px; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 /* ====================================================================
-   Sidebar fixa + botão recolher
+   Sidebar fixa + botão recolher
 ==================================================================== */
 (function injectDockSidebarStyles(){
-  const css = `
-    :root{ --dock-w: 340px; }
-    .painel-busca{
-      position: fixed !important; top: 0; right: 0; height: 100vh; width: var(--dock-w);
-      overflow: auto; overflow-x: hidden; border-left: 2px solid var(--ui-border, #19d68f);
-      border-radius: 0 !important; padding: 12px 12px 20px;
-      transform: translateX(0%); transition: transform .25s ease;
-      z-index: 1000; box-sizing: border-box;
-    }
-    .painel-busca .actions{ display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-top: 6px; }
-    .painel-busca.collapsed{ transform: translateX(100%); }
-    #togglePainel{
-      position: fixed !important; top: 50%; right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
-      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important; background: var(--ui-bg, #0f1b2a) !important;
-      border: 1px solid var(--ui-border, #19d68f) !important; box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
-      display:flex;align-items:center;justify-content:center;
-    }
-    body.sidebar-collapsed #togglePainel{ right: 6px !important; }
-    #togglePainel i{ transition: transform .2s ease; }
-    body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
-    #localizacaoUsuario, #logoutBtn{ position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100; }
-    body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
-    .dock-hud{ margin-top:12px; }
-  `;
-  const style = document.createElement('style');
-  style.id = 'dock-sidebar-styles';
-  style.textContent = css;
-  document.head.appendChild(style);
+  const css = `
+    :root{ --dock-w: 340px; }
+    .painel-busca{
+      position: fixed !important; top: 0; right: 0; height: 100vh; width: var(--dock-w);
+      overflow: auto; overflow-x: hidden; border-left: 2px solid var(--ui-border, #19d68f);
+      border-radius: 0 !important; padding: 12px 12px 20px;
+      transform: translateX(0%); transition: transform .25s ease;
+      z-index: 1000; box-sizing: border-box;
+    }
+    .painel-busca .actions{ display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-top: 6px; }
+    .painel-busca.collapsed{ transform: translateX(100%); }
+    #togglePainel{
+      position: fixed !important; top: 50%; right: calc(var(--dock-w) + 6px); transform: translateY(-50%);
+      width: 42px; height: 64px; border-radius: 10px 0 0 10px !important; background: var(--ui-bg, #0f1b2a) !important;
+      border: 1px solid var(--ui-border, #19d68f) !important; box-shadow: 0 10px 24px rgba(0,0,0,.28) !important; z-index: 1100;
+      display:flex;align-items:center;justify-content:center;
+    }
+    body.sidebar-collapsed #togglePainel{ right: 6px !important; }
+    #togglePainel i{ transition: transform .2s ease; }
+    body.sidebar-collapsed #togglePainel i{ transform: scaleX(-1); }
+    #localizacaoUsuario, #logoutBtn{ position: fixed !important; right: calc(var(--dock-w) + 16px); z-index: 1100; }
+    body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
+    .dock-hud{ margin-top:12px; }
+  `;
+  const style = document.createElement('style');
+  style.id = 'dock-sidebar-styles';
+  style.textContent = css;
+  document.head.appendChild(style);
 
-  window.addEventListener('DOMContentLoaded', () => {
-    const tgl = document.getElementById('togglePainel');
-    if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
-  });
+  window.addEventListener('DOMContentLoaded', () => {
+    const tgl = document.getElementById('togglePainel');
+    if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
+  });
 })();
 
 /* ====================================================================
-   CLUSTER: mostrar SÓ NÚMEROS (sem bolhas)
+   CLUSTER: mostrar SÓ NÚMEROS (sem bolhas)
 ==================================================================== */
 (function injectClusterNumberStyles(){
-  const css = `
-    .cluster-num-only{
-      background:transparent !important; border:none !important; box-shadow:none !important;
-      color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
-      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
-    }
-  `;
-  const style = document.createElement('style');
-  style.textContent = css;
-  document.head.appendChild(style);
+  const css = `
+    .cluster-num-only{
+      background:transparent !important; border:none !important; box-shadow:none !important;
+      color:#111827; font: 800 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.9);
+      transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
+    }
+  `;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 /* ====================================================================
-   Estilo do botão de seleção de postes (estado ativo)
+   Estilo do botão de seleção de postes (estado ativo)
 ==================================================================== */
 (function injectSelecaoButtonStyles(){
-  const css = `
-    .painel-busca .actions button.selecionando{
-      box-shadow:0 0 0 2px rgba(59,130,246,.6);
-      filter:saturate(1.1);
-    }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
+  const css = `
+    .painel-busca .actions button.selecionando{
+      box-shadow:0 0 0 2px rgba(59,130,246,.6);
+      filter:saturate(1.1);
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 /* ====================================================================
-   Estilos dos ícones de poste
+   Estilos dos ícones de poste
 ==================================================================== */
 (function injectPosteIconStyles(){
-  const css = `
-    .poste-marker-icon{
-      transform-origin:center bottom;
-      transition:transform .15s ease, filter .15s ease;
-    }
-    .poste-marker-selected{
-      transform:translateY(-2px) scale(1.06);
-      filter:drop-shadow(0 0 4px rgba(59,130,246,.85));
-    }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
+  const css = `
+    .poste-marker-icon{
+      transform-origin:center bottom;
+      transition:transform .15s ease, filter .15s ease;
+    }
+    .poste-marker-selected{
+      transform:translateY(-2px) scale(1.06);
+      filter:drop-shadow(0 0 4px rgba(59,130,246,.85));
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 /* ====================================================================
-   Estilos da tela de visualização inicial (modo de carregamento)
+   Estilos da tela de visualização inicial (modo de carregamento)
 ==================================================================== */
 (function injectModoInicialStyles(){
-  const css = `
-    .modo-backdrop{
-      position:fixed;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      background:rgba(15,23,42,.55);
-      z-index:3500;
-      padding:16px;
-      box-sizing:border-box;
-    }
-    .modo-card{
-      width:min(960px,100%);
-      max-height:90vh;
-      overflow:auto;
-      background:#ffffff;
-      border-radius:12px;
-      box-shadow:0 18px 40px rgba(15,23,42,.32);
-      padding:18px 20px 20px;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    }
-    .modo-head{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:12px;
-    }
-    .modo-head h2{
-      margin:0 0 4px;
-      font-size:18px;
-      font-weight:700;
-      color:#111827;
-    }
-    .modo-head p{
-      margin:0;
-      font-size:13px;
-      color:#4b5563;
-    }
-    .modo-tag{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 10px;
-      border-radius:999px;
-      background:#e0f2fe;
-      font-size:11px;
-      color:#0f172a;
-      font-weight:600;
-      white-space:nowrap;
-    }
-    .modo-tag i{
-      font-size:11px;
-    }
-    .modo-footer{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-top:10px;
-      flex-wrap:wrap;
-    }
-    .modo-footer-left{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      align-items:center;
-    }
-    .modo-footer-right{
-      font-size:12px;
-      color:#6b7280;
-    }
-    .modo-btn-primary,
-    .modo-btn-secondary{
-      border-radius:999px;
-      border:1px solid transparent;
-      padding:8px 14px;
-      font-size:13px;
-      font-weight:600;
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-    }
-    .modo-btn-primary{
-      background:#111827;
-      color:#f9fafb;
-    }
-    .modo-btn-secondary{
-     background:#f9fafb;
-      color:#111827;
-      border-color:#e5e7eb;
-    }
-    .modo-btn-primary i,
-    .modo-btn-secondary i{
-      font-size:13px;
-    }
-    .modo-counter{
-      font-size:12px;
-      color:#6b7280;
-    }
-    .modo-grid{
-      margin-top:10px;
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-      gap:8px;
-    }
-    .modo-card-muni{
-      border:1px solid #e5e7eb;
-      border-radius:10px;
-      padding:8px 10px;
-      background:#ffffff;
-      display:flex;
-      align-items:center;
-      gap:8px;
-      cursor:pointer;
-      text-align:left;
-      font-size:13px;
-      color:#111827;
-      transition:border-color .15s ease, box-shadow .15s ease, transform .08s ease;
-    }
-    .modo-card-muni img{
-      width:28px;
-      height:28px;
-      border-radius:999px;
-      object-fit:cover;
-      box-shadow:0 1px 3px rgba(15,23,42,.25);
-      flex-shrink:0;
-    }
-    .modo-card-muni:hover{
-      border-color:#38bdf8;
-      box-shadow:0 4px 12px rgba(15,23,42,.12);
-      transform:translateY(-1px);
-    }
-    .modo-card-muni.selected{
-      border-color:#111827;
-      box-shadow:0 0 0 1px #111827;
-    }
-    @media (max-width:768px){
-      .modo-card{
-        padding:14px 12px 16px;
-      }
-      .modo-head{
-        flex-direction:column;
-        align-items:flex-start;
-      }
-    }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
+  const css = `
+    .modo-backdrop{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(15,23,42,.55);
+      z-index:3500;
+      padding:16px;
+      box-sizing:border-box;
+    }
+    .modo-card{
+      width:min(960px,100%);
+      max-height:90vh;
+      overflow:auto;
+      background:#ffffff;
+      border-radius:12px;
+      box-shadow:0 18px 40px rgba(15,23,42,.32);
+      padding:18px 20px 20px;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    }
+    .modo-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .modo-head h2{
+      margin:0 0 4px;
+      font-size:18px;
+      font-weight:700;
+      color:#111827;
+    }
+    .modo-head p{
+      margin:0;
+      font-size:13px;
+    color:#4b5563;
+    }
+    .modo-tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#e0f2fe;
+      font-size:11px;
+      color:#0f172a;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .modo-tag i{
+      font-size:11px;
+    }
+    .modo-footer{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+    .modo-footer-left{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    .modo-footer-right{
+      font-size:12px;
+      color:#6b7280;
+    }
+    .modo-btn-primary,
+    .modo-btn-secondary{
+      border-radius:999px;
+      border:1px solid transparent;
+      padding:8px 14px;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .modo-btn-primary{
+      background:#111827;
+      color:#f9fafb;
+    }
+    .modo-btn-secondary{
+     background:#f9fafb;
+      color:#111827;
+      border-color:#e5e7eb;
+    }
+    .modo-btn-primary i,
+    .modo-btn-secondary i{
+      font-size:13px;
+    }
+    .modo-counter{
+      font-size:12px;
+      color:#6b7280;
+    }
+    .modo-grid{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+      gap:8px;
+    }
+    .modo-card-muni{
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:8px 10px;
+      background:#ffffff;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      text-align:left;
+      font-size:13px;
+      color:#111827;
+      transition:border-color .15s ease, box-shadow .15s ease, transform .08s ease;
+    }
+    .modo-card-muni img{
+      width:28px;
+      height:28px;
+      border-radius:999px;
+      object-fit:cover;
+      box-shadow:0 1px 3px rgba(15,23,42,.25);
+      flex-shrink:0;
+    }
+    .modo-card-muni:hover{
+      border-color:#38bdf8;
+      box-shadow:0 4px 12px rgba(15,23,42,.12);
+      transform:translateY(-1px);
+    }
+    .modo-card-muni.selected{
+      border-color:#111827;
+      box-shadow:0 0 0 1px #111827;
+    }
+    @media (max-width:768px){
+      .modo-card{
+        padding:14px 12px 16px;
+      }
+      .modo-head{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
 })();
 
 // ------------------------- Mapa & Camadas base -----------------------
@@ -491,7 +491,7 @@ const labelsPane = map.createPane("labels");
 labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
 const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", {
-  pane: "labels", maxZoom: 19, subdomains: "abcd"
+  pane: "labels", maxZoom: 19, subdomains: "abcd"
 });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
@@ -501,348 +501,369 @@ postesPane.style.zIndex = 630;
 
 osm.addTo(map);
 
-// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) =========
-const SVG_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="78" y="60" width="44" height="520" rx="14" fill="#d6dbe1" stroke="#8b96a5" stroke-width="3"/><rect x="78" y="40" width="44" height="25" rx="8" fill="#c8cfd8" stroke="#8b96a5" stroke-width="3"/><circle cx="100" cy="180" r="4" fill="#8b96a5"/><circle cx="100" cy="240" r="4" fill="#8b96a5"/><circle cx="100" cy="300" r="4" fill="#8b96a5"/><circle cx="100" cy="360" r="4" fill="#8b96a5"/><rect x="60" y="560" width="80" height="20" rx="8" fill="#b9c2cd"/></svg>';
+// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — MODIFICADOS =========
+// Poste de Concreto: Cinza, robusto, padrão urbano
+const SVG_POSTE_CONCRETO = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
+  <rect x="26" y="10" width="12" height="110" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
+  <line x1="28" y1="30" x2="36" y2="30" stroke="#757575" stroke-width="1.5"/>
+  <line x1="28" y1="50" x2="36" y2="50" stroke="#757575" stroke-width="1.5"/>
+  <line x1="28" y1="70" x2="36" y2="70" stroke="#757575" stroke-width="1.5"/>
+  <line x1="28" y1="90" x2="36" y2="90" stroke="#757575" stroke-width="1.5"/>
+  <rect x="18" y="15" width="28" height="4" fill="#757575" rx="1"/>
+  <circle cx="20" cy="14" r="2" fill="#DDD"/>
+  <circle cx="44" cy="14" r="2" fill="#DDD"/>
+</svg>`;
 
-const SVG_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600"><rect x="86" y="90" width="28" height="460" rx="12" fill="#8b5a2b" stroke="#5c3a1e" stroke-width="3"/><rect x="70" y="70" width="60" height="24" rx="10" fill="#7a4c24" stroke="#5c3a1e" stroke-width="3"/><circle cx="82" cy="102" r="9" fill="#f9fafb" stroke="#5c3a1e" stroke-width="2"/><circle cx="100" cy="102" r="9" fill="#f9fafb" stroke="#5c3a1e" stroke-width="2"/><circle cx="118" cy="102" r="9" fill="#f9fafb" stroke="#5c3a1e" stroke-width="2"/><rect x="80" y="550" width="40" height="20" rx="8" fill="#6f4523"/></svg>';
+// Poste de Madeira: Marrom, rústico, padrão rural/distribuição
+const SVG_POSTE_MADEIRA = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
+  <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>
+  <rect x="16" y="25" width="32" height="4" fill="#6D4C20" stroke="#4A3516" stroke-width="1.5" rx="1"/>
+  <rect x="20" y="35" width="24" height="4" fill="#6D4C20" stroke="#4A3516" stroke-width="1.5" rx="1"/>
+  <circle cx="18" cy="24" r="2" fill="#DDD"/>
+  <circle cx="46" cy="24" r="2" fill="#DDD"/>
+  <circle cx="22" cy="34" r="2" fill="#DDD"/>
+  <circle cx="42" cy="34" r="2" fill="#DDD"/>
+</svg>`;
 
 const ICON_POSTE_CONCRETO = L.icon({
-  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
-  iconSize: [22, 44],
-  iconAnchor: [11, 40],
-  tooltipAnchor: [0, -36],
-  popupAnchor: [0, -40],
-  className: "leaflet-marker-icon poste-marker-icon"
+  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
+  iconSize: [22, 44],
+  iconAnchor: [11, 40],
+  tooltipAnchor: [0, -36],
+  popupAnchor: [0, -40],
+  className: "leaflet-marker-icon poste-marker-icon"
 });
 
 const ICON_POSTE_MADEIRA = L.icon({
-  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
-  iconSize: [22, 44],
-  iconAnchor: [11, 40],
-  tooltipAnchor: [0, -36],
-  popupAnchor: [0, -40],
-  className: "leaflet-marker-icon poste-marker-icon"
+  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
+  iconSize: [22, 44],
+  iconAnchor: [11, 40],
+  tooltipAnchor: [0, -36],
+  popupAnchor: [0, -40],
+  className: "leaflet-marker-icon poste-marker-icon"
 });
 
 function getPosteIcon(poste) {
-  const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
-  if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
-  // default concreto
-  return ICON_POSTE_CONCRETO;
+  const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
+  if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
+  // default concreto
+  return ICON_POSTE_CONCRETO;
 }
 
 // estilo dos pontos (postes) — usado em censo/intermediários (círculos)
 function dotStyle(qtdEmpresas){
-  return {
-    radius: 4,
-    color: "#111827",
-    weight: 0.5,
-    fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
-    fillOpacity: 0.9
-  };
+  return {
+    radius: 4,
+    color: "#111827",
+    weight: 0.5,
+    fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
+    fillOpacity: 0.9
+  };
 }
 
 // ====================================================================
 // MODO SELECIONAR POSTES (até 300) + linha azul + export
 // ====================================================================
 let selecaoAtiva = false;
-let postesSelecionados = [];   // [{ poste, layer }]
+let postesSelecionados = [];   // [{ poste, layer }]
 let selecaoPolyline = null;
 
 function atualizarEstadoBotaoSelecao() {
-  const btnSel = document.getElementById("btnSelecionarPostes");
-  const btnLimpar = document.getElementById("btnLimparSelecao");
-  const qtd = postesSelecionados.length;
+  const btnSel = document.getElementById("btnSelecionarPostes");
+  const btnLimpar = document.getElementById("btnLimparSelecao");
+  const qtd = postesSelecionados.length;
 
-  if (btnSel) {
-    btnSel.classList.toggle("selecionando", selecaoAtiva);
-    btnSel.innerHTML = selecaoAtiva
-      ? `<i class="fa fa-hand-pointer"></i> Selecionando (${qtd})`
-      : `<i class="fa fa-hand-pointer"></i> Selecionar Postes`;
-  }
-  if (btnLimpar) {
-    btnLimpar.disabled = !selecaoAtiva || !qtd;
-  }
+  if (btnSel) {
+    btnSel.classList.toggle("selecionando", selecaoAtiva);
+    btnSel.innerHTML = selecaoAtiva
+      ? `<i class="fa fa-hand-pointer"></i> Selecionando (${qtd})`
+      : `<i class="fa fa-hand-pointer"></i> Selecionar Postes`;
+  }
+  if (btnLimpar) {
+    btnLimpar.disabled = !selecaoAtiva || !qtd;
+  }
 }
 
 function entrarModoSelecao() {
-  if (selecaoAtiva) return;
-  selecaoAtiva = true;
-  postesSelecionados = [];
-  if (selecaoPolyline) {
-    map.removeLayer(selecaoPolyline);
-    selecaoPolyline = null;
-  }
-  atualizarEstadoBotaoSelecao();
-  alert("Modo SELECIONAR POSTES ativado. Clique nos postes para selecioná-los (máx. 300).");
+  if (selecaoAtiva) return;
+  selecaoAtiva = true;
+  postesSelecionados = [];
+  if (selecaoPolyline) {
+    map.removeLayer(selecaoPolyline);
+    selecaoPolyline = null;
+  }
+  atualizarEstadoBotaoSelecao();
+  alert("Modo SELECIONAR POSTES ativado. Clique nos postes para selecioná-los (máx. 300).");
 }
 
 function limparSelecaoESair(opts = {}) {
-  const manterMarcadores = !!opts.manterMarcadores;
+  const manterMarcadores = !!opts.manterMarcadores;
 
-  if (!manterMarcadores) {
-    postesSelecionados.forEach(({ layer, poste }) => {
-      if (layer && layer.setStyle && poste) {
-        const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
-        try {
-          layer.setStyle(dotStyle(qtd));
-          if (layer.getRadius) layer.setRadius(4);
-        } catch {}
-      }
-      if (layer && layer.getElement) {
-        const el = layer.getElement();
-        if (el && el.classList.contains("poste-marker-icon")) {
-          el.classList.remove("poste-marker-selected");
-        }
-      }
-    });
-  }
+  if (!manterMarcadores) {
+    postesSelecionados.forEach(({ layer, poste }) => {
+      if (layer && layer.setStyle && poste) {
+        const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
+        try {
+          layer.setStyle(dotStyle(qtd));
+          if (layer.getRadius) layer.setRadius(4);
+        } catch {}
+      }
+      if (layer && layer.getElement) {
+        const el = layer.getElement();
+        if (el && el.classList.contains("poste-marker-icon")) {
+          el.classList.remove("poste-marker-selected");
+        }
+      }
+    });
+  }
 
-  postesSelecionados = [];
-  selecaoAtiva = false;
+  postesSelecionados = [];
+  selecaoAtiva = false;
 
-  if (selecaoPolyline) {
-    map.removeLayer(selecaoPolyline);
-    selecaoPolyline = null;
-  }
-  atualizarEstadoBotaoSelecao();
+  if (selecaoPolyline) {
+    map.removeLayer(selecaoPolyline);
+    selecaoPolyline = null;
+  }
+  atualizarEstadoBotaoSelecao();
 }
 
 // trata clique em um poste quando modo seleção está ativo
 function handleSelecaoClick(poste, layer) {
-  if (!selecaoAtiva) return false;
+  if (!selecaoAtiva) return false;
 
-  const idAtual = String(poste.id);
-  const idx = postesSelecionados.findIndex((r) => String(r.poste.id) === idAtual);
+  const idAtual = String(poste.id);
+  const idx = postesSelecionados.findIndex((r) => String(r.poste.id) === idAtual);
 
-  if (idx >= 0) {
-    // desmarca
-    const reg = postesSelecionados[idx];
-    postesSelecionados.splice(idx, 1);
-    if (reg.layer && reg.layer.setStyle) {
-      const qtd = Array.isArray(reg.poste.empresas) ? reg.poste.empresas.length : 0;
-      try {
-        reg.layer.setStyle(dotStyle(qtd));
-        if (reg.layer.getRadius) reg.layer.setRadius(4);
-      } catch {}
-    }
-    if (reg.layer && reg.layer.getElement) {
-      const el = reg.layer.getElement();
-      if (el && el.classList.contains("poste-marker-icon")) {
-        el.classList.remove("poste-marker-selected");
-      }
-    }
-  } else {
-    // adiciona
-    if (postesSelecionados.length >= 300) {
-      alert("Limite máximo de 300 postes na seleção.");
-      return true;
-    }
-    postesSelecionados.push({ poste, layer });
+  if (idx >= 0) {
+    // desmarca
+    const reg = postesSelecionados[idx];
+    postesSelecionados.splice(idx, 1);
+    if (reg.layer && reg.layer.setStyle) {
+      const qtd = Array.isArray(reg.poste.empresas) ? reg.poste.empresas.length : 0;
+      try {
+        reg.layer.setStyle(dotStyle(qtd));
+        if (reg.layer.getRadius) reg.layer.setRadius(4);
+      } catch {}
+    }
+    if (reg.layer && reg.layer.getElement) {
+      const el = reg.layer.getElement();
+      if (el && el.classList.contains("poste-marker-icon")) {
+        el.classList.remove("poste-marker-selected");
+      }
+    }
+  } else {
+    // adiciona
+    if (postesSelecionados.length >= 300) {
+      alert("Limite máximo de 300 postes na seleção.");
+      return true;
+    }
+    postesSelecionados.push({ poste, layer });
 
-    if (layer && layer.setStyle) {
-      const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
-      try {
-        layer.setStyle({
-          ...dotStyle(qtd),
-          color: "#1d4ed8",
-          fillColor: "#3b82f6"
-        });
-        if (layer.getRadius) {
-          const base = layer.getRadius();
-          layer.setRadius(base + 2);
-          setTimeout(() => {
-            try { layer.setRadius(base + 1); } catch {}
-          }, 150);
-        }
-      } catch {}
-    }
-    if (layer && layer.getElement) {
-      const el = layer.getElement();
-      if (el && el.classList.contains("poste-marker-icon")) {
-        el.classList.add("poste-marker-selected");
-      }
-    }
-  }
+    if (layer && layer.setStyle) {
+      const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
+      try {
+        layer.setStyle({
+          ...dotStyle(qtd),
+          color: "#1d4ed8",
+          fillColor: "#3b82f6"
+        });
+        if (layer.getRadius) {
+          const base = layer.getRadius();
+          layer.setRadius(base + 2);
+          setTimeout(() => {
+            try { layer.setRadius(base + 1); } catch {}
+          }, 150);
+        }
+      } catch {}
+    }
+    if (layer && layer.getElement) {
+      const el = layer.getElement();
+      if (el && el.classList.contains("poste-marker-icon")) {
+        el.classList.add("poste-marker-selected");
+      }
+    }
+  }
 
-  // redesenha a linha azul de trajeto
-  if (selecaoPolyline) {
-    map.removeLayer(selecaoPolyline);
-    selecaoPolyline = null;
-  }
-  if (postesSelecionados.length >= 2) {
-    const coords = postesSelecionados.map((r) => [r.poste.lat, r.poste.lon]);
-    selecaoPolyline = L.polyline(coords, {
-      color: "#1d4ed8",
-      weight: 3,
-      dashArray: "4,6"
-    }).addTo(map);
-  }
+  // redesenha a linha azul de trajeto
+  if (selecaoPolyline) {
+    map.removeLayer(selecaoPolyline);
+    selecaoPolyline = null;
+  }
+  if (postesSelecionados.length >= 2) {
+    const coords = postesSelecionados.map((r) => [r.poste.lat, r.poste.lon]);
+    selecaoPolyline = L.polyline(coords, {
+      color: "#1d4ed8",
+      weight: 3,
+      dashArray: "4,6"
+    }).addTo(map);
+  }
 
-  atualizarEstadoBotaoSelecao();
-  return true;
+  atualizarEstadoBotaoSelecao();
+  return true;
 }
 
 // --------------------- base layer switcher ---------------------------
 let currentBase = osm;
 function setBase(mode) {
-  if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
-  if (mode === "sat") currentBase = esriSat;
-  else if (mode === "satlabels") currentBase = satComRotulos;
-  else currentBase = osm;
-  currentBase.addTo(map);
+  if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
+  if (mode === "sat") currentBase = esriSat;
+  else if (mode === "satlabels") currentBase = satComRotulos;
+  else currentBase = osm;
+  currentBase.addTo(map);
 }
 
 /* ====================================================================
-   Overlay de carregamento (spinner geral)
+   Overlay de carregamento (spinner geral)
 ==================================================================== */
 const overlay = document.getElementById("carregando");
 const overlayText = overlay ? overlay.querySelector(".texto-loading") : null;
 
 function showOverlay(msg) {
-  if (!overlay) return;
-  if (overlayText && msg) overlayText.textContent = msg;
-  overlay.style.display = "flex";
+  if (!overlay) return;
+  if (overlayText && msg) overlayText.textContent = msg;
+  overlay.style.display = "flex";
 }
 function hideOverlay() {
-  if (!overlay) return;
-  overlay.style.display = "none";
+  if (!overlay) return;
+  overlay.style.display = "none";
 }
 
 // mostra enquanto carrega a base
 showOverlay("Carregando base de postes…");
 
 /* ====================================================================
-   Helpers (escape / copiar / toggle empresa)
+   Helpers (escape / copiar / toggle empresa)
 ==================================================================== */
 function escapeHtml(str) {
-  if (str == null) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "'");
 }
 function escapeAttr(str) { return escapeHtml(str); }
 
 function copyToClipboard(text) {
-  if (!text) return;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
-  } else fallbackCopy(text);
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else fallbackCopy(text);
 }
 function fallbackCopy(text) {
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.style.position = "fixed";
-  ta.style.opacity = "0";
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand("copy"); } catch (_) {}
-  document.body.removeChild(ta);
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (_) {}
+  document.body.removeChild(ta);
 }
 function copyBtnHandler(btn) {
-  const txt = btn.getAttribute("data-copy") || "";
-  if (!txt) return;
-  copyToClipboard(txt);
+  const txt = btn.getAttribute("data-copy") || "";
+  if (!txt) return;
+  copyToClipboard(txt);
 }
 function toggleEmpresaExtra(row) { row.classList.toggle("open"); }
 
 /* ====================================================================
-   TRANSFORMADORES — camada própria (lazy via checkbox)
+   TRANSFORMADORES — camada própria (lazy via checkbox)
 ==================================================================== */
 const TRANSFORMADOR_PNG_URL = "/assets/transformador.png";
 
 const TRANSFORMADOR_FALLBACK_DATAURI = (() => {
-  const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-    <defs>
-      <linearGradient id="gBody" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0" stop-color="#f4f4f4"/>
-        <stop offset="1" stop-color="#cfcfcf"/>
-      </linearGradient>
-      <linearGradient id="gMetal" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0" stop-color="#bfc7cf"/>
-        <stop offset="0.55" stop-color="#ffffff"/>
-        <stop offset="1" stop-color="#9aa3ad"/>
-      </linearGradient>
-      <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
-        <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/>
-      </filter>
-    </defs>
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <defs>
+      <linearGradient id="gBody" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#f4f4f4"/>
+        <stop offset="1" stop-color="#cfcfcf"/>
+      </linearGradient>
+      <linearGradient id="gMetal" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#bfc7cf"/>
+        <stop offset="0.55" stop-color="#ffffff"/>
+        <stop offset="1" stop-color="#9aa3ad"/>
+      </linearGradient>
+      <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+        <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/>
+      </filter>
+    </defs>
 
-    <g filter="url(#shadow)">
-      <rect x="10" y="45" width="44" height="9" rx="3" fill="url(#gMetal)" stroke="#7f8a96" stroke-width="1"/>
-      <rect x="14" y="54" width="14" height="5" rx="2.5" fill="#d6dde4" stroke="#7f8a96" stroke-width="1"/>
-      <rect x="36" y="54" width="14" height="5" rx="2.5" fill="#d6dde4" stroke="#7f8a96" stroke-width="1"/>
-    </g>
+    <g filter="url(#shadow)">
+      <rect x="10" y="45" width="44" height="9" rx="3" fill="url(#gMetal)" stroke="#7f8a96" stroke-width="1"/>
+      <rect x="14" y="54" width="14" height="5" rx="2.5" fill="#d6dde4" stroke="#7f8a96" stroke-width="1"/>
+      <rect x="36" y="54" width="14" height="5" rx="2.5" fill="#d6dde4" stroke="#7f8a96" stroke-width="1"/>
+    </g>
 
-    <g filter="url(#shadow)">
-      <rect x="14" y="18" width="36" height="26" rx="5" fill="url(#gBody)" stroke="#8b8b8b" stroke-width="1"/>
-      <g opacity="0.95">
-        <rect x="18" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
-        <rect x="22" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
-        <rect x="26" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
-        <rect x="30" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
-        <rect x="34" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
-        <rect x="38" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
-        <rect x="42" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
-      </g>
-      <path d="M14 22c-5 2-5 16 0 18" fill="none" stroke="#7f7f7f" stroke-width="2" opacity="0.75"/>
-      <path d="M50 22c5 2 5 16 0 18" fill="none" stroke="#7f7f7f" stroke-width="2" opacity="0.75"/>
-      <g>
-        <g transform="translate(22 6)">
-          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
-          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
-          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
-        </g>
-        <g transform="translate(32 6)">
-          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
-          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
-          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
-        </g>
-        <g transform="translate(42 6)">
-          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
-          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
-          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
-        </g>
-      </g>
-    </g>
-  </svg>`.trim();
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    <g filter="url(#shadow)">
+      <rect x="14" y="18" width="36" height="26" rx="5" fill="url(#gBody)" stroke="#8b8b8b" stroke-width="1"/>
+      <g opacity="0.95">
+        <rect x="18" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+        <rect x="22" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
+        <rect x="26" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+        <rect x="30" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
+        <rect x="34" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+        <rect x="38" y="20" width="3" height="22" rx="1.2" fill="#e5e5e5"/>
+        <rect x="42" y="20" width="3" height="22" rx="1.2" fill="#eeeeee"/>
+      </g>
+      <path d="M14 22c-5 2-5 16 0 18" fill="none" stroke="#7f7f7f" stroke-width="2" opacity="0.75"/>
+      <path d="M50 22c5 2 5 16 0 18" fill="none" stroke="#7f7f7f" stroke-width="2" opacity="0.75"/>
+      <g>
+        <g transform="translate(22 6)">
+          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
+          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
+          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
+        </g>
+        <g transform="translate(32 6)">
+          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
+          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
+          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
+        </g>
+        <g transform="translate(42 6)">
+          <rect x="-2" y="10" width="4" height="4" rx="1" fill="#e9e9e9" stroke="#6b6b6b" stroke-width="0.8"/>
+          <rect x="-1.6" y="2" width="3.2" height="8" rx="1.2" fill="#6b4a2a"/>
+          <circle cx="0" cy="2" r="1.6" fill="#6b4a2a"/>
+        </g>
+      </g>
+    </g>
+  </svg>`.trim();
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 })();
 
 async function resolveTransformadorIconUrl() {
-  return await new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(TRANSFORMADOR_PNG_URL);
-    img.onerror = () => resolve(TRANSFORMADOR_FALLBACK_DATAURI);
-    img.src = TRANSFORMADOR_PNG_URL;
-  });
+  return await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(TRANSFORMADOR_PNG_URL);
+    img.onerror = () => resolve(TRANSFORMADOR_FALLBACK_DATAURI);
+    img.src = TRANSFORMADOR_PNG_URL;
+  });
 }
 
 let ICON_TRANSFORMADOR = null;
 async function ensureTransformadorIcon() {
-  if (ICON_TRANSFORMADOR) return ICON_TRANSFORMADOR;
+  if (ICON_TRANSFORMADOR) return ICON_TRANSFORMADOR;
 
-  const iconUrl = await resolveTransformadorIconUrl();
+  const iconUrl = await resolveTransformadorIconUrl();
 
-  ICON_TRANSFORMADOR = L.icon({
-    iconUrl,
-    iconSize: [56, 56],
-    iconAnchor: [28, 40],
-    tooltipAnchor: [0, -30],
-    popupAnchor: [0, -40],
-  });
+  ICON_TRANSFORMADOR = L.icon({
+    iconUrl,
+    iconSize: [56, 56],
+    iconAnchor: [28, 40],
+    tooltipAnchor: [0, -30],
+    popupAnchor: [0, -40],
+  });
 
-  // atualiza os ícones do HTML (sidebar/legenda)
-  document.querySelectorAll('img[data-icon="transformador"]').forEach((el) => {
-    el.src = TRANSFORMADOR_PNG_URL;
-    el.onerror = () => { el.src = TRANSFORMADOR_FALLBACK_DATAURI; };
-  });
+  // atualiza os ícones do HTML (sidebar/legenda)
+  document.querySelectorAll('img[data-icon="transformador"]').forEach((el) => {
+    el.src = TRANSFORMADOR_PNG_URL;
+    el.onerror = () => { el.src = TRANSFORMADOR_FALLBACK_DATAURI; };
+  });
 
-  return ICON_TRANSFORMADOR;
+  return ICON_TRANSFORMADOR;
 }
 
 // pane transformadores
@@ -851,16 +872,16 @@ transformadoresPane.style.zIndex = 635;
 
 // cluster transformadores
 const transformadoresMarkers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
-  maxClusterRadius: 60,
-  disableClusteringAtZoom: 18,
-  chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null }),
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: false,
+  maxClusterRadius: 60,
+  disableClusteringAtZoom: 18,
+  chunkedLoading: true,
+  chunkDelay: 5,
+  chunkInterval: 50,
+  iconCreateFunction: (cluster) =>
+    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null }),
 });
 
 const transformadores = [];
@@ -868,182 +889,182 @@ const idToTransformadorMarker = new Map();
 let transformadoresCarregados = false;
 
 function normKey(k){
-  return String(k || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+  return String(k || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 function buildNormMap(obj){
-  const m = new Map();
-  for (const [k, v] of Object.entries(obj || {})) m.set(normKey(k), v);
-  return m;
+  const m = new Map();
+  for (const [k, v] of Object.entries(obj || {})) m.set(normKey(k), v);
+  return m;
 }
 function pickAny(obj, candidates = []){
-  const m = buildNormMap(obj);
-  for (const c of candidates){
-    const v = m.get(normKey(c));
-    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-  }
-  return null;
+  const m = buildNormMap(obj);
+  for (const c of candidates){
+    const v = m.get(normKey(c));
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+  }
+  return null;
 }
 function extractLatLon(t){
-  const coord = pickAny(t, ["coordenadas", "coord", "coordenada", "latlon", "geo", "geolocalizacao"]);
-  if (coord && typeof coord === "string" && coord.includes(",")) {
-    const [la, lo] = coord.split(/,\s*/).map(Number);
-    if (!isNaN(la) && !isNaN(lo)) return { lat: la, lon: lo };
-  }
-  const lat = Number(pickAny(t, ["lat", "latitude", "y", "coordy"]));
-  const lon = Number(pickAny(t, ["lon", "lng", "long", "longitude", "x", "coordx"]));
-  if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
-  return null;
+  const coord = pickAny(t, ["coordenadas", "coord", "coordenada", "latlon", "geo", "geolocalizacao"]);
+  if (coord && typeof coord === "string" && coord.includes(",")) {
+    const [la, lo] = coord.split(/,\s*/).map(Number);
+    if (!isNaN(la) && !isNaN(lo)) return { lat: la, lon: lo };
+  }
+  const lat = Number(pickAny(t, ["lat", "latitude", "y", "coordy"]));
+  const lon = Number(pickAny(t, ["lon", "lng", "long", "longitude", "x", "coordx"]));
+  if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  return null;
 }
 function flattenObject(obj, prefix = "", out = {}) {
-  for (const [k, v] of Object.entries(obj || {})) {
-    const key = prefix ? `${prefix}.${k}` : k;
-    if (v && typeof v === "object" && !Array.isArray(v)) {
-      flattenObject(v, key, out);
-    } else {
-      out[key] = v;
-    }
-  }
-  return out;
+  for (const [k, v] of Object.entries(obj || {})) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      flattenObject(v, key, out);
+    } else {
+      out[key] = v;
+    }
+  }
+  return out;
 }
 function formatAny(v){
-  if (v === null || v === undefined || String(v).trim() === "") return "—";
-  if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+  if (v === null || v === undefined || String(v).trim() === "") return "—";
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
 }
 
 function popupTransformadorHTML(t) {
-  const id = pickAny(t, ["id", "id_transformador", "codigo", "cod_transformador", "num_transformador", "transformador"]) ?? "—";
-  const potencia = pickAny(t, ["potencia", "kva", "potencia_kva"]) ?? "—";
-  const poste = pickAny(t, ["poste", "id_poste", "poste_id", "numero_poste"]) ?? "—";
+  const id = pickAny(t, ["id", "id_transformador", "codigo", "cod_transformador", "num_transformador", "transformador"]) ?? "—";
+  const potencia = pickAny(t, ["potencia", "kva", "potencia_kva"]) ?? "—";
+  const poste = pickAny(t, ["poste", "id_poste", "poste_id", "numero_poste"]) ?? "—";
 
-  const flat = flattenObject(t);
-  const linhas = Object.entries(flat)
-    .map(([k, v]) => `
-      <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#334155;white-space:nowrap;"><b>${escapeHtml(k)}</b></td>
-        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#111827;word-break:break-word;">${escapeHtml(formatAny(v))}</td>
-      </tr>
-    `).join("");
+  const flat = flattenObject(t);
+  const linhas = Object.entries(flat)
+    .map(([k, v]) => `
+      <tr>
+        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#334155;white-space:nowrap;"><b>${escapeHtml(k)}</b></td>
+        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#111827;word-break:break-word;">${escapeHtml(formatAny(v))}</td>
+      </tr>
+    `).join("");
 
-  return `
-    <div class="mp-card">
-      <div class="mp-header">
-        <div class="mp-header-title">Transformador</div>
-        <div class="mp-header-sub">ID: ${escapeHtml(id)}</div>
-      </div>
+  return `
+    <div class="mp-card">
+      <div class="mp-header">
+        <div class="mp-header-title">Transformador</div>
+        <div class="mp-header-sub">ID: ${escapeHtml(id)}</div>
+      </div>
 
-      <div class="mp-local">
-        <div class="mp-local-secundario">
-          Potência: <b>${escapeHtml(potencia)}</b> · Poste: <b>${escapeHtml(poste)}</b>
-        </div>
-      </div>
+      <div class="mp-local">
+        <div class="mp-local-secundario">
+          Potência: <b>${escapeHtml(potencia)}</b> · Poste: <b>${escapeHtml(poste)}</b>
+        </div>
+      </div>
 
-      <div style="margin-top:8px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-        <div style="padding:6px 8px;background:#f8fafc;border-bottom:1px solid #e5e7eb;font-size:11px;color:#475569;">
-          Dados completos (todas as colunas)
-        </div>
-        <div style="max-height:240px;overflow:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:11px;">
-            <tbody>
-              ${linhas || `<tr><td style="padding:8px;color:#6b7280;">Sem dados</td></tr>`}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `.trim();
+      <div style="margin-top:8px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <div style="padding:6px 8px;background:#f8fafc;border-bottom:1px solid #e5e7eb;font-size:11px;color:#475569;">
+          Dados completos (todas as colunas)
+        </div>
+        <div style="max-height:240px;overflow:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;">
+            <tbody>
+              ${linhas || `<tr><td style="padding:8px;color:#6b7280;">Sem dados</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `.trim();
 }
 
 async function carregarTransformadores() {
-  if (transformadoresCarregados) return;
-  transformadoresCarregados = true;
+  if (transformadoresCarregados) return;
+  transformadoresCarregados = true;
 
-  try {
-    const icon = await ensureTransformadorIcon();
+  try {
+    const icon = await ensureTransformadorIcon();
 
-    const res = await fetch("/api/transformadores", { credentials: "include" });
-    if (res.status === 401) { window.location.href = "/login.html"; return; }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch("/api/transformadores", { credentials: "include" });
+    if (res.status === 401) { window.location.href = "/login.html"; return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const arr = await res.json();
+    const arr = await res.json();
 
-    (arr || []).forEach((t, idx) => {
-      const pos = extractLatLon(t);
-      if (!pos) return;
+    (arr || []).forEach((t, idx) => {
+      const pos = extractLatLon(t);
+      if (!pos) return;
 
-      const key = String(pickAny(t, ["id","id_transformador","codigo","cod_transformador"]) ?? idx);
-      if (idToTransformadorMarker.has(key)) return;
+      const key = String(pickAny(t, ["id","id_transformador","codigo","cod_transformador"]) ?? idx);
+      if (idToTransformadorMarker.has(key)) return;
 
-      const mk = L.marker([pos.lat, pos.lon], { icon, pane: "transformadores" });
-      mk.bindPopup(popupTransformadorHTML(t), { maxWidth: 440 });
-      mk.bindTooltip(`Transformador: ${key}`, { direction: "top", sticky: true });
+      const mk = L.marker([pos.lat, pos.lon], { icon, pane: "transformadores" });
+      mk.bindPopup(popupTransformadorHTML(t), { maxWidth: 440 });
+      mk.bindTooltip(`Transformador: ${key}`, { direction: "top", sticky: true });
 
-      transformadoresMarkers.addLayer(mk);
-      idToTransformadorMarker.set(key, mk);
-      transformadores.push(t);
-    });
-  } catch (e) {
-    console.error("Erro ao carregar transformadores:", e);
-  }
+      transformadoresMarkers.addLayer(mk);
+      idToTransformadorMarker.set(key, mk);
+      transformadores.push(t);
+    });
+  } catch (e) {
+    console.error("Erro ao carregar transformadores:", e);
+  }
 }
 
 function syncTransformadoresToggle() {
-  const chk = document.getElementById("chkTransformadores");
-  if (!chk) return;
+  const chk = document.getElementById("chkTransformadores");
+  if (!chk) return;
 
-  const apply = async () => {
-    if (chk.checked) {
-      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
-      await carregarTransformadores();
-    } else {
-      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
-    }
-  };
+  const apply = async () => {
+    if (chk.checked) {
+      if (!map.hasLayer(transformadoresMarkers)) map.addLayer(transformadoresMarkers);
+      await carregarTransformadores();
+    } else {
+      if (map.hasLayer(transformadoresMarkers)) map.removeLayer(transformadoresMarkers);
+    }
+  };
 
-  chk.addEventListener("change", apply);
-  apply();
+  chk.addEventListener("change", apply);
+  apply();
 }
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
 // -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
-  maxClusterRadius: 60,
-  disableClusteringAtZoom: 17,
-  chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: false,
+  maxClusterRadius: 60,
+  disableClusteringAtZoom: 17,
+  chunkedLoading: true,
+  chunkDelay: 5,
+  chunkInterval: 50,
+  iconCreateFunction: (cluster) =>
+    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
 
 // Clique no cluster: spiderfy + abre 1º filho
 markers.off("clusterclick");
 markers.on("clusterclick", (e) => {
-  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const childs = e.layer.getAllChildMarkers();
-  e.layer.spiderfy();
-  requestAnimationFrame(() => {
-    const first = childs && childs[0];
-    if (first && first.posteData) {
-      try { first.openTooltip?.(); } catch {}
-      abrirPopup(first.posteData);
-      lastTip = { id: keyId(first.posteData.id) };
-      tipPinned = true;
-    }
-  });
+  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+  const childs = e.layer.getAllChildMarkers();
+  e.layer.spiderfy();
+  requestAnimationFrame(() => {
+    const first = childs && childs[0];
+    if (first && first.posteData) {
+      try { first.openTooltip?.(); } catch {}
+      abrirPopup(first.posteData);
+      lastTip = { id: keyId(first.posteData.id) };
+      tipPinned = true;
+    }
+  });
 });
 
 map.addLayer(markers);
 
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
-const idToMarker = new Map();   // cache: id(string) -> L.Layer
+const idToMarker = new Map();   // cache: id(string) -> L.Layer
 let todosCarregados = false;
 function keyId(id){ return String(id); }
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
@@ -1051,37 +1072,37 @@ function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
 function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
 
 /* ====================================================================
-   Popup fixo: instância única, sem piscar
+   Popup fixo: instância única, sem piscar
 ==================================================================== */
 const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
 let popupPinned = false;
 let lastPopup = null;
 
 function reabrirPopupFixo(delay = 0){
-  if (!popupPinned || !lastPopup) return;
-  const open = () => {
-    mainPopup.setLatLng([lastPopup.lat, lastPopup.lon]).setContent(lastPopup.html);
-    if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
-  };
-  delay ? setTimeout(open, delay) : open();
+  if (!popupPinned || !lastPopup) return;
+  const open = () => {
+    mainPopup.setLatLng([lastPopup.lat, lastPopup.lon]).setContent(lastPopup.html);
+    if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
+  };
+  delay ? setTimeout(open, delay) : open();
 }
 map.on("popupclose", (e) => {
-  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
+  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
 });
 
 /* ====================================================================
-   Tooltip fixo (reabrir após cluster/reset)
+   Tooltip fixo (reabrir após cluster/reset)
 ==================================================================== */
-let tipPinned = false;   // true após clique (para manter aberto)
-let lastTip = null;      // { id }
+let tipPinned = false;   // true após clique (para manter aberto)
+let lastTip = null;      // { id }
 
 function reabrirTooltipFixo(delay = 0) {
-  if (!lastTip || !tipPinned) return;
-  const open = () => {
-    const layer = idToMarker.get(keyId(lastTip.id));
-    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
-  };
-  delay ? setTimeout(open, delay) : open();
+  if (!lastTip || !tipPinned) return;
+  const open = () => {
+    const layer = idToMarker.get(keyId(lastTip.id));
+    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
+  };
+  delay ? setTimeout(open, delay) : open();
 }
 
 // Dados e sets para autocomplete
@@ -1094,391 +1115,391 @@ let censoMode = false, censoIds = null;
 
 // Helpers pra lidar com empresas (nome + id_insercao)
 function getEmpresasNomesArray(p) {
-  if (!Array.isArray(p.empresas)) return [];
-  return p.empresas.map((e) =>
-    typeof e === "string" ? e : (e.nome || e.empresa || "")
-  );
+  if (!Array.isArray(p.empresas)) return [];
+  return p.empresas.map((e) =>
+    typeof e === "string" ? e : (e.nome || e.empresa || "")
+  );
 }
 function empresasToString(p) {
-  return getEmpresasNomesArray(p).filter(Boolean).join(", ");
+  return getEmpresasNomesArray(p).filter(Boolean).join(", ");
 }
 function hasEmpresaNome(p, buscaLower) {
-  if (!buscaLower) return true;
-  return getEmpresasNomesArray(p).some((nome) =>
-    (nome || "").toLowerCase().includes(buscaLower)
-  );
+  if (!buscaLower) return true;
+  return getEmpresasNomesArray(p).some((nome) =>
+    (nome || "").toLowerCase().includes(buscaLower)
+  );
 }
 
 // Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
 function criarLayerPoste(p){
-  const key = keyId(p.id);
-  if (idToMarker.has(key)) return idToMarker.get(key);
+  const key = keyId(p.id);
+  if (idToMarker.has(key)) return idToMarker.get(key);
 
-  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
-  const icon = getPosteIcon(p);
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
+  const icon = getPosteIcon(p);
 
-  const layer = L.marker([p.lat, p.lon], {
-    icon,
-    pane: "postes"
-  })
-    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
-    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
-    .on("click", (e) => {
-      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      // se estiver no modo seleção, trata aqui e não abre popup normal
-      if (handleSelecaoClick(p, layer)) return;
-      lastTip = { id: key }; tipPinned = true;
-      try { layer.openTooltip?.(); } catch {}
-      abrirPopup(p);
-    });
+  const layer = L.marker([p.lat, p.lon], {
+    icon,
+    pane: "postes"
+  })
+    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
+    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
+    .on("click", (e) => {
+      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      // se estiver no modo seleção, trata aqui e não abre popup normal
+      if (handleSelecaoClick(p, layer)) return;
+      lastTip = { id: key }; tipPinned = true;
+      try { layer.openTooltip?.(); } catch {}
+      abrirPopup(p);
+    });
 
-  layer.posteData = p;
-  idToMarker.set(key, layer);
-  return layer;
+  layer.posteData = p;
+  idToMarker.set(key, layer);
+  return layer;
 }
 
 // ✅ Reset agora sempre usa o cache se já carregou uma vez
 function hardReset(){
-  carregarTodosPostesGradualmente();
+  carregarTodosPostesGradualmente();
 }
 
 // Adiciona 1 poste
 function adicionarMarker(p) {
-  const layer = criarLayerPoste(p);
-  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
+  const layer = criarLayerPoste(p);
+  if (!markers.hasLayer(layer)) { markers.addLayer(layer); refreshClustersSoon(); }
 }
 
 // Exibe TODOS os já criados no cache
 function exibirTodosPostes() {
-  const arr = Array.from(idToMarker.values());
-  markers.clearLayers();
-  if (arr.length) markers.addLayers(arr);
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
+  const arr = Array.from(idToMarker.values());
+  markers.clearLayers();
+  if (arr.length) markers.addLayers(arr);
+  refreshClustersSoon();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
 }
 
 // ✅ Carrega todos os postes UMA vez; depois só reaproveita o cache
 function carregarTodosPostesGradualmente() {
-  const lote = document.hidden ? 3500 : 1200;
-  let i = 0;
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
 
-  // Se já carregamos todos antes, apenas reanexa os marcadores existentes
-  if (todosCarregados && idToMarker.size) {
-    markers.clearLayers();
-    const arr = Array.from(idToMarker.values());
-    if (arr.length) {
-      markers.addLayers(arr);
-      refreshClustersSoon();
-    }
-    reabrirTooltipFixo(0);
-    reabrirPopupFixo(0);
-    hideOverlay();
-    return;
-  }
+  // Se já carregamos todos antes, apenas reanexa os marcadores existentes
+  if (todosCarregados && idToMarker.size) {
+    markers.clearLayers();
+    const arr = Array.from(idToMarker.values());
+    if (arr.length) {
+      markers.addLayers(arr);
+      refreshClustersSoon();
+    }
+    reabrirTooltipFixo(0);
+    reabrirPopupFixo(0);
+    hideOverlay();
+    return;
+  }
 
-  todosCarregados = false;
-  markers.clearLayers();
-  idToMarker.clear();
+  todosCarregados = false;
+  markers.clearLayers();
+  idToMarker.clear();
 
-  function addChunk() {
-    const slice = todosPostes.slice(i, i + lote);
-    const layers = slice.map(criarLayerPoste);
-    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
-    i += lote;
-    if (i < todosPostes.length) {
-      scheduleIdle(addChunk);
-    } else {
-      todosCarregados = true;
-      reabrirTooltipFixo(0);
-      reabrirPopupFixo(0);
-      hideOverlay();
-    }
-  }
-  scheduleIdle(addChunk);
+  function addChunk() {
+    const slice = todosPostes.slice(i, i + lote);
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
+    i += lote;
+    if (i < todosPostes.length) {
+      scheduleIdle(addChunk);
+    } else {
+      todosCarregados = true;
+      reabrirTooltipFixo(0);
+      reabrirPopupFixo(0);
+      hideOverlay();
+    }
+  }
+  scheduleIdle(addChunk);
 }
 
 /* ====================================================================
-   GEOJSON – polígonos de municípios
+   GEOJSON – polígonos de municípios
 ==================================================================== */
 const GEOJSON_BASE = "/data/geojson";
 
 const MUNICIPIOS_META = [
-  { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
-  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
-  { id:"cacapava",       db:"CAÇAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
-  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
-  { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
-  { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
-  { id:"cruzeiro",       db:"CRUZEIRO",               label:"CRUZEIRO",               logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
-  { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
-  { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
-  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
-  { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
-  { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",        label:"ITAQUAQUECETUBA",        logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
-  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
-  { id:"jambeiro",       db:"JAMBEIRO",               label:"JAMBEIRO",               logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
-  { id:"lorena",         db:"LORENA",                 label:"LORENA",                 logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
-  { id:"mogi",           db:"MOGI DAS CRUZES",        label:"MOGI DAS CRUZES",        logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
-  { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
-  { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
-  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
-  { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
-  { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
-  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
-  { id:"santabranca",    db:"SANTA BRANCA",           label:"SANTA BRANCA",           logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
-  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
-  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
-  { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
-  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
-  { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
+  { id:"aparecida",      db:"APARECIDA",              label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
+  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
+  { id:"cacapava",       db:"CAÇAPAVA",               label:"CAÇAPAVA",               logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
+  { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
+  { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
+  { id:"cruzeiro",       db:"CRUZEIRO",               label:"CRUZEIRO",               logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
+  { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
+  { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
+  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
+  { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",        label:"ITAQUAQUECETUBA",        logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
+  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { id:"jambeiro",       db:"JAMBEIRO",               label:"JAMBEIRO",               logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
+  { id:"lorena",         db:"LORENA",                 label:"LORENA",                 logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
+  { id:"mogi",           db:"MOGI DAS CRUZES",        label:"MOGI DAS CRUZES",        logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
+  { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
+  { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
+  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
+  { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
+  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { id:"santabranca",    db:"SANTA BRANCA",           label:"SANTA BRANCA",           logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
+  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { id:"suzano",         db:"SUZANO",                 label:"SUZANO",                 logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
+  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { id:"tremembe",       db:"TREMEMBÉ",               label:"TREMEMBÉ",               logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
 ];
 
 // paleta de cores para polígonos de municípios
 const MUNI_COLORS = {};
 const MUNI_COLORS_PALETTE = [
-  "#22c55e","#3b82f6","#eab308","#f97316","#a855f7",
-  "#f43f5e","#14b8a6","#6366f1","#84cc16","#ec4899",
-  "#10b981","#0ea5e9","#ef4444","#8b5cf6","#06b6d4",
-  "#facc15","#4ade80","#fb7185","#f59e0b","#0f766e"
+  "#22c55e","#3b82f6","#eab308","#f97316","#a855f7",
+  "#f43f5e","#14b8a6","#6366f1","#84cc16","#ec4899",
+  "#10b981","#0ea5e9","#ef4444","#8b5cf6","#06b6d4",
+  "#facc15","#4ade80","#fb7185","#f59e0b","#0f766e"
 ];
 MUNICIPIOS_META.forEach((m, idx) => {
-  MUNI_COLORS[m.id] = MUNI_COLORS_PALETTE[idx % MUNI_COLORS_PALETTE.length];
+  MUNI_COLORS[m.id] = MUNI_COLORS_PALETTE[idx % MUNI_COLORS_PALETTE.length];
 });
 
 const layerMunicipios = L.layerGroup().addTo(map);
 
 async function carregarPoligonosMunicipios(ids) {
-  layerMunicipios.clearLayers();
+  layerMunicipios.clearLayers();
 
-  const alvo = ids && ids.length ? ids : MUNICIPIOS_META.map(m => m.id);
+  const alvo = ids && ids.length ? ids : MUNICIPIOS_META.map(m => m.id);
 
-  await Promise.all(
-    alvo.map(async (id) => {
-      const urls = [
-        `${GEOJSON_BASE}/${id}.geojson`,
-        `/geojson/${id}.geojson`,
-        `/data/geojson/${id}.geojson`,
-      ];
-      let ultimoErro = null;
+  await Promise.all(
+    alvo.map(async (id) => {
+      const urls = [
+        `${GEOJSON_BASE}/${id}.geojson`,
+        `/geojson/${id}.geojson`,
+        `/data/geojson/${id}.geojson`,
+      ];
+      let ultimoErro = null;
 
-      for (const url of urls) {
-        try {
-          const resp = await fetch(url, { cache: "no-store" });
-          if (!resp.ok) {
-            ultimoErro = new Error(`HTTP ${resp.status}`);
-            continue;
-          }
-          const geo = await resp.json();
-          const meta = MUNICIPIOS_META.find(m => m.id === id);
-          const color = meta ? (MUNI_COLORS[meta.id] || "#19d68f") : "#19d68f";
+      for (const url of urls) {
+        try {
+          const resp = await fetch(url, { cache: "no-store" });
+          if (!resp.ok) {
+            ultimoErro = new Error(`HTTP ${resp.status}`);
+            continue;
+          }
+          const geo = await resp.json();
+          const meta = MUNICIPIOS_META.find(m => m.id === id);
+          const color = meta ? (MUNI_COLORS[meta.id] || "#19d68f") : "#19d68f";
 
-          const poly = L.geoJSON(geo, {
-            style: {
-              color,
-              weight: 2,
-              fillColor: color,
-              fillOpacity: 0.15
-            },
-            // ✅ NÃO desenhar os pontos (centroides) do GeoJSON
-            filter: (feature) => {
-              const type = feature?.geometry?.type;
-              return type !== "Point" && type !== "MultiPoint";
-            }
-          });
-          poly.addTo(layerMunicipios);
-          return;
-        } catch (e) {
-          ultimoErro = e;
-        }
-      }
+          const poly = L.geoJSON(geo, {
+            style: {
+              color,
+              weight: 2,
+              fillColor: color,
+              fillOpacity: 0.15
+            },
+            // ✅ NÃO desenhar os pontos (centroides) do GeoJSON
+            filter: (feature) => {
+              const type = feature?.geometry?.type;
+              return type !== "Point" && type !== "MultiPoint";
+            }
+          });
+          poly.addTo(layerMunicipios);
+          return;
+        } catch (e) {
+          ultimoErro = e;
+        }
+      }
 
-      console.error("Erro ao carregar GeoJSON do município:", id, "Detalhe:", ultimoErro);
-    })
-  );
+      console.error("Erro ao carregar GeoJSON do município:", id, "Detalhe:", ultimoErro);
+    })
+  );
 }
 
 /* ====================================================================
-   Modo inicial / modal de seleção
+   Modo inicial / modal de seleção
 ==================================================================== */
 let modoAtual = null; // "todos" ou "municipios"
 let modalModoEl = null;
 const selecionadosSet = new Set();
 
 function buildModalModoInicial(){
-  if (modalModoEl) return modalModoEl;
+  if (modalModoEl) return modalModoEl;
 
-  const backdrop = document.createElement("div");
-  backdrop.id = "modalModoInicial";
-  backdrop.className = "modo-backdrop";
+  const backdrop = document.createElement("div");
+  backdrop.id = "modalModoInicial";
+  backdrop.className = "modo-backdrop";
 
-  const card = document.createElement("div");
-  card.className = "modo-card";
-  card.innerHTML = `
-    <div class="modo-head">
-      <div>
-        <h2>Como você quer visualizar os postes?</h2>
-        <p>Você pode carregar todos os 620 mil postes de uma vez ou focar em um ou mais municípios para deixar o mapa mais leve.</p>
-      </div>
-      <div class="modo-tag">
-        <i class="fa fa-bolt"></i> Carregamento inteligente
-      </div>
-    </div>
+  const card = document.createElement("div");
+  card.className = "modo-card";
+  card.innerHTML = `
+    <div class="modo-head">
+      <div>
+        <h2>Como você quer visualizar os postes?</h2>
+        <p>Você pode carregar todos os 620 mil postes de uma vez ou focar em um ou mais municípios para deixar o mapa mais leve.</p>
+      </div>
+      <div class="modo-tag">
+        <i class="fa fa-bolt"></i> Carregamento inteligente
+      </div>
+    </div>
 
-    <div class="modo-footer" style="margin-bottom:6px;">
-      <div class="modo-footer-left">
-        <button type="button" id="btnModoTodos" class="modo-btn-primary">
-          <i class="fa fa-globe"></i> Ver todos os postes
-        </button>
-        <button type="button" id="btnModoSelecionados" class="modo-btn-secondary">
-          <i class="fa fa-layer-group"></i> Carregar municípios selecionados
-        </button>
-      </div>
-      <div class="modo-footer-right">
-        <span id="modoCounter" class="modo-counter">Nenhum município selecionado ainda.</span>
-      </div>
-    </div>
+    <div class="modo-footer" style="margin-bottom:6px;">
+      <div class="modo-footer-left">
+        <button type="button" id="btnModoTodos" class="modo-btn-primary">
+          <i class="fa fa-globe"></i> Ver todos os postes
+        </button>
+        <button type="button" id="btnModoSelecionados" class="modo-btn-secondary">
+          <i class="fa fa-layer-group"></i> Carregar municípios selecionados
+        </button>
+      </div>
+      <div class="modo-footer-right">
+        <span id="modoCounter" class="modo-counter">Nenhum município selecionado ainda.</span>
+      </div>
+    </div>
 
-    <div style="font-size:13px;color:#9ca3af;margin-bottom:4px;">
-      Selecione abaixo um ou mais municípios para visualizar apenas os postes dessas áreas:
-    </div>
-    <div id="grid-municipios-modal" class="modo-grid"></div>
+    <div style="font-size:13px;color:#9ca3af;margin-bottom:4px;">
+      Selecione abaixo um ou mais municípios para visualizar apenas os postes dessas áreas:
+    </div>
+    <div id="grid-municipios-modal" class="modo-grid"></div>
 
-    <div class="modo-footer" style="margin-top:14px;">
-      <div class="modo-footer-left">
-        <span class="modo-counter">
-          Dica: para análises focadas (Ministério Público, Prefeituras, etc.), use a opção por município para manter o mapa mais fluido.
-        </span>
-      </div>
-      <div class="modo-footer-right">
-        <button type="button" id="btnModoFechar" class="modo-btn-secondary">
-          Fechar
-        </button>
-      </div>
-    </div>
-  `;
+    <div class="modo-footer" style="margin-top:14px;">
+      <div class="modo-footer-left">
+        <span class="modo-counter">
+          Dica: para análises focadas (Ministério Público, Prefeituras, etc.), use a opção por município para manter o mapa mais fluido.
+        </span>
+      </div>
+      <div class="modo-footer-right">
+        <button type="button" id="btnModoFechar" class="modo-btn-secondary">
+          Fechar
+        </button>
+      </div>
+    </div>
+  `;
 
-  const grid = card.querySelector("#grid-municipios-modal");
-  const counter = card.querySelector("#modoCounter");
+  const grid = card.querySelector("#grid-municipios-modal");
+  const counter = card.querySelector("#modoCounter");
 
-  MUNICIPIOS_META.forEach((m) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "modo-card-muni";
-    btn.dataset.id = m.id;
-    btn.innerHTML = `
-      <img src="${m.logo}" alt="Prefeitura de ${escapeHtml(m.label)}">
-      <span>${escapeHtml(m.label)}</span>
-    `;
-    btn.addEventListener("click", () => {
-      if (selecionadosSet.has(m.id)) {
-        selecionadosSet.delete(m.id);
-        btn.classList.remove("selected");
-      } else {
-        selecionadosSet.add(m.id);
-        btn.classList.add("selected");
-      }
-      const n = selecionadosSet.size;
-      if (!n) counter.textContent = "Nenhum município selecionado ainda.";
-      else if (n === 1) counter.textContent = "1 município selecionado.";
-      else counter.textContent = `${n} municípios selecionados.`;
-    });
-    grid.appendChild(btn);
-  });
+  MUNICIPIOS_META.forEach((m) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "modo-card-muni";
+    btn.dataset.id = m.id;
+    btn.innerHTML = `
+      <img src="${m.logo}" alt="Prefeitura de ${escapeHtml(m.label)}">
+      <span>${escapeHtml(m.label)}</span>
+    `;
+    btn.addEventListener("click", () => {
+      if (selecionadosSet.has(m.id)) {
+        selecionadosSet.delete(m.id);
+        btn.classList.remove("selected");
+      } else {
+        selecionadosSet.add(m.id);
+        btn.classList.add("selected");
+      }
+      const n = selecionadosSet.size;
+      if (!n) counter.textContent = "Nenhum município selecionado ainda.";
+      else if (n === 1) counter.textContent = "1 município selecionado.";
+      else counter.textContent = `${n} municípios selecionados.`;
+    });
+    grid.appendChild(btn);
+  });
 
-  backdrop.appendChild(card);
-  document.body.appendChild(backdrop);
+  backdrop.appendChild(card);
+  document.body.appendChild(backdrop);
 
-  const btnTodos = card.querySelector("#btnModoTodos");
-  const btnSel = card.querySelector("#btnModoSelecionados");
-  const btnFechar = card.querySelector("#btnModoFechar");
+  const btnTodos = card.querySelector("#btnModoTodos");
+  const btnSel = card.querySelector("#btnModoSelecionados");
+  const btnFechar = card.querySelector("#btnModoFechar");
 
-  btnTodos.addEventListener("click", () => {
-    fecharModalModoInicial();
-    modoAtual = "todos";
-    showOverlay("Carregando todos os municípios e postes…");
-    // remove marcador azul de localização ao carregar todos (se existir)
-    if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
-      map.removeLayer(window.userLocationMarker);
-      window.userLocationMarker = null;
-    }
-    carregarPoligonosMunicipios();      // todos
-    carregarTodosPostesGradualmente();  // usa cache se já tiver
-  });
+  btnTodos.addEventListener("click", () => {
+    fecharModalModoInicial();
+    modoAtual = "todos";
+    showOverlay("Carregando todos os municípios e postes…");
+    // remove marcador azul de localização ao carregar todos (se existir)
+    if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
+      map.removeLayer(window.userLocationMarker);
+      window.userLocationMarker = null;
+    }
+    carregarPoligonosMunicipios();      // todos
+    carregarTodosPostesGradualmente();  // usa cache se já tiver
+  });
 
-  btnSel.addEventListener("click", () => {
-    if (!selecionadosSet.size) {
-      alert("Selecione ao menos um município para carregar.");
-      return;
-    }
-    const ids = Array.from(selecionadosSet);
-    fecharModalModoInicial();
-    modoAtual = "municipios";
+  btnSel.addEventListener("click", () => {
+    if (!selecionadosSet.size) {
+      alert("Selecione ao menos um município para carregar.");
+      return;
+    }
+    const ids = Array.from(selecionadosSet);
+    fecharModalModoInicial();
+    modoAtual = "municipios";
 
-    // ✅ usa normKey para ignorar acentos e caracteres
-    const muniDbSet = new Set();
-    ids.forEach((id) => {
-      const meta = MUNICIPIOS_META.find((m) => m.id === id);
-      if (meta) muniDbSet.add(normKey(meta.db));
-    });
+    // ✅ usa normKey para ignorar acentos e caracteres
+    const muniDbSet = new Set();
+    ids.forEach((id) => {
+      const meta = MUNICIPIOS_META.find((m) => m.id === id);
+      if (meta) muniDbSet.add(normKey(meta.db));
+    });
 
-    showOverlay("Carregando municípios selecionados e respectivos postes…");
-    carregarPoligonosMunicipios(ids);
-    carregarPostesPorMunicipiosGradual(muniDbSet);
-  });
+    showOverlay("Carregando municípios selecionados e respectivos postes…");
+    carregarPoligonosMunicipios(ids);
+    carregarPostesPorMunicipiosGradual(muniDbSet);
+  });
 
-  btnFechar.addEventListener("click", fecharModalModoInicial);
+  btnFechar.addEventListener("click", fecharModalModoInicial);
 
-  modalModoEl = backdrop;
-  return modalModoEl;
+  modalModoEl = backdrop;
+  return modalModoEl;
 }
 
 function abrirModalModoInicial(){
-  const m = buildModalModoInicial();
-  m.style.display = "flex";
+  const m = buildModalModoInicial();
+  m.style.display = "flex";
 }
 
 function fecharModalModoInicial(){
-  if (modalModoEl) modalModoEl.style.display = "none";
+  if (modalModoEl) modalModoEl.style.display = "none";
 }
 
 // ✅ Carregamento gradual apenas para alguns municípios (reutiliza cache global)
 function carregarPostesPorMunicipiosGradual(muniDbSet){
-  markers.clearLayers();
+  markers.clearLayers();
 
-  // Cache global (idToMarker) é mantido
-  const candidatos = todosPostes.filter((p) =>
-    muniDbSet.has(normKey(p.nome_municipio || ""))
-  );
+  // Cache global (idToMarker) é mantido
+  const candidatos = todosPostes.filter((p) =>
+    muniDbSet.has(normKey(p.nome_municipio || ""))
+  );
 
-  if (!candidatos.length) {
-    hideOverlay();
-    alert("Nenhum poste encontrado para os municípios selecionados.");
-    return;
-  }
+  if (!candidatos.length) {
+    hideOverlay();
+    alert("Nenhum poste encontrado para os municípios selecionados.");
+    return;
+  }
 
-  const lote = document.hidden ? 3500 : 1200;
-  let i = 0;
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
 
-  function addChunk(){
-    const slice = candidatos.slice(i, i + lote);
-    const layers = slice.map(criarLayerPoste);
-    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
-    i += lote;
-    if (i < candidatos.length){
-      scheduleIdle(addChunk);
-    } else {
-      hideOverlay();
-      reabrirTooltipFixo(0);
-      reabrirPopupFixo(0);
-      try {
-        const bounds = L.latLngBounds(candidatos.map(p => [p.lat, p.lon]));
-        map.fitBounds(bounds);
-      } catch {}
-    }
-  }
-  scheduleIdle(addChunk);
+  function addChunk(){
+    const slice = candidatos.slice(i, i + lote);
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
+    i += lote;
+    if (i < candidatos.length){
+      scheduleIdle(addChunk);
+    } else {
+      hideOverlay();
+      reabrirTooltipFixo(0);
+      reabrirPopupFixo(0);
+      try {
+        const bounds = L.latLngBounds(candidatos.map(p => [p.lat, p.lon]));
+        map.fitBounds(bounds);
+      } catch {}
+    }
+  }
+  scheduleIdle(addChunk);
 }
 
 // ---- Indicadores / BI (refs de gráfico) ----
@@ -1486,490 +1507,490 @@ let chartMunicipiosRef = null;
 
 // ---------------------- HUD na lateral --------------------------------
 (function buildHud() {
-  const hud = document.getElementById("tempo");
-  const painel = document.querySelector(".painel-busca");
-  if (!hud || !painel) return;
+  const hud = document.getElementById("tempo");
+  const painel = document.querySelector(".painel-busca");
+  if (!hud || !painel) return;
 
-  const actions = painel.querySelector(".actions");
-  hud.classList.add("dock-hud");
-  if (actions && actions.parentNode === painel) painel.insertBefore(hud, actions.nextSibling);
-  else painel.appendChild(hud);
+  const actions = painel.querySelector(".actions");
+  hud.classList.add("dock-hud");
+  if (actions && actions.parentNode === painel) painel.insertBefore(hud, actions.nextSibling);
+  else painel.appendChild(hud);
 
-  hud.innerHTML = "";
+  hud.innerHTML = "";
 
-  const horaRow = document.createElement("div");
-  horaRow.className = "hora-row";
-  horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
-  hud.appendChild(horaRow);
+  const horaRow = document.createElement("div");
+  horaRow.className = "hora-row";
+  horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
+  hud.appendChild(horaRow);
 
-  const card = document.createElement("div");
-  card.className = "weather-card";
-  card.innerHTML = `
-    <div class="weather-row">
-      <img alt="Clima" src="" />
-      <div class="tempo-text">
-        <b>Carregando…</b><span> </span><small> </small>
-      </div>
-    </div>
-    <div class="map-row">
-      <span class="lbl">Mapa</span>
-      <span class="select-wrap">
-        <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
-          <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
-          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="#111827" stroke-width="2"/>
-        </svg>
-        <select id="select-base">
-          <option value="rua">Rua</option>
-          <option value="sat">Satélite</option>
-          <option value="satlabels">Satélite + rótulos</option>
-        </select>
-        <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </span>
-    </div>
-  `;
-  hud.appendChild(card);
+  const card = document.createElement("div");
+  card.className = "weather-card";
+  card.innerHTML = `
+    <div class="weather-row">
+      <img alt="Clima" src="" />
+      <div class="tempo-text">
+        <b>Carregando…</b><span> </span><small> </small>
+      </div>
+    </div>
+    <div class="map-row">
+      <span class="lbl">Mapa</span>
+      <span class="select-wrap">
+        <svg class="ico-globe" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="#111827" stroke-width="2" />
+          <line x1="2" y1="12" x2="22" y2="12" stroke="#111827" stroke-width="2" />
+          <path d="M12 2c3.5 3 3.5 17 0 20M12 2c-3.5 3-3.5 17 0 20" fill="none" stroke="#111827" stroke-width="2"/>
+        </svg>
+        <select id="select-base">
+          <option value="rua">Rua</option>
+          <option value="sat">Satélite</option>
+          <option value="satlabels">Satélite + rótulos</option>
+        </select>
+        <svg class="ico-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+  `;
+  hud.appendChild(card);
 
-  const selectBase = card.querySelector("#select-base");
-  selectBase.addEventListener("change", e => setBase(e.target.value));
+  const selectBase = card.querySelector("#select-base");
+  selectBase.addEventListener("change", e => setBase(e.target.value));
 })();
 
 // ---------------------------------------------------------------------
 // Carrega /api/postes, trata 401 redirecionando
 // ---------------------------------------------------------------------
 fetch("/api/postes", { credentials: "include" })
-  .then((res) => {
-    if (res.status === 401) {
-      window.location.href = "/login.html";
-      throw new Error("Não autorizado");
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-  .then((data) => {
-    const agrupado = {};
+  .then((res) => {
+    if (res.status === 401) {
+      window.location.href = "/login.html";
+      throw new Error("Não autorizado");
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  })
+  .then((data) => {
+    const agrupado = {};
 
-    data.forEach((p) => {
-      if (!p.coordenadas) return;
-      const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
-      if (isNaN(lat) || isNaN(lon)) return;
+    data.forEach((p) => {
+      if (!p.coordenadas) return;
+      const [lat, lon] = p.coordenadas.split(/,\s*/).map(Number);
+      if (isNaN(lat) || isNaN(lon)) return;
 
-      if (!agrupado[p.id]) {
-        agrupado[p.id] = {
-          ...p,
-          empresas: [],
-          lat,
-          lon
-        };
-      }
+      if (!agrupado[p.id]) {
+        agrupado[p.id] = {
+          ...p,
+          empresas: [],
+          lat,
+          lon
+        };
+      }
 
-      const nomeEmpresa = p.empresa && String(p.empresa).toUpperCase() !== "DISPONÍVEL"
-        ? p.empresa
-        : null;
+      const nomeEmpresa = p.empresa && String(p.empresa).toUpperCase() !== "DISPONÍVEL"
+        ? p.empresa
+        : null;
 
-      if (nomeEmpresa) {
-        agrupado[p.id].empresas.push({
-          id_insercao: p.id_insercao ?? null,
-          nome: nomeEmpresa
-        });
-      }
-    });
+      if (nomeEmpresa) {
+        agrupado[p.id].empresas.push({
+          id_insercao: p.id_insercao ?? null,
+          nome: nomeEmpresa
+        });
+      }
+    });
 
-    const postsArray = Object.values(agrupado).map((p) => {
-      const seen = new Set();
-      const empresasUniq = [];
-      (p.empresas || []).forEach((e) => {
-        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
-        const idIns = typeof e === "object" && e !== null ? e.id_insercao ?? "" : "";
-        const key = `${nome}|${idIns}`;
-        if (nome && !seen.has(key)) {
-          seen.add(key);
-          empresasUniq.push({ id_insercao: idIns || null, nome });
-        }
-      });
-      return { ...p, empresas: empresasUniq };
-    });
+    const postsArray = Object.values(agrupado).map((p) => {
+      const seen = new Set();
+      const empresasUniq = [];
+      (p.empresas || []).forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? e.id_insercao ?? "" : "";
+        const key = `${nome}|${idIns}`;
+        if (nome && !seen.has(key)) {
+          seen.add(key);
+          empresasUniq.push({ id_insercao: idIns || null, nome });
+        }
+      });
+      return { ...p, empresas: empresasUniq };
+    });
 
-    postsArray.forEach((poste) => {
-      todosPostes.push(poste);
-      municipiosSet.add(poste.nome_municipio);
-      bairrosSet.add(poste.nome_bairro);
-      logradourosSet.add(poste.nome_logradouro);
+    postsArray.forEach((poste) => {
+      todosPostes.push(poste);
+      municipiosSet.add(poste.nome_municipio);
+      bairrosSet.add(poste.nome_bairro);
+      logradourosSet.add(poste.nome_logradouro);
 
-      poste.empresas.forEach((e) => {
-        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
-        if (!nome) return;
-        empresasContagem[nome] = (empresasContagem[nome] || 0) + 1;
-      });
-    });
+      poste.empresas.forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        if (!nome) return;
+        empresasContagem[nome] = (empresasContagem[nome] || 0) + 1;
+      });
+    });
 
-    preencherListas();
-    hideOverlay();
-    abrirModalModoInicial(); // pergunta: todos ou por município
-  })
-  .catch((err) => {
-    console.error("Erro ao carregar postes:", err);
-    hideOverlay();
-    if (err.message !== "Não autorizado") alert("Erro ao carregar dados dos postes.");
-  });
+    preencherListas();
+    hideOverlay();
+    abrirModalModoInicial(); // pergunta: todos ou por município
+  })
+  .catch((err) => {
+    console.error("Erro ao carregar postes:", err);
+    hideOverlay();
+    if (err.message !== "Não autorizado") alert("Erro ao carregar dados dos postes.");
+  });
 
 // ---------------------------------------------------------------------
 // Preenche datalists de autocomplete
 // ---------------------------------------------------------------------
 function preencherListas() {
-  const mount = (set, id) => {
-    const dl = document.getElementById(id);
-    if (!dl) return;
-    dl.innerHTML = "";
-    Array.from(set).filter(Boolean).sort().forEach((v) => {
-      const o = document.createElement("option");
-      o.value = v; dl.appendChild(o);
-    });
-  };
-  mount(municipiosSet, "lista-municipios");
-  mount(bairrosSet, "lista-bairros");
-  mount(logradourosSet, "lista-logradouros");
+  const mount = (set, id) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = "";
+    Array.from(set).filter(Boolean).sort().forEach((v) => {
+      const o = document.createElement("option");
+      o.value = v; dl.appendChild(o);
+    });
+  };
+  mount(municipiosSet, "lista-municipios");
+  mount(bairrosSet, "lista-bairros");
+  mount(logradourosSet, "lista-logradouros");
 
-  const dlEmp = document.getElementById("lista-empresas");
-  if (dlEmp) {
-    dlEmp.innerHTML = "";
-    Object.keys(empresasContagem).sort().forEach((e) => {
-      const o = document.createElement("option");
-      o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
-    });
-  }
+  const dlEmp = document.getElementById("lista-empresas");
+  if (dlEmp) {
+    dlEmp.innerHTML = "";
+    Object.keys(empresasContagem).sort().forEach((e) => {
+      const o = document.createElement("option");
+      o.value = e; o.label = `${e} (${empresasContagem[e]} postes)`; dlEmp.appendChild(o);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------
 // Geração de Excel no cliente via SheetJS
 // ---------------------------------------------------------------------
 function gerarExcelCliente(filtroIds) {
-  const idSet = new Set((filtroIds || []).map(keyId));
-  const dadosParaExcel = [];
+  const idSet = new Set((filtroIds || []).map(keyId));
+  const dadosParaExcel = [];
 
-  todosPostes
-    .filter((p) => idSet.has(keyId(p.id)))
-    .forEach((p) => {
-      const detalhes = Array.isArray(p.empresas) && p.empresas.length
-        ? p.empresas
-        : [{ nome: "", id_insercao: "" }];
+  todosPostes
+    .filter((p) => idSet.has(keyId(p.id)))
+    .forEach((p) => {
+      const detalhes = Array.isArray(p.empresas) && p.empresas.length
+        ? p.empresas
+        : [{ nome: "", id_insercao: "" }];
 
-      detalhes.forEach((e) => {
-        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
-        let idIns = "";
-        if (typeof e === "object" && e !== null) {
-          idIns = e.id_insercao ?? "";
-        } else if (p.id_insercao != null) {
-          // fallback caso o backend mande o id de inserção só no nível do poste
-          idIns = p.id_insercao;
-        }
+      detalhes.forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        let idIns = "";
+        if (typeof e === "object" && e !== null) {
+          idIns = e.id_insercao ?? "";
+        } else if (p.id_insercao != null) {
+          // fallback caso o backend mande o id de inserção só no nível do poste
+          idIns = p.id_insercao;
+        }
 
-        dadosParaExcel.push({
-          "ID POSTE": p.id,
-          Município: p.nome_municipio,
-          Bairro: p.nome_bairro,
-          Logradouro: p.nome_logradouro,
-          Empresa: nome,
-          "ID INSERÇÃO": idIns,
-          Coordenadas: p.coordenadas,
-        });
-      });
-    });
+        dadosParaExcel.push({
+          "ID POSTE": p.id,
+          Município: p.nome_municipio,
+          Bairro: p.nome_bairro,
+          Logradouro: p.nome_logradouro,
+          Empresa: nome,
+          "ID INSERÇÃO": idIns,
+          Coordenadas: p.coordenadas,
+        });
+      });
+    });
 
-  const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Filtro");
-  XLSX.writeFile(wb, "relatorio_postes_filtrados.xlsx");
+  const ws = XLSX.utils.json_to_sheet(dadosParaExcel);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Filtro");
+  XLSX.writeFile(wb, "relatorio_postes_filtrados.xlsx");
 }
 
 // ---------------------------------------------------------------------
 // Modo Censo
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso")?.addEventListener("click", async () => {
-  censoMode = !censoMode;
+  censoMode = !censoMode;
 
-  markers.clearLayers();
-  refreshClustersSoon();
+  markers.clearLayers();
+  refreshClustersSoon();
 
-  if (!censoMode) {
-    exibirTodosPostes();
-    reabrirTooltipFixo(0);
-    reabrirPopupFixo(0);
-    return;
-  }
+  if (!censoMode) {
+    exibirTodosPostes();
+    reabrirTooltipFixo(0);
+    reabrirPopupFixo(0);
+    return;
+  }
 
-  if (!censoIds) {
-    try {
-      const res = await fetch("/api/censo", { credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const arr = await res.json();
-      censoIds = new Set(arr.map((i) => String(i.poste)));
-    } catch {
-      alert("Não foi possível carregar dados do censo.");
-      censoMode = false;
-      exibirTodosPostes();
-      reabrirTooltipFixo(0);
-      reabrirPopupFixo(0);
-      return;
-    }
-  }
+  if (!censoIds) {
+    try {
+      const res = await fetch("/api/censo", { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const arr = await res.json();
+      censoIds = new Set(arr.map((i) => String(i.poste)));
+    } catch {
+      alert("Não foi possível carregar dados do censo.");
+      censoMode = false;
+      exibirTodosPostes();
+      reabrirTooltipFixo(0);
+      reabrirPopupFixo(0);
+      return;
+    }
+  }
 
-  todosPostes
-    .filter((p) => censoIds.has(String(p.id)))
-    .forEach((poste) => {
-      const c = L.circleMarker([poste.lat, poste.lon], {
-        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8
-      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
+  todosPostes
+    .filter((p) => censoIds.has(String(p.id)))
+    .forEach((poste) => {
+      const c = L.circleMarker([poste.lat, poste.lon], {
+        radius: 6, color: "#666", fillColor: "#bbb", weight: 2, fillOpacity: 0.8
+      }).bindTooltip(`ID: ${poste.id}`, { direction: "top", sticky: true });
 
-      c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
-      c.on("click", (e) => {
-        if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-        if (handleSelecaoClick(poste, c)) return;
-        lastTip = { id: keyId(poste.id) }; tipPinned = true;
-        try{ c.openTooltip?.(); } catch{}
-        abrirPopup(poste);
-      });
+      c.on("mouseover", () => { lastTip = { id: keyId(poste.id) }; tipPinned = false; });
+      c.on("click", (e) => {
+        if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+        if (handleSelecaoClick(poste, c)) return;
+        lastTip = { id: keyId(poste.id) }; tipPinned = true;
+        try{ c.openTooltip?.(); } catch{}
+        abrirPopup(poste);
+      });
 
-      c.posteData = poste;
-      markers.addLayer(c);
-    });
+      c.posteData = poste;
+      markers.addLayer(c);
+    });
 
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
+  refreshClustersSoon();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
 });
 
 // ---------------------------------------------------------------------
 // Interações / filtros
 // ---------------------------------------------------------------------
 function buscarID() {
-  const id = document.getElementById("busca-id")?.value.trim();
-  const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
-  if (!p) return alert("Poste não encontrado.");
-  map.setView([p.lat, p.lon], 18);
-  abrirPopup(p);
+  const id = document.getElementById("busca-id")?.value.trim();
+  const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
+  if (!p) return alert("Poste não encontrado.");
+  map.setView([p.lat, p.lon], 18);
+  abrirPopup(p);
 }
 
 function buscarCoordenada() {
-  const inpt = document.getElementById("busca-coord")?.value.trim();
-  const [lat, lon] = (inpt || "").split(/,\s*/).map(Number);
-  if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
-  map.setView([lat, lon], 18);
-  L.popup().setLatLng([lat, lon]).setContent(`<b>Coordenada:</b> ${lat}, ${lon}`).openOn(map);
+  const inpt = document.getElementById("busca-coord")?.value.trim();
+  const [lat, lon] = (inpt || "").split(/,\s*/).map(Number);
+  if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
+  map.setView([lat, lon], 18);
+  L.popup().setLatLng([lat, lon]).setContent(`<b>Coordenada:</b> ${lat}, ${lon}`).openOn(map);
 }
 
 function filtrarLocal() {
-  const getVal = (id) => (document.getElementById(id)?.value || "").trim().toLowerCase();
-  const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
+  const getVal = (id) => (document.getElementById(id)?.value || "").trim().toLowerCase();
+  const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
 
-  const filtro = todosPostes.filter(
-    (p) =>
-      (!mun || (p.nome_municipio || "").toLowerCase() === mun) &&
-      (!bai || (p.nome_bairro || "").toLowerCase() === bai) &&
-      (!log || (p.nome_logradouro || "").toLowerCase() === log) &&
-      (!emp || hasEmpresaNome(p, emp))
-  );
+  const filtro = todosPostes.filter(
+    (p) =>
+      (!mun || (p.nome_municipio || "").toLowerCase() === mun) &&
+      (!bai || (p.nome_bairro || "").toLowerCase() === bai) &&
+      (!log || (p.nome_logradouro || "").toLowerCase() === log) &&
+      (!emp || hasEmpresaNome(p, emp))
+  );
 
-  if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
+  if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
 
-  markers.clearLayers();
-  refreshClustersSoon();
-  filtro.forEach(adicionarMarker);
-  refreshClustersSoon();
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
+  markers.clearLayers();
+  refreshClustersSoon();
+  filtro.forEach(adicionarMarker);
+  refreshClustersSoon();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
 
-  fetch("/api/postes/report", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
-  })
-    .then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = "/login.html";
-        throw new Error("Não autorizado");
-      }
-      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
-      return res.blob();
-    })
-    .then((b) => {
-      const u = URL.createObjectURL(b);
-      const a = document.createElement("a");
-      a.href = u; a.download = "relatorio_postes_filtro_backend.xlsx";
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(u);
-    })
-    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
+  fetch("/api/postes/report", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: filtro.map((p) => p.id) }),
+  })
+    .then(async (res) => {
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+        throw new Error("Não autorizado");
+      }
+      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+      return res.blob();
+    })
+    .then((b) => {
+      const u = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = u; a.download = "relatorio_postes_filtro_backend.xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(u);
+    })
+    .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
 
-  gerarExcelCliente(filtro.map((p) => p.id));
+  gerarExcelCliente(filtro.map((p) => p.id));
 }
 
 function resetarMapa() {
-  // sair do modo seleção (sem tentar restaurar estilos, o reset já recria marcadores)
-  limparSelecaoESair({ manterMarcadores: true });
+  // sair do modo seleção (sem tentar restaurar estilos, o reset já recria marcadores)
+  limparSelecaoESair({ manterMarcadores: true });
 
-  popupPinned = false; lastPopup = null;
-  tipPinned = false; lastTip = null;
-  showOverlay("Carregando todos os postes…");
-  modoAtual = "todos";
-  hardReset();
+  popupPinned = false; lastPopup = null;
+  tipPinned = false; lastTip = null;
+  showOverlay("Carregando todos os postes…");
+  modoAtual = "todos";
+  hardReset();
 }
 
 // ---------------------------------------------------------------------
 // Street View (link público)
 // ---------------------------------------------------------------------
 function buildGoogleMapsPanoURL(lat, lng) {
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
 function streetImageryBlockHTML(lat, lng, label = "Abrir no Google Street View") {
-  const url = buildGoogleMapsPanoURL(lat, lng);
-  return `
-    <button class="mp-btn-street" type="button" onclick="window.open('${url}','_blank','noopener')">
-      ${label}
-    </button>
-    <div class="mp-street-note">
-      *Se não houver cobertura exata no ponto, o Google aproxima para a vista mais próxima.
-    </div>
-  `.trim();
+  const url = buildGoogleMapsPanoURL(lat, lng);
+  return `
+    <button class="mp-btn-street" type="button" onclick="window.open('${url}','_blank','noopener')">
+      ${label}
+    </button>
+    <div class="mp-street-note">
+      *Se não houver cobertura exata no ponto, o Google aproxima para a vista mais próxima.
+    </div>
+  `.trim();
 }
 
 (function addStreetViewControl() {
-  const Control = L.Control.extend({
-    options: { position: "topleft" },
-    onAdd: function () {
-      const div = L.DomUtil.create("div", "leaflet-bar");
-      const btn = L.DomUtil.create("a", "", div);
-      btn.href = "#";
-      btn.title = "Abrir Google Street View no centro do mapa";
-      btn.innerHTML = "StreetView";
-      btn.style.padding = "6px 8px";
-      btn.style.textDecoration = "none";
-      L.DomEvent.on(btn, "click", (e) => {
-        L.DomEvent.stop(e);
-        const c = map.getCenter();
-        window.open(buildGoogleMapsPanoURL(c.lat, c.lng), "_blank", "noopener");
-      });
-      L.DomEvent.disableClickPropagation(div);
-      L.DomEvent.disableScrollPropagation(div);
-      return div;
-    },
-  });
-  map.addControl(new Control());
+  const Control = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function () {
+      const div = L.DomUtil.create("div", "leaflet-bar");
+      const btn = L.DomUtil.create("a", "", div);
+      btn.href = "#";
+      btn.title = "Abrir Google Street View no centro do mapa";
+      btn.innerHTML = "StreetView";
+      btn.style.padding = "6px 8px";
+      btn.style.textDecoration = "none";
+      L.DomEvent.on(btn, "click", (e) => {
+        L.DomEvent.stop(e);
+        const c = map.getCenter();
+        window.open(buildGoogleMapsPanoURL(c.lat, c.lng), "_blank", "noopener");
+      });
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+      return div;
+    },
+  });
+  map.addControl(new Control());
 })();
 
 // ---------------------------------------------------------------------
 // Popup em formato de card com id_insercao + botões de copiar
 // ---------------------------------------------------------------------
 function montarPopupModeloCard(p) {
-  const nomesEmpresas = getEmpresasNomesArray(p);
-  const detalhes = Array.isArray(p.empresas) && p.empresas.length
-    ? p.empresas
-    : nomesEmpresas.map((nome) => ({ id_insercao: null, nome }));
+  const nomesEmpresas = getEmpresasNomesArray(p);
+  const detalhes = Array.isArray(p.empresas) && p.empresas.length
+    ? p.empresas
+    : nomesEmpresas.map((nome) => ({ id_insercao: null, nome }));
 
-  const total = detalhes.length;
-  const tituloEmpresas =
-    total === 0 ? "Nenhuma empresa cadastrada"
-    : total === 1 ? "1 Empresa neste poste"
-    : `${total} Empresas neste poste`;
+  const total = detalhes.length;
+  const tituloEmpresas =
+    total === 0 ? "Nenhuma empresa cadastrada"
+    : total === 1 ? "1 Empresa neste poste"
+    : `${total} Empresas neste poste`;
 
-  const idPoste = String(p.id ?? "");
-  const rua = (p.nome_logradouro || "-").toString();
-  const bairro = (p.nome_bairro || "-").toString();
-  const cidade = (p.nome_municipio || "-").toString();
-  const coordsText = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+  const idPoste = String(p.id ?? "");
+  const rua = (p.nome_logradouro || "-").toString();
+  const bairro = (p.nome_bairro || "-").toString();
+  const cidade = (p.nome_municipio || "-").toString();
+  const coordsText = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
 
-  const linhasEmpresas = detalhes.length
-    ? detalhes.map((e) => {
-        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
-        const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
-        return `
-          <div class="mp-empresa-item" onclick="toggleEmpresaExtra(this)">
-            <div class="mp-empresa-status">
-              <span class="mp-status-badge"></span>
-            </div>
-            <div class="mp-empresa-textos">
-              <div class="mp-empresa-nome">${escapeHtml(nome)}</div>
-              <div class="mp-empresa-extra">
-                ID inserção: <b>${escapeHtml(idIns || "—")}</b>
-              </div>
-            </div>
-            <div class="mp-empresa-arrow">›</div>
-          </div>
-        `;
-      }).join("")
-    : `
-      <div class="mp-empresa-empty">
-        <i>Disponível (sem empresas)</i>
-      </div>
-    `;
+  const linhasEmpresas = detalhes.length
+    ? detalhes.map((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        const idIns = typeof e === "object" && e !== null ? (e.id_insercao ?? "") : "";
+        return `
+          <div class="mp-empresa-item" onclick="toggleEmpresaExtra(this)">
+            <div class="mp-empresa-status">
+              <span class="mp-status-badge"></span>
+            </div>
+            <div class="mp-empresa-textos">
+              <div class="mp-empresa-nome">${escapeHtml(nome)}</div>
+              <div class="mp-empresa-extra">
+                ID inserção: <b>${escapeHtml(idIns || "—")}</b>
+              </div>
+            </div>
+            <div class="mp-empresa-arrow">›</div>
+          </div>
+        `;
+      }).join("")
+    : `
+      <div class="mp-empresa-empty">
+        <i>Disponível (sem empresas)</i>
+      </div>
+    `;
 
-  return `
-    <div class="mp-card">
-      <div class="mp-header">
-        <div class="mp-header-title">${escapeHtml(tituloEmpresas)}</div>
-        <div class="mp-header-sub">ID poste: ${escapeHtml(idPoste)}</div>
-      </div>
+  return `
+    <div class="mp-card">
+      <div class="mp-header">
+        <div class="mp-header-title">${escapeHtml(tituloEmpresas)}</div>
+        <div class="mp-header-sub">ID poste: ${escapeHtml(idPoste)}</div>
+      </div>
 
-      <div class="mp-local">
-        <div class="mp-local-principal">${escapeHtml(rua)}</div>
-        <div class="mp-local-secundario">
-          ${escapeHtml(bairro)} · ${escapeHtml(cidade)}
-        </div>
-        <div class="mp-local-coord">
-          Coord: ${coordsText}
-        </div>
-      </div>
+      <div class="mp-local">
+        <div class="mp-local-principal">${escapeHtml(rua)}</div>
+        <div class="mp-local-secundario">
+          ${escapeHtml(bairro)} · ${escapeHtml(cidade)}
+        </div>
+        <div class="mp-local-coord">
+          Coord: ${coordsText}
+        </div>
+      </div>
 
-      <div class="mp-copy-line">
-        <span class="mp-copy-label">ID</span>
-        <span class="mp-copy-value">${escapeHtml(idPoste)}</span>
-        <button class="mp-copy-btn"
-                data-copy="${escapeAttr(idPoste)}"
-                onclick="copyBtnHandler(this)"
-                title="Copiar ID do poste">
-          <i class="fa fa-copy"></i>
-        </button>
-      </div>
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">ID</span>
+        <span class="mp-copy-value">${escapeHtml(idPoste)}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(idPoste)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar ID do poste">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
 
-      <div class="mp-copy-line">
-        <span class="mp-copy-label">Rua</span>
-        <span class="mp-copy-value">${escapeHtml(rua)}</span>
-        <button class="mp-copy-btn"
-                data-copy="${escapeAttr(rua)}"
-                onclick="copyBtnHandler(this)"
-                title="Copiar rua">
-          <i class="fa fa-copy"></i>
-        </button>
-      </div>
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">Rua</span>
+        <span class="mp-copy-value">${escapeHtml(rua)}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(rua)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar rua">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
 
-      <div class="mp-copy-line">
-        <span class="mp-copy-label">Coord.</span>
-        <span class="mp-copy-value">${coordsText}</span>
-        <button class="mp-copy-btn"
-                data-copy="${escapeAttr(coordsText)}"
-                onclick="copyBtnHandler(this)"
-                title="Copiar coordenadas">
-          <i class="fa fa-copy"></i>
-        </button>
-      </div>
+      <div class="mp-copy-line">
+        <span class="mp-copy-label">Coord.</span>
+        <span class="mp-copy-value">${coordsText}</span>
+        <button class="mp-copy-btn"
+                data-copy="${escapeAttr(coordsText)}"
+                onclick="copyBtnHandler(this)"
+                title="Copiar coordenadas">
+          <i class="fa fa-copy"></i>
+        </button>
+      </div>
 
-      <div class="mp-empresas-lista">
-        ${linhasEmpresas}
-      </div>
+      <div class="mp-empresas-lista">
+        ${linhasEmpresas}
+      </div>
 
-      ${streetImageryBlockHTML(p.lat, p.lon)}
-    </div>
-  `;
+      ${streetImageryBlockHTML(p.lat, p.lon)}
+    </div>
+  `;
 }
 
 // Abre popup fixo
 function abrirPopup(p) {
-  const html = montarPopupModeloCard(p);
-  lastPopup = { lat: p.lat, lon: p.lon, html };
-  popupPinned = true;
-  mainPopup.setLatLng([p.lat, p.lon]).setContent(html);
-  if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
+  const html = montarPopupModeloCard(p);
+  lastPopup = { lat: p.lat, lon: p.lon, html };
+  popupPinned = true;
+  mainPopup.setLatLng([p.lat, p.lon]).setContent(html);
+  if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
 }
 
 // ---------------------------------------------------------------------
@@ -1978,29 +1999,29 @@ function abrirPopup(p) {
 window.userLocationMarker = null;
 
 document.getElementById("localizacaoUsuario")?.addEventListener("click", () => {
-  if (!navigator.geolocation) return alert("Geolocalização não suportada.");
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      const latlng = [coords.latitude, coords.longitude];
-      if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
-        map.removeLayer(window.userLocationMarker);
-      }
-      window.userLocationMarker = L.marker(latlng).addTo(map).bindPopup("📍 Você está aqui!").openPopup();
-      map.setView(latlng, 17);
-      obterPrevisaoDoTempo(coords.latitude, coords.longitude);
-    },
-    () => alert("Erro ao obter localização."),
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
+  if (!navigator.geolocation) return alert("Geolocalização não suportada.");
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const latlng = [coords.latitude, coords.longitude];
+      if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
+        map.removeLayer(window.userLocationMarker);
+      }
+      window.userLocationMarker = L.marker(latlng).addTo(map).bindPopup("📍 Você está aqui!").openPopup();
+      map.setView(latlng, 17);
+      obterPrevisaoDoTempo(coords.latitude, coords.longitude);
+    },
+    () => alert("Erro ao obter localização."),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 });
 
 // ---------------------------------------------------------------------
 // Hora local
 // ---------------------------------------------------------------------
 function mostrarHoraLocal() {
-  const s = document.querySelector("#hora span, #tempo .hora-row .hora");
-  if (!s) return;
-  s.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const s = document.querySelector("#hora span, #tempo .hora-row .hora");
+  if (!s) return;
+  s.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 setInterval(mostrarHoraLocal, 60000);
 mostrarHoraLocal();
@@ -2009,689 +2030,689 @@ mostrarHoraLocal();
 // Clima via OpenWeatherMap
 // ---------------------------------------------------------------------
 function preencherClimaUI(data) {
-  const card = document.querySelector("#tempo .weather-card");
-  if (!card) return;
-  const img = card.querySelector(".weather-row img");
-  const t = card.querySelector(".tempo-text");
-  try {
-    const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-    img.src = url;
-    t.innerHTML = `<b>${data.weather[0].description}</b><span>${data.main.temp.toFixed(1)}°C</span><small>(${data.name})</small>`;
-  } catch {
-    t.innerHTML = `<b>Erro ao obter clima</b>`;
-  }
+  const card = document.querySelector("#tempo .weather-card");
+  if (!card) return;
+  const img = card.querySelector(".weather-row img");
+  const t = card.querySelector(".tempo-text");
+  try {
+    const url = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+    img.src = url;
+    t.innerHTML = `<b>${data.weather[0].description}</b><span>${data.main.temp.toFixed(1)}°C</span><small>(${data.name})</small>`;
+  } catch {
+    t.innerHTML = `<b>Erro ao obter clima</b>`;
+  }
 }
 function obterPrevisaoDoTempo(lat, lon) {
-  const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
-  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
-    .then((r) => r.json())
-    .then(preencherClimaUI)
-    .catch(() => {
-      const t = document.querySelector("#tempo .tempo-text");
-      if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
-    });
+  const API_KEY = "b93c96ebf4fef0c26a0caaacdd063ee0";
+  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&lang=pt_br&units=metric&appid=${API_KEY}`)
+    .then((r) => r.json())
+    .then(preencherClimaUI)
+    .catch(() => {
+      const t = document.querySelector("#tempo .tempo-text");
+      if (t) t.innerHTML = `<b>Erro ao obter clima</b>`;
+    });
 }
 (function initWeather() {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
-  if (!navigator.geolocation) return fallback();
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-    fallback,
-    { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
-  );
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
+  if (!navigator.geolocation) return fallback();
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+    fallback,
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+  );
 })();
 setInterval(() => {
-  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
-    fallback
-  );
+  const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => obterPrevisaoDoTempo(coords.latitude, coords.longitude),
+    fallback
+  );
 }, 600000);
 
 // ---------------------------------------------------------------------
 // Verificar (Consulta massiva + traçado + intermediários)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
-  const ids = (document.getElementById("ids-multiplos")?.value || "")
-    .split(/[^0-9]+/).filter(Boolean);
+  const ids = (document.getElementById("ids-multiplos")?.value || "")
+    .split(/[^0-9]+/).filter(Boolean);
 
-  if (!ids.length) return alert("Nenhum ID fornecido.");
+  if (!ids.length) return alert("Nenhum ID fornecido.");
 
-  showOverlay("Processando IDs e gerando análise…");
+  showOverlay("Processando IDs e gerando análise…");
 
-  markers.clearLayers();
-  refreshClustersSoon();
+  markers.clearLayers();
+  refreshClustersSoon();
 
-  if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
-  window.intermediarios?.forEach((m) => map.removeLayer(m));
-  window.numeroMarkers = [];
+  if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
+  window.intermediarios?.forEach((m) => map.removeLayer(m));
+  window.numeroMarkers = [];
 
-  const encontrados = ids
-    .map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id)))
-    .filter(Boolean);
+  const encontrados = ids
+    .map((id) => todosPostes.find((p) => keyId(p.id) === keyId(id)))
+    .filter(Boolean);
 
-  if (!encontrados.length) {
-    hideOverlay();
-    return alert("Nenhum poste encontrado.");
-  }
+  if (!encontrados.length) {
+    hideOverlay();
+    return alert("Nenhum poste encontrado.");
+  }
 
-  encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
+  encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
-  window.intermediarios = [];
-  encontrados.slice(0, -1).forEach((a, i) => {
-    const b = encontrados[i + 1];
-    const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
-    if (d > 50) {
-      todosPostes
-        .filter((p) => !ids.includes(keyId(p.id)))
-        .filter((p) =>
-          getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
-          getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
-        )
-        .forEach((p) => {
-          const empresasStr = empresasToString(p) || "Disponível";
-          const m = L.circleMarker([p.lat, p.lon], {
-              radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
-            })
-            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
-            .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
-            .on("click", (e) => {
-              if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-              if (handleSelecaoClick(p, m)) return;
-              lastTip = { id: keyId(p.id) }; tipPinned = true;
-              try{ m.openTooltip?.(); }catch{}
-              abrirPopup(p);
-            })
-            .addTo(map);
+  window.intermediarios = [];
+  encontrados.slice(0, -1).forEach((a, i) => {
+    const b = encontrados[i + 1];
+    const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
+    if (d > 50) {
+      todosPostes
+        .filter((p) => !ids.includes(keyId(p.id)))
+        .filter((p) =>
+          getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
+          getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
+        )
+        .forEach((p) => {
+          const empresasStr = empresasToString(p) || "Disponível";
+          const m = L.circleMarker([p.lat, p.lon], {
+              radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
+            })
+            .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
+            .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
+            .on("click", (e) => {
+              if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+              if (handleSelecaoClick(p, m)) return;
+              lastTip = { id: keyId(p.id) }; tipPinned = true;
+              try{ m.openTooltip?.(); }catch{}
+              abrirPopup(p);
+            })
+            .addTo(map);
 
-          m.posteData = p;
-          window.intermediarios.push(m);
-        });
-    }
-  });
+          m.posteData = p;
+          window.intermediarios.push(m);
+        });
+    }
+  });
 
-  map.addLayer(markers);
-  refreshClustersSoon();
+  map.addLayer(markers);
+  refreshClustersSoon();
 
-  const coords = encontrados.map((p) => [p.lat, p.lon]);
-  if (coords.length >= 2) {
-    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
-    map.fitBounds(L.latLngBounds(coords));
-  } else {
-    map.setView(coords[0], 18);
-  }
+  const coords = encontrados.map((p) => [p.lat, p.lon]);
+  if (coords.length >= 2) {
+    window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
+    map.fitBounds(L.latLngBounds(coords));
+  } else {
+    map.setView(coords[0], 18);
+  }
 
-  window.ultimoResumoPostes = {
-    total: ids.length,
-    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
-    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
-    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
-    intermediarios: window.intermediarios.length,
-  };
+  window.ultimoResumoPostes = {
+    total: ids.length,
+    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
+    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
+    naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
+    intermediarios: window.intermediarios.length,
+  };
 
-  reabrirTooltipFixo(0);
-  reabrirPopupFixo(0);
-  hideOverlay();
+  reabrirTooltipFixo(0);
+  reabrirPopupFixo(0);
+  hideOverlay();
 }
 
 // Adiciona marcador numerado (para análise)
 function adicionarNumerado(p, num) {
-  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 5 ? "red" : "green";
-  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
-  const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
-  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
-  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
-  mk.on("click", (e) => {
-    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-    if (handleSelecaoClick(p, mk)) return;
-    lastTip = { id: keyId(p.id) }; tipPinned = true;
-    try{ mk.openTooltip?.(); }catch{}
-    abrirPopup(p);
-  });
-  mk.posteData = p;
-  mk.addTo(markers);
-  refreshClustersSoon();
-  window.numeroMarkers.push(mk);
+  const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+  const cor = qtd >= 5 ? "red" : "green";
+  const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
+  const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
+  mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
+  mk.on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; });
+  mk.on("click", (e) => {
+    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+    if (handleSelecaoClick(p, mk)) return;
+    lastTip = { id: keyId(p.id) }; tipPinned = true;
+    try{ mk.openTooltip?.(); }catch{}
+    abrirPopup(p);
+  });
+  mk.posteData = p;
+  mk.addTo(markers);
+  refreshClustersSoon();
+  window.numeroMarkers.push(mk);
 }
 
 function gerarPDFComMapa() {
-  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
-  leafletImage(map, (err, canvas) => {
-    if (err) return alert("Erro ao capturar imagem.");
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
-    const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
-    let y = 140; doc.setFontSize(12);
-    doc.text("Resumo da Verificação:", 10, y);
-    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
-    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
-    if (resumo.naoEncontrados.length) {
-      const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
-    } else {
-      doc.text("⚠️ Não encontrados: 0", 10, y + 30);
-    }
-    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
-    doc.save("tracado_postes.pdf");
-  });
+  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
+  leafletImage(map, (err, canvas) => {
+    if (err) return alert("Erro ao capturar imagem.");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
+    const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
+    let y = 140; doc.setFontSize(12);
+    doc.text("Resumo da Verificação:", 10, y);
+    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
+    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
+    if (resumo.naoEncontrados.length) {
+      const textoIds = resumo.naoEncontrados.join(", ");
+      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
+    } else {
+      doc.text("⚠️ Não encontrados: 0", 10, y + 30);
+    }
+    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
+    doc.save("tracado_postes.pdf");
+  });
 }
 
 // Distância em metros (haversine)
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
-  const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Exporta Excel genérico (backend)
 function exportarExcel(ids) {
-  fetch("/api/postes/report", {
-    method: "POST", credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids }),
-  })
-    .then(async (res) => {
-      if (res.status === 401) {
-        window.location.href = "/login.html";
-        throw new Error("Não autorizado");
-      }
-      if (!res.ok) {
-        let err;
-        try { err = (await res.json()).error; } catch {}
-        throw new Error(err || `HTTP ${res.status}`);
-      }
-      return res.blob();
-    })
-    .then((b) => {
-      const u = URL.createObjectURL(b);
-      const a = document.createElement("a");
-      a.href = u; a.download = "relatorio_postes.xlsx";
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(u);
-    })
-    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
+  fetch("/api/postes/report", {
+    method: "POST", credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  })
+    .then(async (res) => {
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+        throw new Error("Não autorizado");
+      }
+      if (!res.ok) {
+        let err;
+        try { err = (await res.json()).error; } catch {}
+        throw new Error(err || `HTTP ${res.status}`);
+      }
+      return res.blob();
+    })
+    .then((b) => {
+      const u = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = u; a.download = "relatorio_postes.xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(u);
+    })
+    .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
 // Botão Excel
 document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
-  // Se estiver no modo seleção e houver postes selecionados, usa esse conjunto
-  if (postesSelecionados.length) {
-    const ids = postesSelecionados.map((r) => r.poste.id);
-    exportarExcel(ids);
-    gerarExcelCliente(ids);
-    return;
-  }
+  // Se estiver no modo seleção e houver postes selecionados, usa esse conjunto
+  if (postesSelecionados.length) {
+    const ids = postesSelecionados.map((r) => r.poste.id);
+    exportarExcel(ids);
+    gerarExcelCliente(ids);
+    return;
+  }
 
-  const ids = (document.getElementById("ids-multiplos")?.value || "")
-    .split(/[^0-9]+/).filter(Boolean);
-  if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
-  exportarExcel(ids);
-  gerarExcelCliente(ids);
+  const ids = (document.getElementById("ids-multiplos")?.value || "")
+    .split(/[^0-9]+/).filter(Boolean);
+  if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
+  exportarExcel(ids);
+  gerarExcelCliente(ids);
 });
 
 // Toggle painel
 document.getElementById("togglePainel")?.addEventListener("click", () => {
-  const p = document.querySelector(".painel-busca");
-  const body = document.body;
-  if (!p) return;
-  p.classList.toggle("collapsed");
-  body.classList.toggle("sidebar-collapsed", p.classList.contains("collapsed"));
-  const onEnd = () => { map.invalidateSize(); p.removeEventListener("transitionend", onEnd); };
-  p.addEventListener("transitionend", onEnd);
+  const p = document.querySelector(".painel-busca");
+  const body = document.body;
+  if (!p) return;
+  p.classList.toggle("collapsed");
+  body.classList.toggle("sidebar-collapsed", p.classList.contains("collapsed"));
+  const onEnd = () => { map.invalidateSize(); p.removeEventListener("transitionend", onEnd); };
+  p.addEventListener("transitionend", onEnd);
 });
 
 // Logout
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-  try {
-    localStorage.removeItem("auth_token");
-    sessionStorage.removeItem("auth_token");
-    document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
-  } catch {}
-  if (navigator.onLine) {
-    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
-  }
-  window.location.replace("/login.html");
+  try {
+    localStorage.removeItem("auth_token");
+    sessionStorage.removeItem("auth_token");
+    document.cookie = "auth_token=; Max-Age=0; path=/; SameSite=Lax";
+  } catch {}
+  if (navigator.onLine) {
+    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
+  }
+  window.location.replace("/login.html");
 });
 
 /* --------------------------------------------------------------------
-   === Indicadores (BI) + Botões extra (Visualização / Indicadores / Seleção)
+   === Indicadores (BI) + Botões extra (Visualização / Indicadores / Seleção)
 -------------------------------------------------------------------- */
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
-  const empresaNorm = (empresa || "").trim().toLowerCase();
-  const bounds = apenasVisiveis ? map.getBounds() : null;
-  const mapa = new Map();
-  let total = 0;
+  const empresaNorm = (empresa || "").trim().toLowerCase();
+  const bounds = apenasVisiveis ? map.getBounds() : null;
+  const mapa = new Map();
+  let total = 0;
 
-  for (const p of todosPostes) {
-    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
-    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
+  for (const p of todosPostes) {
+    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
+    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
 
-    const key = p.nome_municipio || "—";
-    mapa.set(key, (mapa.get(key) || 0) + 1);
-    total++;
-  }
+    const key = p.nome_municipio || "—";
+    mapa.set(key, (mapa.get(key) || 0) + 1);
+    total++;
+  }
 
-  const rows = Array.from(mapa.entries())
-    .map(([municipio, qtd]) => ({ municipio, qtd }))
-    .sort((a, b) => b.qtd - a.qtd);
+  const rows = Array.from(mapa.entries())
+    .map(([municipio, qtd]) => ({ municipio, qtd }))
+    .sort((a, b) => b.qtd - a.qtd);
 
-  return { rows, total };
+  return { rows, total };
 }
 
 function rowsToCSV(rows) {
-  const header = "Municipio,Quantidade\n";
-  const body = rows
-    .map(r => `"${(r.municipio || "").replace(/"/g,'""')}",${r.qtd}`)
-    .join("\n");
-  return header + body + "\n";
+  const header = "Municipio,Quantidade\n";
+  const body = rows
+    .map(r => `"${(r.municipio || "").replace(/"/g,'""')}",${r.qtd}`)
+    .join("\n");
+  return header + body + "\n";
 }
 
 // encontra meta (logo, etc.) a partir do nome do município
 function getMunicipioMetaByName(nome) {
-  if (!nome) return null;
-  const target = normKey(nome);
-  return (
-    MUNICIPIOS_META.find(m => normKey(m.db) === target || normKey(m.label) === target) ||
-    null
-  );
+  if (!nome) return null;
+  const target = normKey(nome);
+  return (
+    MUNICIPIOS_META.find(m => normKey(m.db) === target || normKey(m.label) === target) ||
+    null
+  );
 }
 
 // botões extras no painel (Selecionar / Limpar seleção / Visualização / Indicadores)
 (function injectExtraPanelButtons(){
-  const actions = document.querySelector(".painel-busca .actions");
-  if (!actions) return;
+  const actions = document.querySelector(".painel-busca .actions");
+  if (!actions) return;
 
-  // Selecionar Postes
-  let btnSel = document.getElementById("btnSelecionarPostes");
-  if (!btnSel) {
-    btnSel = document.createElement("button");
-    btnSel.id = "btnSelecionarPostes";
-    btnSel.innerHTML = '<i class="fa fa-hand-pointer"></i> Selecionar Postes';
-    btnSel.addEventListener("click", () => {
-      if (!selecaoAtiva) entrarModoSelecao();
-    });
-    actions.appendChild(btnSel);
-  }
+  // Selecionar Postes
+  let btnSel = document.getElementById("btnSelecionarPostes");
+  if (!btnSel) {
+    btnSel = document.createElement("button");
+    btnSel.id = "btnSelecionarPostes";
+    btnSel.innerHTML = '<i class="fa fa-hand-pointer"></i> Selecionar Postes';
+    btnSel.addEventListener("click", () => {
+      if (!selecaoAtiva) entrarModoSelecao();
+    });
+    actions.appendChild(btnSel);
+  }
 
-  // Limpar seleção / sair
-  let btnLimpar = document.getElementById("btnLimparSelecao");
-  if (!btnLimpar) {
-    btnLimpar = document.createElement("button");
-    btnLimpar.id = "btnLimparSelecao";
-    btnLimpar.innerHTML = '<i class="fa fa-xmark"></i> Limpar seleção';
-    btnLimpar.addEventListener("click", () => limparSelecaoESair());
-    actions.appendChild(btnLimpar);
-  }
+  // Limpar seleção / sair
+  let btnLimpar = document.getElementById("btnLimparSelecao");
+  if (!btnLimpar) {
+    btnLimpar = document.createElement("button");
+    btnLimpar.id = "btnLimparSelecao";
+    btnLimpar.innerHTML = '<i class="fa fa-xmark"></i> Limpar seleção';
+    btnLimpar.addEventListener("click", () => limparSelecaoESair());
+    actions.appendChild(btnLimpar);
+  }
 
-  // Visualização: se já existe no HTML, só conecta o clique
-  let btnV = document.getElementById("btnVisualizacao");
-  if (btnV) {
-    btnV.addEventListener("click", abrirModalModoInicial);
-  } else {
-    btnV = document.createElement("button");
-    btnV.id = "btnVisualizacao";
-    btnV.innerHTML = '<i class="fa fa-eye"></i> Visualização';
-    btnV.addEventListener("click", abrirModalModoInicial);
-    actions.appendChild(btnV);
-  }
+  // Visualização: se já existe no HTML, só conecta o clique
+  let btnV = document.getElementById("btnVisualizacao");
+  if (btnV) {
+    btnV.addEventListener("click", abrirModalModoInicial);
+  } else {
+    btnV = document.createElement("button");
+    btnV.id = "btnVisualizacao";
+    btnV.innerHTML = '<i class="fa fa-eye"></i> Visualização';
+    btnV.addEventListener("click", abrirModalModoInicial);
+    actions.appendChild(btnV);
+  }
 
-  // Indicadores: cria se não existir, ou apenas conecta o clique
-  let btnI = document.getElementById("btnIndicadores");
-  if (btnI) {
-    btnI.addEventListener("click", abrirIndicadores);
-  } else {
-    btnI = document.createElement("button");
-    btnI.id = "btnIndicadores";
-    btnI.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
-    btnI.addEventListener("click", abrirIndicadores);
-    actions.appendChild(btnI);
-  }
+  // Indicadores: cria se não existir, ou apenas conecta o clique
+  let btnI = document.getElementById("btnIndicadores");
+  if (btnI) {
+    btnI.addEventListener("click", abrirIndicadores);
+  } else {
+    btnI = document.createElement("button");
+    btnI.id = "btnIndicadores";
+    btnI.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
+    btnI.addEventListener("click", abrirIndicadores);
+    actions.appendChild(btnI);
+  }
 
-  atualizarEstadoBotaoSelecao();
+  atualizarEstadoBotaoSelecao();
 })();
 
 function ensureBIModal() {
-  if (document.getElementById("modalIndicadores")) return;
+  if (document.getElementById("modalIndicadores")) return;
 
-  const backdrop = document.createElement("div");
-  backdrop.className = "bi-backdrop";
-  backdrop.id = "modalIndicadores";
-  backdrop.innerHTML = `
-    <div class="bi-card">
-      <div class="bi-head">
-        <h3>Indicadores de Postes</h3>
-        <button id="fecharIndicadores" class="bi-close">Fechar</button>
-      </div>
+  const backdrop = document.createElement("div");
+  backdrop.className = "bi-backdrop";
+  backdrop.id = "modalIndicadores";
+  backdrop.innerHTML = `
+    <div class="bi-card">
+      <div class="bi-head">
+        <h3>Indicadores de Postes</h3>
+        <button id="fecharIndicadores" class="bi-close">Fechar</button>
+      </div>
 
-      <div class="bi-body">
-        <div>
-          <canvas id="chartMunicipios" height="160"></canvas>
-        </div>
-        <div class="bi-side">
-          <label>Filtrar por empresa (opcional)</label>
-          <input id="filtroEmpresaBI"
-                 list="lista-empresas"
-                 placeholder="Ex.: VIVO, CLARO..."
-                 class="bi-input">
-          <label class="bi-chk">
-            <input type="checkbox" id="apenasVisiveisBI">
-            Considerar apenas os postes visíveis no mapa
-          </label>
-          <div id="resumoBI" class="bi-resumo"></div>
-          <button id="exportarCsvBI" class="bi-btn">
-            <i class="fa fa-file-csv"></i> Exportar CSV
-          </button>
-        </div>
-      </div>
+      <div class="bi-body">
+        <div>
+          <canvas id="chartMunicipios" height="160"></canvas>
+        </div>
+        <div class="bi-side">
+          <label>Filtrar por empresa (opcional)</label>
+          <input id="filtroEmpresaBI"
+                 list="lista-empresas"
+                 placeholder="Ex.: VIVO, CLARO..."
+                 class="bi-input">
+          <label class="bi-chk">
+            <input type="checkbox" id="apenasVisiveisBI">
+            Considerar apenas os postes visíveis no mapa
+          </label>
+          <div id="resumoBI" class="bi-resumo"></div>
+          <button id="exportarCsvBI" class="bi-btn">
+            <i class="fa fa-file-csv"></i> Exportar CSV
+          </button>
+        </div>
+      </div>
 
-      <div class="bi-table-wrap">
-        <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
-          <table id="tabelaMunicipios" class="bi-table">
-            <thead>
-              <tr>
-                <th style="text-align:left;">Município</th>
-                <th style="text-align:right;">Qtd. de Postes</th>
-                <th style="text-align:right;">Ações</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+      <div class="bi-table-wrap">
+        <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
+          <table id="tabelaMunicipios" class="bi-table">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Município</th>
+                <th style="text-align:right;">Qtd. de Postes</th>
+                <th style="text-align:right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
 
-        <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
-          <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
-          <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
+        <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
+          <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
+          <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
 
-          <div class="bi-detalhes-cols">
-            <div>
-              <strong>Empresas (todas)</strong>
-              <table id="detTabelaEmpresas" class="bi-mini-table">
-                <thead>
-                  <tr><th>Empresa</th><th class="num">Qtd. postes</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div>
-              <strong>Bairros (top 50)</strong>
-              <table id="detTabelaBairros" class="bi-mini-table">
-                <thead>
-                  <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div>
-              <strong>Logradouros (top 50)</strong>
-              <table id="detTabelaLogradouros" class="bi-mini-table">
-                <thead>
-                  <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
+          <div class="bi-detalhes-cols">
+            <div>
+              <strong>Empresas (todas)</strong>
+              <table id="detTabelaEmpresas" class="bi-mini-table">
+                <thead>
+                  <tr><th>Empresa</th><th class="num">Qtd. postes</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div>
+              <strong>Bairros (top 50)</strong>
+              <table id="detTabelaBairros" class="bi-mini-table">
+                <thead>
+                  <tr><th>Bairro</th><th class="num">Qtd. postes</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div>
+              <strong>Logradouros (top 50)</strong>
+              <table id="detTabelaLogradouros" class="bi-mini-table">
+                <thead>
+                  <tr><th>Logradouro</th><th class="num">Qtd. postes</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
 
-  document.body.appendChild(backdrop);
+  document.body.appendChild(backdrop);
 
-  document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
-  document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
-  document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
+  document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
+  document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
+  document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
 
-  map.on("moveend zoomend", () => {
-    const modal = document.getElementById("modalIndicadores");
-    const onlyView = document.getElementById("apenasVisiveisBI");
-    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
-      atualizarIndicadores();
-    }
-  });
+  map.on("moveend zoomend", () => {
+    const modal = document.getElementById("modalIndicadores");
+    const onlyView = document.getElementById("apenasVisiveisBI");
+    if (modal && modal.style.display === "flex" && onlyView && onlyView.checked) {
+      atualizarIndicadores();
+    }
+  });
 }
 
 function abrirIndicadores() {
-  ensureBIModal();
-  const modal = document.getElementById("modalIndicadores");
-  if (!modal) return;
+  ensureBIModal();
+  const modal = document.getElementById("modalIndicadores");
+  if (!modal) return;
 
-  function proceed() {
-    modal.style.display = "flex";
-    atualizarIndicadores();
-  }
+  function proceed() {
+    modal.style.display = "flex";
+    atualizarIndicadores();
+  }
 
-  if (typeof Chart === "undefined") {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
-    s.onload = proceed;
-    s.onerror = proceed;
-    document.head.appendChild(s);
-  } else {
-    proceed();
-  }
+  if (typeof Chart === "undefined") {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+    s.onload = proceed;
+    s.onerror = proceed;
+    document.head.appendChild(s);
+  } else {
+    proceed();
+  }
 }
 
 function fecharIndicadores() {
-  const m = document.getElementById("modalIndicadores");
-  if (m) m.style.display = "none";
+  const m = document.getElementById("modalIndicadores");
+  if (m) m.style.display = "none";
 }
 
 function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis = false } = {}) {
-  const muniNorm = (municipio || "").toLowerCase();
-  const empresaNorm = (empresa || "").trim().toLowerCase();
-  const bounds = apenasVisiveis ? map.getBounds() : null;
+  const muniNorm = (municipio || "").toLowerCase();
+  const empresaNorm = (empresa || "").trim().toLowerCase();
+  const bounds = apenasVisiveis ? map.getBounds() : null;
 
-  const empCounts = new Map();
-  const bairroCounts = new Map();
-  const logCounts = new Map();
-  let totalPostes = 0;
+  const empCounts = new Map();
+  const bairroCounts = new Map();
+  const logCounts = new Map();
+  let totalPostes = 0;
 
-  for (const p of todosPostes) {
-    if (!p.nome_municipio) continue;
-    if (p.nome_municipio.toLowerCase() !== muniNorm) continue;
-    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
-    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
+  for (const p of todosPostes) {
+    if (!p.nome_municipio) continue;
+    if (p.nome_municipio.toLowerCase() !== muniNorm) continue;
+    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
+    if (empresaNorm && !hasEmpresaNome(p, empresaNorm)) continue;
 
-    totalPostes++;
+    totalPostes++;
 
-    const bairro = p.nome_bairro || "—";
-    bairroCounts.set(bairro, (bairroCounts.get(bairro) || 0) + 1);
+    const bairro = p.nome_bairro || "—";
+    bairroCounts.set(bairro, (bairroCounts.get(bairro) || 0) + 1);
 
-    const log = p.nome_logradouro || "—";
-    logCounts.set(log, (logCounts.get(log) || 0) + 1);
+    const log = p.nome_logradouro || "—";
+    logCounts.set(log, (logCounts.get(log) || 0) + 1);
 
-    const emps = getEmpresasNomesArray(p);
-    if (!emps || !emps.length) continue;
+    const emps = getEmpresasNomesArray(p);
+    if (!emps || !emps.length) continue;
 
-    const seen = new Set();
-    for (const raw of emps) {
-      const nome = (raw || "").trim();
-      if (!nome || seen.has(nome)) continue;
-      seen.add(nome);
-      empCounts.set(nome, (empCounts.get(nome) || 0) + 1);
-    }
-  }
+    const seen = new Set();
+    for (const raw of emps) {
+      const nome = (raw || "").trim();
+      if (!nome || seen.has(nome)) continue;
+      seen.add(nome);
+      empCounts.set(nome, (empCounts.get(nome) || 0) + 1);
+    }
+  }
 
-  const toRows = (m, limit) => {
-    let arr = Array.from(m.entries())
-      .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd);
-    if (typeof limit === "number") arr = arr.slice(0, limit);
-    return arr;
-  };
+  const toRows = (m, limit) => {
+    let arr = Array.from(m.entries())
+      .map(([nome, qtd]) => ({ nome, qtd }))
+      .sort((a, b) => b.qtd - a.qtd);
+    if (typeof limit === "number") arr = arr.slice(0, limit);
+    return arr;
+  };
 
-  return {
-    totalPostes,
-    totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts),         // todas as empresas
-    bairrosRows: toRows(bairroCounts, 50),   // top 50
-    logradourosRows: toRows(logCounts, 50),  // top 50
-  };
+  return {
+    totalPostes,
+    totalEmpresas: empCounts.size,
+    empresasRows: toRows(empCounts),         // todas as empresas
+    bairrosRows: toRows(bairroCounts, 50),   // top 50
+    logradourosRows: toRows(logCounts, 50),  // top 50
+  };
 }
 
 function montarLinhasMiniTabela(rows) {
-  if (!rows.length) {
-    return `<tr><td colspan="2" style="padding:4px 6px;color:#6b7280;">Sem dados.</td></tr>`;
-  }
-  return rows
-    .map(
-      (r) =>
-        `<tr><td>${escapeHtml(r.nome)}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`
-    )
-    .join("");
+  if (!rows.length) {
+    return `<tr><td colspan="2" style="padding:4px 6px;color:#6b7280;">Sem dados.</td></tr>`;
+  }
+  return rows
+    .map(
+      (r) =>
+        `<tr><td>${escapeHtml(r.nome)}</td><td class="num">${r.qtd.toLocaleString("pt-BR")}</td></tr>`
+    )
+    .join("");
 }
 
 function mostrarDetalhesMunicipio(municipio) {
-  const box = document.getElementById("detalhesMunicipio");
-  const nomeEl = document.getElementById("detMunicipioNome");
-  const resumoEl = document.getElementById("detMunicipioResumo");
-  if (!box || !nomeEl || !resumoEl) return;
+  const box = document.getElementById("detalhesMunicipio");
+  const nomeEl = document.getElementById("detMunicipioNome");
+  const resumoEl = document.getElementById("detMunicipioResumo");
+  if (!box || !nomeEl || !resumoEl) return;
 
-  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
-  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
+  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
+  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
 
-  const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
+  const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
 
-  nomeEl.textContent = municipio;
+  nomeEl.textContent = municipio;
 
-  resumoEl.innerHTML =
-    `Postes no município${empresa ? ` para <b>${escapeHtml(empresa)}</b>` : ""}: <b>${det.totalPostes.toLocaleString("pt-BR")}</b>` +
-    ` · Empresas distintas: <b>${det.totalEmpresas.toLocaleString("pt-BR")}</b>` +
-    `<br>Distribuição de postes por <b>empresa</b>, <b>bairro</b> e <b>logradouro</b>.`;
+  resumoEl.innerHTML =
+    `Postes no município${empresa ? ` para <b>${escapeHtml(empresa)}</b>` : ""}: <b>${det.totalPostes.toLocaleString("pt-BR")}</b>` +
+    ` · Empresas distintas: <b>${det.totalEmpresas.toLocaleString("pt-BR")}</b>` +
+    `<br>Distribuição de postes por <b>empresa</b>, <b>bairro</b> e <b>logradouro</b>.`;
 
-  const empTb = document.querySelector("#detTabelaEmpresas tbody");
-  const baiTb = document.querySelector("#detTabelaBairros tbody");
-  const logTb = document.querySelector("#detTabelaLogradouros tbody");
+  const empTb = document.querySelector("#detTabelaEmpresas tbody");
+  const baiTb = document.querySelector("#detTabelaBairros tbody");
+  const logTb = document.querySelector("#detTabelaLogradouros tbody");
 
-  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(det.empresasRows);
-  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(det.bairrosRows);
-  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
+  if (empTb) empTb.innerHTML = montarLinhasMiniTabela(det.empresasRows);
+  if (baiTb) baiTb.innerHTML = montarLinhasMiniTabela(det.bairrosRows);
+  if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
 
-  box.style.display = det.totalPostes ? "block" : "none";
+  box.style.display = det.totalPostes ? "block" : "none";
 }
 
 function attachChartClickHandler() {
-  if (!chartMunicipiosRef) return;
-  chartMunicipiosRef.options.onClick = (evt, elements) => {
-    if (!elements || !elements.length) return;
-    const first = elements[0];
-    const idx = first.index;
-    const label = chartMunicipiosRef.data.labels[idx];
-    if (label) mostrarDetalhesMunicipio(label);
-  };
-  chartMunicipiosRef.update();
+  if (!chartMunicipiosRef) return;
+  chartMunicipiosRef.options.onClick = (evt, elements) => {
+    if (!elements || !elements.length) return;
+    const first = elements[0];
+    const idx = first.index;
+    const label = chartMunicipiosRef.data.labels[idx];
+    if (label) mostrarDetalhesMunicipio(label);
+  };
+  chartMunicipiosRef.update();
 }
 
 function atualizarIndicadores() {
-  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
-  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
+  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
+  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
 
-  const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
+  const { rows, total } = agregaPorMunicipio({ empresa, apenasVisiveis });
 
-  const tb = document.querySelector("#tabelaMunicipios tbody");
-  if (tb) {
-    tb.innerHTML =
-      rows.map((r) => {
-        const meta = getMunicipioMetaByName(r.municipio);
-        const logo = meta ? meta.logo : "";
-        return `
-          <tr data-municipio="${escapeAttr(r.municipio)}">
-            <td>
-              <div class="bi-muni-cell">
-                ${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(r.municipio)}" class="bi-muni-logo">` : ""}
-                <span class="bi-muni-name">${escapeHtml(r.municipio)}</span>
-              </div>
-            </td>
-            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
-            <td class="num">
-              <button type="button" class="bi-ver-empresas" data-municipio="${escapeAttr(r.municipio)}">
-                <i class="fa fa-building"></i> Ver empresas
-              </button>
-            </td>
-          </tr>`;
-      }).join("") ||
-      `<tr><td colspan="3" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
+  const tb = document.querySelector("#tabelaMunicipios tbody");
+  if (tb) {
+    tb.innerHTML =
+      rows.map((r) => {
+        const meta = getMunicipioMetaByName(r.municipio);
+        const logo = meta ? meta.logo : "";
+        return `
+          <tr data-municipio="${escapeAttr(r.municipio)}">
+            <td>
+              <div class="bi-muni-cell">
+                ${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(r.municipio)}" class="bi-muni-logo">` : ""}
+                <span class="bi-muni-name">${escapeHtml(r.municipio)}</span>
+              </div>
+            </td>
+            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
+            <td class="num">
+              <button type="button" class="bi-ver-empresas" data-municipio="${escapeAttr(r.municipio)}">
+                <i class="fa fa-building"></i> Ver empresas
+              </button>
+            </td>
+          </tr>`;
+      }).join("") ||
+      `<tr><td colspan="3" style="padding:10px;color:#6b7280;">Sem dados para os filtros.</td></tr>`;
 
-    tb.onclick = (ev) => {
-      const btn = ev.target.closest(".bi-ver-empresas");
-      if (btn && btn.dataset.municipio) {
-        mostrarDetalhesMunicipio(btn.dataset.municipio);
-        return;
-      }
-      const tr = ev.target.closest("tr[data-municipio]");
-      if (!tr || !tr.dataset.municipio) return;
-      mostrarDetalhesMunicipio(tr.dataset.municipio);
-    };
-  }
+    tb.onclick = (ev) => {
+      const btn = ev.target.closest(".bi-ver-empresas");
+      if (btn && btn.dataset.municipio) {
+        mostrarDetalhesMunicipio(btn.dataset.municipio);
+        return;
+      }
+      const tr = ev.target.closest("tr[data-municipio]");
+      if (!tr || !tr.dataset.municipio) return;
+      mostrarDetalhesMunicipio(tr.dataset.municipio);
+    };
+  }
 
-  const resumo = document.getElementById("resumoBI");
-  if (resumo) {
-    const txtEmp = empresa ? ` para <b>${empresa}</b>` : "";
-    const txtScope = apenasVisiveis ? " (apenas área visível)" : "";
-    resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
-  }
+  const resumo = document.getElementById("resumoBI");
+  if (resumo) {
+    const txtEmp = empresa ? ` para <b>${empresa}</b>` : "";
+    const txtScope = apenasVisiveis ? " (apenas área visível)" : "";
+    resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
+  }
 
-  // gráfico com top 20 municípios
-  const chartRows = rows.slice(0, 20);
-  const labels = chartRows.map((r) => r.municipio);
-  const data = chartRows.map((r) => r.qtd);
-  const ctx = document.getElementById("chartMunicipios");
+  // gráfico com top 20 municípios
+  const chartRows = rows.slice(0, 20);
+  const labels = chartRows.map((r) => r.municipio);
+  const data = chartRows.map((r) => r.qtd);
+  const ctx = document.getElementById("chartMunicipios");
 
-  if (typeof Chart !== "undefined" && ctx) {
-    if (chartMunicipiosRef) {
-      chartMunicipiosRef.data.labels = labels;
-      chartMunicipiosRef.data.datasets[0].data = data;
-      chartMunicipiosRef.update();
-    } else {
-      chartMunicipiosRef = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [{ label: "Postes por município", data }],
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { autoSkip: false, maxRotation: 75, minRotation: 45 } },
-            y: { beginAtZero: true },
-          },
-        },
-      });
-    }
-    attachChartClickHandler();
-  }
+  if (typeof Chart !== "undefined" && ctx) {
+    if (chartMunicipiosRef) {
+      chartMunicipiosRef.data.labels = labels;
+      chartMunicipiosRef.data.datasets[0].data = data;
+      chartMunicipiosRef.update();
+    } else {
+      chartMunicipiosRef = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{ label: "Postes por município", data }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { autoSkip: false, maxRotation: 75, minRotation: 45 } },
+            y: { beginAtZero: true },
+          },
+        },
+      });
+    }
+    attachChartClickHandler();
+  }
 
-  const btnCsv = document.getElementById("exportarCsvBI");
-  if (btnCsv) {
-    btnCsv.onclick = () => {
-      const csv = rowsToCSV(rows);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const sufixo = empresa ? `_${empresa.replace(/\W+/g, "_")}` : "";
-      a.href = url;
-      a.download = `postes_por_municipio${sufixo}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    };
-  }
+  const btnCsv = document.getElementById("exportarCsvBI");
+  if (btnCsv) {
+    btnCsv.onclick = () => {
+      const csv = rowsToCSV(rows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const sufixo = empresa ? `_${empresa.replace(/\W+/g, "_")}` : "";
+      a.href = url;
+      a.download = `postes_por_municipio${sufixo}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+  }
 
-  if (!rows.length) {
-    const box = document.getElementById("detalhesMunicipio");
-    if (box) box.style.display = "none";
-  }
+  if (!rows.length) {
+    const box = document.getElementById("detalhesMunicipio");
+    if (box) box.style.display = "none";
+  }
 }
 
 /* ====================================================================
-   Reabertura do tooltip/popup após reconstrução do cluster
+   Reabertura do tooltip/popup após reconstrução do cluster
 ==================================================================== */
 markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 map.on("layeradd", (ev) => { if (ev.layer === markers) { reabrirTooltipFixo(120); } });
