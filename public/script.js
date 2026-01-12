@@ -1742,6 +1742,7 @@ function gerarCSVParaEO(filtroIds) {
           "",                 // Tipo (vazio)
           "",                 // Observacao (vazio)
           "",                 // Esforco (vazio)
+          "",                 // Cabo/equipamento ativo
           "FIBRA",            // Tipo (sempre FIBRA)
           "1",                // Ordenacao (sempre 1)
           "",                 // Em Uso (vazio)
