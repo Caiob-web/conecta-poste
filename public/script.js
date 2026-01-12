@@ -1703,11 +1703,12 @@ function gerarCSVParaEO(filtroIds) {
   const headers = [
     "ID",
     "Data Desocupacao",
-    "Empresa",
+    "Nome da Empresa",
     "Poste",
     "Tipo",
     "Observacao",
     "Esforco",
+    "Cabo/equipamento ativo",
     "Tipo", // Segundo "Tipo" solicitado
     "Ordenacao",
     "Em Uso",
