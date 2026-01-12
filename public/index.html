@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mapa de Postes</title>
 
-    <!-- Evitar cache para não reusar página após logout -->
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- Guard de REFRESH: se for reload (F5/Ctrl+R), faz logout e volta para o login -->
     <script>
       (function () {
         try {
@@ -35,7 +33,6 @@
       })();
     </script>
 
-    <!-- Guard de login (CLIENTE): se não houver auth_user, manda pro login -->
     <script>
       (function () {
         try {
@@ -47,15 +44,12 @@
       })();
     </script>
 
-    <!-- Favicon -->
     <link rel="icon" href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/ChatGPT%20Image%2019%20de%20jun.%20de%202025%2C%2021_12_44.png?v=1750378383582" type="image/png" sizes="64x64"/>
 
-    <!-- Leaflet & MarkerCluster -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
     <style>
@@ -182,12 +176,10 @@
   </head>
 
   <body>
-    <!-- Botões de topo -->
     <div id="togglePainel" class="botao-topo" title="Esconder/Mostrar painel"><i class="fa fa-sliders"></i></div>
     <div id="localizacaoUsuario" class="botao-topo" title="Minha localização"><i class="fa fa-location-dot"></i></div>
     <div id="logoutBtn" class="botao-topo" title="Logout"><i class="fa fa-sign-out-alt"></i></div>
 
-    <!-- Painel de busca (sidebar) -->
     <div class="painel-busca" id="painelBusca">
       <h3>Buscar Postes</h3>
 
@@ -235,19 +227,19 @@
         <button onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
         <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
 
-        <!-- Análise de Projeto + Limpar traçado -->
         <button onclick="consultarIDsEmMassa()" id="btnAnaliseProjeto"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
         <button id="btnLimparAnalise"><i class="fa fa-eraser"></i>Limpar</button>
 
-        <!-- Resetar + PDF + Excel + Censo + Visualização -->
         <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
         <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
-        <button id="btnGerarExcel"><i class="fa fa-file-excel"></i>Excel</button>
+        
+        <button onclick="exportarExcelPadrao()"><i class="fa fa-file-excel"></i>Excel</button>
+        <button onclick="exportarCSVEO()"><i class="fa fa-file-csv"></i>CSV EO</button>
+        
         <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
         <button id="btnVisualizacao"><i class="fa fa-layer-group"></i>Visualização</button>
       </div>
 
-      <!-- ✅ Toggle Transformadores (começa desligado, sem src, sem 404) -->
       <div class="layer-toggle" title="Exibir/ocultar os transformadores no mapa">
         <img data-icon="transformador" alt="Transformador">
         <label class="txt" style="cursor:pointer;">
@@ -259,13 +251,11 @@
         </label>
       </div>
 
-      <!-- HUD -->
       <div id="widget-clima" class="dock-hud">
         <div id="tempo"></div>
       </div>
     </div>
 
-    <!-- Legenda -->
     <div class="legenda">
       <div class="legenda-item">
         <img class="ico" data-icon="transformador" alt="Transformador">
@@ -276,26 +266,21 @@
       <div class="legenda-item"><div class="bolinha" style="background: red"></div>Mais de 5 empresas</div>
     </div>
 
-    <!-- Mapa -->
     <div id="map"></div>
 
-    <!-- Spinner de carregamento -->
     <div id="carregando" class="overlay-loading" style="display: flex">
       <div class="spinner"></div>
       <div class="texto-loading">Carregando postes…</div>
     </div>
 
-    <!-- JS (libs primeiro) -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <!-- ✅ CORRIGIDO: nome certo do arquivo do MarkerCluster -->
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
-    <!-- App por último -->
     <script src="script.js"></script>
   </body>
 </html>
