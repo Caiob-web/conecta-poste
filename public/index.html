@@ -282,5 +282,60 @@
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
     <script src="script.js"></script>
+
+    <script>
+      // =====================================================================
+      // Wrappers para os botões do HTML que chamavam funções inexistentes
+      // (mantém o index.html sem mudar layout/estrutura)
+      // =====================================================================
+
+      function exportarExcelPadrao() {
+        try {
+          // Se estiver no modo seleção e houver postes selecionados, usa esse conjunto
+          if (typeof postesSelecionados !== "undefined" && Array.isArray(postesSelecionados) && postesSelecionados.length) {
+            const ids = postesSelecionados.map((r) => r && r.poste ? r.poste.id : null).filter(Boolean);
+            if (!ids.length) return alert("Nenhum poste selecionado válido.");
+            exportarExcel(ids);
+            gerarExcelCliente(ids);
+            // Se existir o gerador de CSV EO, pode gerar junto (igual você faz no script.js)
+            try { gerarCSVParaEO(ids); } catch (_) {}
+            return;
+          }
+
+          const ids = (document.getElementById("ids-multiplos")?.value || "")
+            .split(/[^0-9]+/)
+            .filter(Boolean);
+
+          if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
+          exportarExcel(ids);
+          gerarExcelCliente(ids);
+          try { gerarCSVParaEO(ids); } catch (_) {}
+        } catch (e) {
+          console.error("Erro exportarExcelPadrao:", e);
+          alert("Falha ao gerar Excel.");
+        }
+      }
+
+      function exportarCSVEO() {
+        try {
+          // Prioriza seleção
+          if (typeof postesSelecionados !== "undefined" && Array.isArray(postesSelecionados) && postesSelecionados.length) {
+            const ids = postesSelecionados.map((r) => r && r.poste ? r.poste.id : null).filter(Boolean);
+            if (!ids.length) return alert("Nenhum poste selecionado válido.");
+            return gerarCSVParaEO(ids);
+          }
+
+          const ids = (document.getElementById("ids-multiplos")?.value || "")
+            .split(/[^0-9]+/)
+            .filter(Boolean);
+
+          if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
+          return gerarCSVParaEO(ids);
+        } catch (e) {
+          console.error("Erro exportarCSVEO:", e);
+          alert("Falha ao gerar CSV EO.");
+        }
+      }
+    </script>
   </body>
 </html>
