@@ -416,7 +416,7 @@
       color:#f9fafb;
     }
     .modo-btn-secondary{
-     background:#f9fafb;
+      background:#f9fafb;
       color:#111827;
       border-color:#e5e7eb;
     }
@@ -529,13 +529,11 @@ const SVG_POSTE_MADEIRA = `
 
 // Ajuste de tamanho: [Largura, Altura]
 // Sugestão atual: [34, 68] (Antes era [22, 44])
-// Ajuste de tamanho: [Largura, Altura]
-// Sugestão atual: [34, 68] (Antes era [22, 44])
 
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
-  iconSize: [34, 68],       // <--- AUMENTAR AQUI (Tamanho do ícone)
-  iconAnchor: [17, 64],     // <--- AJUSTAR AQUI (Ponto que toca o mapa: Metade da largura, Quase o total da altura)
+  iconSize: [34, 68],        // <--- AUMENTAR AQUI (Tamanho do ícone)
+  iconAnchor: [17, 64],      // <--- AJUSTAR AQUI (Ponto que toca o mapa: Metade da largura, Quase o total da altura)
   tooltipAnchor: [0, -60],  // <--- AJUSTAR AQUI (Onde aparece o texto: Acima do topo)
   popupAnchor: [0, -64],    // <--- AJUSTAR AQUI (Onde abre o balão)
   className: "leaflet-marker-icon poste-marker-icon"
@@ -543,8 +541,8 @@ const ICON_POSTE_CONCRETO = L.icon({
 
 const ICON_POSTE_MADEIRA = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
-  iconSize: [34, 68],       // <--- AUMENTAR AQUI
-  iconAnchor: [17, 64],     // <--- AJUSTAR AQUI
+  iconSize: [34, 68],        // <--- AUMENTAR AQUI
+  iconAnchor: [17, 64],      // <--- AJUSTAR AQUI
   tooltipAnchor: [0, -60],  // <--- AJUSTAR AQUI
   popupAnchor: [0, -64],    // <--- AJUSTAR AQUI
   className: "leaflet-marker-icon poste-marker-icon"
@@ -734,16 +732,16 @@ showOverlay("Carregando base de postes…");
 
 /* ====================================================================
    Helpers (escape / copiar / toggle empresa)
-   ✅ CORRIGIDO: Aspas agora são escapadas como &quot;
+   ✅ CORRIGIDO: Aspas agora são escapadas como "
 ==================================================================== */
 function escapeHtml(str) {
   if (str == null) return "";
   return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
     .replace(/"/g, "&quot;")  // << CORRIGIDO AQUI
-    .replace(/'/g, "&#039;");
+    .replace(/'/g, "'");
 }
 function escapeAttr(str) { return escapeHtml(str); }
 
@@ -1219,32 +1217,32 @@ const GEOJSON_BASE = "/data/geojson";
 
 const MUNICIPIOS_META = [
   { id:"aparecida",      db:"APARECIDA",             label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
-  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
-  { id:"cacapava",       db:"CAÇAPAVA",                label:"CAÇAPAVA",                logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
-  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",     label:"CACHOEIRA PAULISTA",     logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
-  { id:"canas",          db:"CANAS",                  label:"CANAS",                  logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
-  { id:"caraguatatuba",  db:"CARAGUATATUBA",          label:"CARAGUATATUBA",          logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
+  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",          logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
+  { id:"cacapava",       db:"CAÇAPAVA",                label:"CAÇAPAVA",                 logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",      label:"CACHOEIRA PAULISTA",      logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
+  { id:"canas",          db:"CANAS",                   label:"CANAS",                   logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
+  { id:"caraguatatuba",  db:"CARAGUATATUBA",           label:"CARAGUATATUBA",           logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
   { id:"cruzeiro",       db:"CRUZEIRO",                label:"CRUZEIRO",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
   { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
-  { id:"guararema",      db:"GUARAREMA",              label:"GUARAREMA",              logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
-  { id:"guaratingueta",  db:"GUARATINGUETÁ",          label:"GUARATINGUETÁ",          logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
-  { id:"guarulhos",      db:"GUARULHOS",              label:"GUARULHOS",              logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
+  { id:"guararema",      db:"GUARAREMA",               label:"GUARAREMA",               logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
+  { id:"guaratingueta",  db:"GUARATINGUETÁ",           label:"GUARATINGUETÁ",           logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { id:"guarulhos",      db:"GUARULHOS",               label:"GUARULHOS",               logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
   { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",         label:"ITAQUAQUECETUBA",         logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
-  { id:"jacarei",        db:"JACAREÍ",                label:"JACAREÍ",                logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { id:"jacarei",        db:"JACAREÍ",                 label:"JACAREÍ",                 logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
   { id:"jambeiro",       db:"JAMBEIRO",                label:"JAMBEIRO",                logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
   { id:"lorena",         db:"LORENA",                  label:"LORENA",                  logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
   { id:"mogi",           db:"MOGI DAS CRUZES",         label:"MOGI DAS CRUZES",         logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
   { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
-  { id:"pindamonhangaba",db:"PINDAMONHANGABA",        label:"PINDAMONHANGABA",        logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
-  { id:"poa",            db:"POÁ",                    label:"POÁ",                    logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
-  { id:"potim",          db:"POTIM",                  label:"POTIM",                  logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
-  { id:"roseira",        db:"ROSEIRA",                label:"ROSEIRA",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
-  { id:"salesopolis",    db:"SALESÓPOLIS",            label:"SALESÓPOLIS",            logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { id:"pindamonhangaba",db:"PINDAMONHANGABA",         label:"PINDAMONHANGABA",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
+  { id:"poa",            db:"POÁ",                     label:"POÁ",                     logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { id:"potim",          db:"POTIM",                   label:"POTIM",                   logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
+  { id:"roseira",        db:"ROSEIRA",                 label:"ROSEIRA",                 logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
+  { id:"salesopolis",    db:"SALESÓPOLIS",             label:"SALESÓPOLIS",             logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
   { id:"santabranca",    db:"SANTA BRANCA",            label:"SANTA BRANCA",            logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
-  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",    label:"SÃO JOSÉ DOS CAMPOS",    logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
-  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",          label:"SÃO SEBASTIÃO",          logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",     label:"SÃO JOSÉ DOS CAMPOS",     logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",           label:"SÃO SEBASTIÃO",           logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
   { id:"suzano",         db:"SUZANO",                  label:"SUZANO",                  logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
-  { id:"taubate",        db:"TAUBATÉ",                label:"TAUBATÉ",                logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { id:"taubate",        db:"TAUBATÉ",                 label:"TAUBATÉ",                 logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
   { id:"tremembe",       db:"TREMEMBÉ",                label:"TREMEMBÉ",                logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
 ];
 
@@ -1511,6 +1509,7 @@ let chartMunicipiosRef = null;
   hud.innerHTML = "";
 
   const horaRow = document.createElement("div");
+  const hora = document.createElement("span");
   horaRow.className = "hora-row";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
@@ -1696,6 +1695,85 @@ function gerarExcelCliente(filtroIds) {
 }
 
 // ---------------------------------------------------------------------
+// Geração de CSV no cliente (Base44) - NOVO RECURSO
+// ---------------------------------------------------------------------
+function gerarCSVParaEO(filtroIds) {
+  const idSet = new Set((filtroIds || []).map(keyId));
+  // Cabeçalhos solicitados:
+  const headers = [
+    "ID",
+    "Data Desocupacao",
+    "Empresa",
+    "Poste",
+    "Tipo",
+    "Observacao",
+    "Esforco",
+    "Tipo", // Segundo "Tipo" solicitado
+    "Ordenacao",
+    "Em Uso",
+    "Numero Medidor",
+    "Municipio"
+  ];
+
+  // Usando ponto-e-vírgula como separador para melhor compatibilidade com Excel em PT-BR
+  let csvContent = headers.join(";") + "\n";
+
+  todosPostes
+    .filter((p) => idSet.has(keyId(p.id)))
+    .forEach((p) => {
+      const detalhes = Array.isArray(p.empresas) && p.empresas.length
+        ? p.empresas
+        : [{ nome: "", id_insercao: "" }];
+
+      detalhes.forEach((e) => {
+        const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
+        
+        let idIns = "";
+        if (typeof e === "object" && e !== null) idIns = e.id_insercao ?? "";
+        else if (p.id_insercao != null) idIns = p.id_insercao;
+
+        // Montagem da linha conforme solicitado
+        const row = [
+          idIns,              // ID (id_insercao)
+          "",                 // Data Desocupacao (vazio)
+          nome,               // Empresa
+          p.id,               // Poste (id_poste)
+          "",                 // Tipo (vazio)
+          "",                 // Observacao (vazio)
+          "",                 // Esforco (vazio)
+          "FIBRA",            // Tipo (sempre FIBRA)
+          "1",                // Ordenacao (sempre 1)
+          "",                 // Em Uso (vazio)
+          "",                 // Numero Medidor (vazio)
+          p.nome_municipio    // Municipio
+        ];
+
+        // Escapar aspas duplas e envolver valores em aspas se necessário
+        const rowString = row.map(val => {
+          const v = String(val || "");
+          // Se tiver ponto e vírgula, aspas ou quebra de linha, escapa
+          if (v.includes('"') || v.includes(';') || v.includes('\n')) {
+            return `"${v.replace(/"/g, '""')}"`;
+          }
+          return v;
+        }).join(";");
+
+        csvContent += rowString + "\n";
+      });
+    });
+
+  // Disparar Download
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", "exportacao_base44.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ---------------------------------------------------------------------
 // Modo Censo
 // ---------------------------------------------------------------------
 document.getElementById("btnCenso")?.addEventListener("click", async () => {
@@ -1816,6 +1894,7 @@ function filtrarLocal() {
     .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
 
   gerarExcelCliente(filtro.map((p) => p.id));
+  gerarCSVParaBase44(filtro.map((p) => p.id)); // Também gera o CSV ao filtrar
 }
 
 function resetarMapa() {
@@ -2236,6 +2315,7 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
     const ids = postesSelecionados.map((r) => r.poste.id);
     exportarExcel(ids);
     gerarExcelCliente(ids);
+    gerarCSVParaBase44(ids); // Novo CSV
     return;
   }
 
@@ -2244,6 +2324,7 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
   exportarExcel(ids);
   gerarExcelCliente(ids);
+  gerarCSVParaBase44(ids); // Novo CSV
 });
 
 // Toggle painel
