@@ -515,7 +515,31 @@ const SVG_POSTE_CONCRETO = `
   <circle cx="44" cy="14" r="2" fill="#DDD"/>
 </svg>`;
 
-// Poste de Madeira: Marrom, textura rústica
+// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
+
+// Poste de Concreto: Cinza, agora com DUAS CRUZETAS (igual madeira)
+const SVG_POSTE_CONCRETO = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
+  <!-- Corpo do poste -->
+  <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
+
+  <!-- Duas cruzetas (travessas) -->
+  <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
+  <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
+
+  <!-- Parafusos (bolinhas) -->
+  <circle cx="18" cy="24" r="2" fill="#E5E7EB"/>
+  <circle cx="46" cy="24" r="2" fill="#E5E7EB"/>
+  <circle cx="22" cy="34" r="2" fill="#E5E7EB"/>
+  <circle cx="42" cy="34" r="2" fill="#E5E7EB"/>
+
+  <!-- Marquinhas leves (só pra dar “cara” de concreto) -->
+  <line x1="30" y1="55" x2="34" y2="55" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
+  <line x1="30" y1="75" x2="34" y2="75" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
+  <line x1="30" y1="95" x2="34" y2="95" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
+</svg>`;
+
+// Poste de Madeira: Marrom, textura rústica (mantido, só vai reduzir o tamanho no iconSize)
 const SVG_POSTE_MADEIRA = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>
@@ -528,25 +552,33 @@ const SVG_POSTE_MADEIRA = `
 </svg>`;
 
 // Ajuste de tamanho: [Largura, Altura]
-// Sugestão atual: [34, 68] (Antes era [22, 44])
+// ✅ Agora menor (mais discreto no mapa)
+const ICON_SIZE_POSTE = [22, 44];
 
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
-  iconSize: [34, 68],        // <--- AUMENTAR AQUI (Tamanho do ícone)
-  iconAnchor: [17, 64],      // <--- AJUSTAR AQUI (Ponto que toca o mapa: Metade da largura, Quase o total da altura)
-  tooltipAnchor: [0, -60],  // <--- AJUSTAR AQUI (Onde aparece o texto: Acima do topo)
-  popupAnchor: [0, -64],    // <--- AJUSTAR AQUI (Onde abre o balão)
+  iconSize: ICON_SIZE_POSTE,     // ✅ menor
+  iconAnchor: [11, 42],          // metade da largura, quase o fundo
+  tooltipAnchor: [0, -38],       // tooltip acima do topo
+  popupAnchor: [0, -42],         // popup acima do topo
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
 const ICON_POSTE_MADEIRA = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
-  iconSize: [34, 68],        // <--- AUMENTAR AQUI
-  iconAnchor: [17, 64],      // <--- AJUSTAR AQUI
-  tooltipAnchor: [0, -60],  // <--- AJUSTAR AQUI
-  popupAnchor: [0, -64],    // <--- AJUSTAR AQUI
+  iconSize: ICON_SIZE_POSTE,     // ✅ menor
+  iconAnchor: [11, 42],
+  tooltipAnchor: [0, -38],
+  popupAnchor: [0, -42],
   className: "leaflet-marker-icon poste-marker-icon"
 });
+
+function getPosteIcon(poste) {
+  const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
+  if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
+  return ICON_POSTE_CONCRETO;
+}
+
 
 function getPosteIcon(poste) {
   const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
