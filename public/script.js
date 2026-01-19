@@ -4,7 +4,10 @@
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
-/* ==================================================================== Tooltip permanente para poste crítico (>8 empresas) ==================================================================== */
+
+/* ====================================================================
+   Tooltip permanente para poste crítico (>8 empresas)
+==================================================================== */
 (function injectPosteAlertTooltipStyles(){
   const css = `
     .poste-alert-tooltip{
@@ -32,7 +35,6 @@
   style.textContent = css;
   document.head.appendChild(style);
 })();
-
 
 (function injectHudStyles() {
   const css = `
@@ -533,13 +535,13 @@ osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
 
-// Poste de Concreto: agora com 2 cruzetas (igual ao de madeira) + menor
+// Poste de Concreto
 const SVG_POSTE_CONCRETO = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <!-- corpo do poste -->
   <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
 
-  <!-- 2 cruzetas (cruzes) igual madeira -->
+  <!-- 2 cruzetas -->
   <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
   <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
 
@@ -549,14 +551,14 @@ const SVG_POSTE_CONCRETO = `
   <circle cx="22" cy="34" r="2" fill="#DDD"/>
   <circle cx="42" cy="34" r="2" fill="#DDD"/>
 
-  <!-- leves marcações (concreto) -->
+  <!-- marcações -->
   <line x1="29" y1="55" x2="35" y2="55" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
   <line x1="29" y1="75" x2="35" y2="75" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
   <line x1="29" y1="95" x2="35" y2="95" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
 </svg>
 `.trim();
 
-// Poste de Madeira: mantém como está (só vai ficar menor também)
+// Poste de Madeira
 const SVG_POSTE_MADEIRA = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>
@@ -569,8 +571,7 @@ const SVG_POSTE_MADEIRA = `
 </svg>
 `.trim();
 
-// 🔽 TAMANHO MENOR DOS POSTES (AJUSTE AQUI SE QUISER MAIS/menos)
-// antes estava [34,68]. agora: menor e mais limpo.
+// Tamanho dos postes
 const POSTE_ICON_SIZE = [22, 44];
 const POSTE_ICON_ANCHOR = [11, 42];
 const POSTE_TOOLTIP_ANCHOR = [0, -38];
@@ -595,9 +596,10 @@ const ICON_POSTE_MADEIRA = L.icon({
 });
 
 function getPosteIcon(poste) {
+  const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
   const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
-  if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
-  return ICON_POSTE_CONCRETO;
+  const isMadeira = matRaw.includes("madeira");
+  return isMadeira ? ICON_POSTE_MADEIRA : ICON_POSTE_CONCRETO;
 }
 
 function dotStyle(qtdEmpresas){
@@ -609,8 +611,6 @@ function dotStyle(qtdEmpresas){
     fillOpacity: 0.9
   };
 }
-
-
 
 // ====================================================================
 // MODO SELECIONAR POSTES (até 300) + linha azul + export
@@ -788,7 +788,7 @@ function escapeHtml(str) {
     .replace(/&/g, "&")
     .replace(/</g, "<")
     .replace(/>/g, ">")
-    .replace(/"/g, "&quot;")  // << CORRIGIDO AQUI
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "'");
 }
 function escapeAttr(str) { return escapeHtml(str); }
@@ -1131,8 +1131,8 @@ map.on("popupclose", (e) => {
 /* ====================================================================
    Tooltip fixo (reabrir após cluster/reset)
 ==================================================================== */
-let tipPinned = false;   // true após clique (para manter aberto)
-let lastTip = null;      // { id }
+let tipPinned = false;
+let lastTip = null;
 
 function reabrirTooltipFixo(delay = 0) {
   if (!lastTip || !tipPinned) return;
@@ -1168,7 +1168,14 @@ function hasEmpresaNome(p, buscaLower) {
   );
 }
 
-// Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
+// ====================================================================
+// Criação dos marcadores de postes + tooltip de alerta
+// ====================================================================
+
+// Ícone de alerta (imagem externa — ideal é colocar um /assets/alerta.png depois)
+const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
+
+// Cria (ou retorna do cache) o layer do poste
 function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
@@ -1177,21 +1184,17 @@ function criarLayerPoste(p){
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
   const icon = getPosteIcon(p);
 
-  // ✅ ALERTA: aparece no poste quando tem mais de 8 empresas
-  const critico = qtd > 8;
+  const critico = qtd > 8; // 🔥 mais de 8 empresas
 
-  // Tooltip normal x Tooltip de alerta (pequeno e permanente)
-const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
-
-const tooltipHtml = critico
-  ? `<img class="poste-alert-img" src="${ALERT_ICON_URL}" alt="alerta"> ${qtd}`
-  : `ID: ${p.id} — ${txtQtd}`;
+  const tooltipHtml = critico
+    ? `<img class="poste-alert-img" src="${ALERT_ICON_URL}" alt="alerta"> ${qtd}`
+    : `ID: ${p.id} — ${txtQtd}`;
 
   const tooltipOpts = critico
     ? {
-        permanent: true,          // sempre visível
-        direction: "right",       // na frente do poste (lado direito)
-        offset: [12, -10],        // desloca pra ficar pequeno ao lado, não em cima do poste
+        permanent: true,
+        direction: "right",
+        offset: [12, -10],
         opacity: 1,
         className: "poste-alert-tooltip"
       }
@@ -1204,19 +1207,22 @@ const tooltipHtml = critico
     icon,
     pane: "postes"
   })
-  .bindTooltip(tooltipHtml, tooltipOpts)
-
-
-    .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
+    .bindTooltip(tooltipHtml, tooltipOpts)
     .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      // se estiver no modo seleção, trata aqui e não abre popup normal
       if (handleSelecaoClick(p, layer)) return;
       lastTip = { id: key }; tipPinned = true;
       try { layer.openTooltip?.(); } catch {}
       abrirPopup(p);
     });
+
+  // tooltip permanente abre assim que o marker entra no mapa (bom pós-cluster)
+  if (critico) {
+    layer.on("add", () => {
+      try { layer.openTooltip(); } catch {}
+    });
+  }
 
   layer.posteData = p;
   idToMarker.set(key, layer);
@@ -1249,7 +1255,6 @@ function carregarTodosPostesGradualmente() {
   const lote = document.hidden ? 3500 : 1200;
   let i = 0;
 
-  // Se já carregamos todos antes, apenas reanexa os marcadores existentes
   if (todosCarregados && idToMarker.size) {
     markers.clearLayers();
     const arr = Array.from(idToMarker.values());
@@ -1320,7 +1325,6 @@ const MUNICIPIOS_META = [
   { id:"tremembe",       db:"TREMEMBÉ",                label:"TREMEMBÉ",                logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
 ];
 
-// paleta de cores para polígonos de municípios
 const MUNI_COLORS = {};
 const MUNI_COLORS_PALETTE = [
   "#22c55e","#3b82f6","#eab308","#f97316","#a855f7",
@@ -1366,7 +1370,6 @@ async function carregarPoligonosMunicipios(ids) {
               fillColor: color,
               fillOpacity: 0.15
             },
-            // ✅ NÃO desenhar os pontos (centroides) do GeoJSON
             filter: (feature) => {
               const type = feature?.geometry?.type;
               return type !== "Point" && type !== "MultiPoint";
@@ -1387,7 +1390,7 @@ async function carregarPoligonosMunicipios(ids) {
 /* ====================================================================
    Modo inicial / modal de seleção
 ==================================================================== */
-let modoAtual = null; // "todos" ou "municipios"
+let modoAtual = null;
 let modalModoEl = null;
 const selecionadosSet = new Set();
 
@@ -1483,13 +1486,12 @@ function buildModalModoInicial(){
     fecharModalModoInicial();
     modoAtual = "todos";
     showOverlay("Carregando todos os municípios e postes…");
-    // remove marcador azul de localização ao carregar todos (se existir)
     if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
       map.removeLayer(window.userLocationMarker);
       window.userLocationMarker = null;
     }
-    carregarPoligonosMunicipios();      // todos
-    carregarTodosPostesGradualmente();  // usa cache se já tiver
+    carregarPoligonosMunicipios();
+    carregarTodosPostesGradualmente();
   });
 
   btnSel.addEventListener("click", () => {
@@ -1501,7 +1503,6 @@ function buildModalModoInicial(){
     fecharModalModoInicial();
     modoAtual = "municipios";
 
-    // ✅ usa normKey para ignorar acentos e caracteres
     const muniDbSet = new Set();
     ids.forEach((id) => {
       const meta = MUNICIPIOS_META.find((m) => m.id === id);
@@ -1528,11 +1529,9 @@ function fecharModalModoInicial(){
   if (modalModoEl) modalModoEl.style.display = "none";
 }
 
-// ✅ Carregamento gradual apenas para alguns municípios (reutiliza cache global)
 function carregarPostesPorMunicipiosGradual(muniDbSet){
   markers.clearLayers();
 
-  // Cache global (idToMarker) é mantido
   const candidatos = todosPostes.filter((p) =>
     muniDbSet.has(normKey(p.nome_municipio || ""))
   );
@@ -1583,7 +1582,6 @@ let chartMunicipiosRef = null;
   hud.innerHTML = "";
 
   const horaRow = document.createElement("div");
-  const hora = document.createElement("span");
   horaRow.className = "hora-row";
   horaRow.innerHTML = `<span class="dot"></span><span class="hora">--:--</span>`;
   hud.appendChild(horaRow);
@@ -1621,7 +1619,7 @@ let chartMunicipiosRef = null;
 })();
 
 // ---------------------------------------------------------------------
-// Carrega /api/postes, trata 401 redirecionando
+// Carrega /api/postes
 // ---------------------------------------------------------------------
 fetch("/api/postes", { credentials: "include" })
   .then((res) => {
@@ -1691,7 +1689,7 @@ fetch("/api/postes", { credentials: "include" })
 
     preencherListas();
     hideOverlay();
-    abrirModalModoInicial(); // pergunta: todos ou por município
+    abrirModalModoInicial();
   })
   .catch((err) => {
     console.error("Erro ao carregar postes:", err);
@@ -1746,7 +1744,6 @@ function gerarExcelCliente(filtroIds) {
         if (typeof e === "object" && e !== null) {
           idIns = e.id_insercao ?? "";
         } else if (p.id_insercao != null) {
-          // fallback caso o backend mande o id de inserção só no nível do poste
           idIns = p.id_insercao;
         }
 
@@ -1769,11 +1766,10 @@ function gerarExcelCliente(filtroIds) {
 }
 
 // ---------------------------------------------------------------------
-// Geração de CSV no cliente (Base44) - NOVO RECURSO
+// Geração de CSV no cliente (Base44)
 // ---------------------------------------------------------------------
 function gerarCSVParaEO(filtroIds) {
   const idSet = new Set((filtroIds || []).map(keyId));
-  // Cabeçalhos solicitados:
   const headers = [
     "ID",
     "Data Desocupacao",
@@ -1783,14 +1779,13 @@ function gerarCSVParaEO(filtroIds) {
     "Observacao",
     "Esforco",
     "Cabo/equipamento ativo",
-    "Tipo", // Segundo "Tipo" solicitado
+    "Tipo",
     "Ordenacao",
     "Em Uso",
     "Numero Medidor",
     "Municipio"
   ];
 
-  // Usando ponto-e-vírgula como separador para melhor compatibilidade com Excel em PT-BR
   let csvContent = headers.join(";") + "\n";
 
   todosPostes
@@ -1807,27 +1802,24 @@ function gerarCSVParaEO(filtroIds) {
         if (typeof e === "object" && e !== null) idIns = e.id_insercao ?? "";
         else if (p.id_insercao != null) idIns = p.id_insercao;
 
-        // Montagem da linha conforme solicitado
         const row = [
-          idIns,              // ID (id_insercao)
-          "",                 // Data Desocupacao (vazio)
-          nome,               // Empresa
-          p.id,               // Poste (id_poste)
-          "",                 // Tipo (vazio)
-          "",                 // Observacao (vazio)
-          "",                 // Esforco (vazio)
-          "",                 // Cabo/equipamento ativo
-          "FIBRA",            // Tipo (sempre FIBRA)
-          "1",                // Ordenacao (sempre 1)
-          "",                 // Em Uso (vazio)
-          "",                 // Numero Medidor (vazio)
-          p.nome_municipio    // Municipio
+          idIns,
+          "",
+          nome,
+          p.id,
+          "",
+          "",
+          "",
+          "",
+          "FIBRA",
+          "1",
+          "",
+          "",
+          p.nome_municipio
         ];
 
-        // Escapar aspas duplas e envolver valores em aspas se necessário
         const rowString = row.map(val => {
           const v = String(val || "");
-          // Se tiver ponto e vírgula, aspas ou quebra de linha, escapa
           if (v.includes('"') || v.includes(';') || v.includes('\n')) {
             return `"${v.replace(/"/g, '""')}"`;
           }
@@ -1838,7 +1830,6 @@ function gerarCSVParaEO(filtroIds) {
       });
     });
 
-  // Disparar Download
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -1848,6 +1839,9 @@ function gerarCSVParaEO(filtroIds) {
   link.click();
   document.body.removeChild(link);
 }
+
+// Alias pra manter compatibilidade com chamadas antigas
+const gerarCSVParaBase44 = gerarCSVParaEO;
 
 // ---------------------------------------------------------------------
 // Modo Censo
@@ -1970,11 +1964,10 @@ function filtrarLocal() {
     .catch((e) => { console.error("Erro exportar filtro:", e); alert("Falha ao gerar Excel backend:\n" + e.message); });
 
   gerarExcelCliente(filtro.map((p) => p.id));
-  gerarCSVParaBase44(filtro.map((p) => p.id)); // Também gera o CSV ao filtrar
+  gerarCSVParaBase44(filtro.map((p) => p.id));
 }
 
 function resetarMapa() {
-  // sair do modo seleção (sem tentar restaurar estilos, o reset já recria marcadores)
   limparSelecaoESair({ manterMarcadores: true });
 
   popupPinned = false; lastPopup = null;
@@ -1985,9 +1978,8 @@ function resetarMapa() {
 }
 
 // ---------------------------------------------------------------------
-// Street View (link público)
+// Street View
 // ---------------------------------------------------------------------
-// ✅ CORRIGIDO: URL do Street View
 function buildGoogleMapsPanoURL(lat, lng) {
   return `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`;
 }
@@ -2028,7 +2020,7 @@ function streetImageryBlockHTML(lat, lng, label = "Abrir no Google Street View")
 })();
 
 // ---------------------------------------------------------------------
-// Popup em formato de card com id_insercao + botões de copiar
+// Popup em formato de card
 // ---------------------------------------------------------------------
 function montarPopupModeloCard(p) {
   const nomesEmpresas = getEmpresasNomesArray(p);
@@ -2132,7 +2124,6 @@ function montarPopupModeloCard(p) {
   `;
 }
 
-// Abre popup fixo
 function abrirPopup(p) {
   const html = montarPopupModeloCard(p);
   lastPopup = { lat: p.lat, lon: p.lon, html };
@@ -2209,6 +2200,7 @@ function obterPrevisaoDoTempo(lat, lon) {
     { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
   );
 })();
+
 setInterval(() => {
   const fallback = () => obterPrevisaoDoTempo(-23.55, -46.63);
   navigator.geolocation.getCurrentPosition(
@@ -2218,7 +2210,7 @@ setInterval(() => {
 }, 600000);
 
 // ---------------------------------------------------------------------
-// Verificar (Consulta massiva + traçado + intermediários)
+// Consulta massiva + traçado
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
   const ids = (document.getElementById("ids-multiplos")?.value || "")
@@ -2303,7 +2295,6 @@ function consultarIDsEmMassa() {
   hideOverlay();
 }
 
-// Adiciona marcador numerado (para análise)
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
   const cor = qtd >= 5 ? "red" : "green";
@@ -2347,7 +2338,6 @@ function gerarPDFComMapa() {
   });
 }
 
-// Distância em metros (haversine)
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
@@ -2384,14 +2374,13 @@ function exportarExcel(ids) {
     .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
-// Botão Excel
+// Botão Excel (caso exista btnGerarExcel)
 document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
-  // Se estiver no modo seleção e houver postes selecionados, usa esse conjunto
   if (postesSelecionados.length) {
     const ids = postesSelecionados.map((r) => r.poste.id);
     exportarExcel(ids);
     gerarExcelCliente(ids);
-    gerarCSVParaBase44(ids); // Novo CSV
+    gerarCSVParaBase44(ids);
     return;
   }
 
@@ -2400,7 +2389,7 @@ document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
   exportarExcel(ids);
   gerarExcelCliente(ids);
-  gerarCSVParaBase44(ids); // Novo CSV
+  gerarCSVParaBase44(ids);
 });
 
 // Toggle painel
@@ -2428,7 +2417,7 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
 });
 
 /* --------------------------------------------------------------------
-   === Indicadores (BI) + Botões extra (Visualização / Indicadores / Seleção)
+   Indicadores (BI)
 -------------------------------------------------------------------- */
 function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
   const empresaNorm = (empresa || "").trim().toLowerCase();
@@ -2460,7 +2449,6 @@ function rowsToCSV(rows) {
   return header + body + "\n";
 }
 
-// encontra meta (logo, etc.) a partir do nome do município
 function getMunicipioMetaByName(nome) {
   if (!nome) return null;
   const target = normKey(nome);
@@ -2470,12 +2458,10 @@ function getMunicipioMetaByName(nome) {
   );
 }
 
-// botões extras no painel (Selecionar / Limpar seleção / Visualização / Indicadores)
 (function injectExtraPanelButtons(){
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
 
-  // Selecionar Postes
   let btnSel = document.getElementById("btnSelecionarPostes");
   if (!btnSel) {
     btnSel = document.createElement("button");
@@ -2487,7 +2473,6 @@ function getMunicipioMetaByName(nome) {
     actions.appendChild(btnSel);
   }
 
-  // Limpar seleção / sair
   let btnLimpar = document.getElementById("btnLimparSelecao");
   if (!btnLimpar) {
     btnLimpar = document.createElement("button");
@@ -2497,7 +2482,6 @@ function getMunicipioMetaByName(nome) {
     actions.appendChild(btnLimpar);
   }
 
-  // Visualização: se já existe no HTML, só conecta o clique
   let btnV = document.getElementById("btnVisualizacao");
   if (btnV) {
     btnV.addEventListener("click", abrirModalModoInicial);
@@ -2509,7 +2493,6 @@ function getMunicipioMetaByName(nome) {
     actions.appendChild(btnV);
   }
 
-  // Indicadores: cria se não existir, ou apenas conecta o clique
   let btnI = document.getElementById("btnIndicadores");
   if (btnI) {
     btnI.addEventListener("click", abrirIndicadores);
