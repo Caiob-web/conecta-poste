@@ -12,26 +12,27 @@
       color: #b91c1c;
       border: 1px solid rgba(185,28,28,.35);
       border-radius: 999px;
-      padding: 2px 7px;              /* pequeno */
+      padding: 2px 7px;
       box-shadow: 0 6px 16px rgba(0,0,0,.18);
       font: 800 11px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       white-space: nowrap;
-      pointer-events: none;          /* não atrapalha clique no poste */
+      pointer-events: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    .poste-alert-tooltip i{
-      margin-right: 6px;
-      font-size: 11px;
-      line-height: 1;
+    .poste-alert-tooltip img.poste-alert-img{
+      width: 14px;
+      height: 14px;
+      object-fit: contain;
+      display: inline-block;
     }
-    .poste-alert-tooltip.leaflet-tooltip-right:before{ border-right-color: rgba(185,28,28,.35) !important; }
-    .poste-alert-tooltip.leaflet-tooltip-left:before{ border-left-color: rgba(185,28,28,.35) !important; }
-    .poste-alert-tooltip.leaflet-tooltip-top:before{ border-top-color: rgba(185,28,28,.35) !important; }
-    .poste-alert-tooltip.leaflet-tooltip-bottom:before{ border-bottom-color: rgba(185,28,28,.35) !important; }
   `;
   const style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
 })();
+
 
 (function injectHudStyles() {
   const css = `
@@ -1180,9 +1181,11 @@ function criarLayerPoste(p){
   const critico = qtd > 8;
 
   // Tooltip normal x Tooltip de alerta (pequeno e permanente)
-  const tooltipHtml = critico
-    ? `<i class="fa fa-triangle-exclamation"></i> ${qtd}`
-    : `ID: ${p.id} — ${txtQtd}`;
+const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
+
+const tooltipHtml = critico
+  ? `<img class="poste-alert-img" src="${ALERT_ICON_URL}" alt="alerta"> ${qtd}`
+  : `ID: ${p.id} — ${txtQtd}`;
 
   const tooltipOpts = critico
     ? {
