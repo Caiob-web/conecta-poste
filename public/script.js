@@ -503,7 +503,7 @@ osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — MODIFICADOS =========
 // Poste de Concreto: Cinza, formato duplo T/retangular
-const SVG_POSTE_CONCRETO = `
+const SVG_POSTE_CONCRETO =
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <rect x="26" y="10" width="12" height="110" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
   <line x1="28" y1="30" x2="36" y2="30" stroke="#757575" stroke-width="1.5"/>
@@ -538,8 +538,32 @@ const SVG_POSTE_CONCRETO = `
   <line x1="30" y1="75" x2="34" y2="75" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
   <line x1="30" y1="95" x2="34" y2="95" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
 </svg>`;
+// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
 
-// Poste de Madeira: Marrom, textura rústica (mantido, só vai reduzir o tamanho no iconSize)
+// Poste de Concreto: agora com 2 cruzetas (igual ao de madeira) + menor
+const SVG_POSTE_CONCRETO = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
+  <!-- corpo do poste -->
+  <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
+
+  <!-- 2 cruzetas (cruzes) igual madeira -->
+  <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
+  <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
+
+  <!-- “parafusos” nas cruzetas -->
+  <circle cx="18" cy="24" r="2" fill="#DDD"/>
+  <circle cx="46" cy="24" r="2" fill="#DDD"/>
+  <circle cx="22" cy="34" r="2" fill="#DDD"/>
+  <circle cx="42" cy="34" r="2" fill="#DDD"/>
+
+  <!-- leves marcações (concreto) -->
+  <line x1="29" y1="55" x2="35" y2="55" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
+  <line x1="29" y1="75" x2="35" y2="75" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
+  <line x1="29" y1="95" x2="35" y2="95" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
+</svg>
+`.trim();
+
+// Poste de Madeira: mantém como está (só vai ficar menor também)
 const SVG_POSTE_MADEIRA = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>
@@ -549,36 +573,33 @@ const SVG_POSTE_MADEIRA = `
   <circle cx="46" cy="24" r="2" fill="#DDD"/>
   <circle cx="22" cy="34" r="2" fill="#DDD"/>
   <circle cx="42" cy="34" r="2" fill="#DDD"/>
-</svg>`;
+</svg>
+`.trim();
 
-// Ajuste de tamanho: [Largura, Altura]
-// ✅ Agora menor (mais discreto no mapa)
-const ICON_SIZE_POSTE = [22, 44];
+// 🔽 TAMANHO MENOR DOS POSTES (AJUSTE AQUI SE QUISER MAIS/menos)
+// antes estava [34,68]. agora: menor e mais limpo.
+const POSTE_ICON_SIZE = [22, 44];
+const POSTE_ICON_ANCHOR = [11, 42];
+const POSTE_TOOLTIP_ANCHOR = [0, -38];
+const POSTE_POPUP_ANCHOR = [0, -42];
 
 const ICON_POSTE_CONCRETO = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
-  iconSize: ICON_SIZE_POSTE,     // ✅ menor
-  iconAnchor: [11, 42],          // metade da largura, quase o fundo
-  tooltipAnchor: [0, -38],       // tooltip acima do topo
-  popupAnchor: [0, -42],         // popup acima do topo
+  iconSize: POSTE_ICON_SIZE,
+  iconAnchor: POSTE_ICON_ANCHOR,
+  tooltipAnchor: POSTE_TOOLTIP_ANCHOR,
+  popupAnchor: POSTE_POPUP_ANCHOR,
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
 const ICON_POSTE_MADEIRA = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
-  iconSize: ICON_SIZE_POSTE,     // ✅ menor
-  iconAnchor: [11, 42],
-  tooltipAnchor: [0, -38],
-  popupAnchor: [0, -42],
+  iconSize: POSTE_ICON_SIZE,
+  iconAnchor: POSTE_ICON_ANCHOR,
+  tooltipAnchor: POSTE_TOOLTIP_ANCHOR,
+  popupAnchor: POSTE_POPUP_ANCHOR,
   className: "leaflet-marker-icon poste-marker-icon"
 });
-
-function getPosteIcon(poste) {
-  const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
-  if (matRaw.includes("madeira")) return ICON_POSTE_MADEIRA;
-  return ICON_POSTE_CONCRETO;
-}
-
 
 function getPosteIcon(poste) {
   const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
@@ -595,6 +616,7 @@ function dotStyle(qtdEmpresas){
     fillOpacity: 0.9
   };
 }
+
 
 // ====================================================================
 // MODO SELECIONAR POSTES (até 300) + linha azul + export
