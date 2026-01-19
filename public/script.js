@@ -8,12 +8,12 @@
 /* ====================================================================
    Tooltip permanente para poste crítico (>8 empresas)
 ==================================================================== */
+/* ==================================================================== Tooltip permanente para poste crítico (>8 empresas) ==================================================================== */
 (function injectPosteAlertTooltipStyles(){
   const css = `
     .poste-alert-tooltip{
       background: rgba(255,255,255,0.96);
       color: #b91c1c;
-      border: 1px solid rgba(185,28,28,.35);
       border-radius: 999px;
       padding: 2px 7px;
       box-shadow: 0 6px 16px rgba(0,0,0,.18);
@@ -29,6 +29,19 @@
       height: 14px;
       object-fit: contain;
       display: inline-block;
+    }
+
+    /* garante que o tooltip de alerta NÃO tenha aquela setinha de balão
+       e fique só como um "selo" em cima do poste */
+    .leaflet-tooltip.poste-alert-tooltip{
+      background: rgba(255,255,255,0.96) !important;
+      border-radius: 999px !important;
+      border: 1px solid rgba(185,28,28,.35) !important;
+      box-shadow: 0 6px 16px rgba(0,0,0,.18) !important;
+      padding: 2px 7px !important;
+    }
+    .leaflet-tooltip.poste-alert-tooltip::before{
+      display:none !important;
     }
   `;
   const style = document.createElement("style");
@@ -1176,6 +1189,7 @@ function hasEmpresaNome(p, buscaLower) {
 const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
 
 // Cria (ou retorna do cache) o layer do poste
+// Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
 function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
@@ -1184,7 +1198,11 @@ function criarLayerPoste(p){
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
   const icon = getPosteIcon(p);
 
-  const critico = qtd > 8; // 🔥 mais de 8 empresas
+  // ✅ ALERTA: aparece no poste quando tem mais de 8 empresas
+  const critico = qtd > 8;
+
+  // Ícone de atenção (sua imagem)
+  const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
 
   const tooltipHtml = critico
     ? `<img class="poste-alert-img" src="${ALERT_ICON_URL}" alt="alerta"> ${qtd}`
@@ -1192,9 +1210,9 @@ function criarLayerPoste(p){
 
   const tooltipOpts = critico
     ? {
-        permanent: true,
-        direction: "right",
-        offset: [12, -10],
+        permanent: true,        // sempre visível
+        direction: "top",       // em CIMA do poste
+        offset: [0, -6],        // pequeno ajuste vertical (cola no poste)
         opacity: 1,
         className: "poste-alert-tooltip"
       }
@@ -1207,22 +1225,22 @@ function criarLayerPoste(p){
     icon,
     pane: "postes"
   })
-    .bindTooltip(tooltipHtml, tooltipOpts)
-    .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
-    .on("click", (e) => {
-      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-      if (handleSelecaoClick(p, layer)) return;
-      lastTip = { id: key }; tipPinned = true;
-      try { layer.openTooltip?.(); } catch {}
-      abrirPopup(p);
-    });
+  .bindTooltip(tooltipHtml, tooltipOpts)
+  .on("mouseover", () => {
+    lastTip = { id: key };
+    tipPinned = false;
+  })
+  .on("click", (e) => {
+    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
 
-  // tooltip permanente abre assim que o marker entra no mapa (bom pós-cluster)
-  if (critico) {
-    layer.on("add", () => {
-      try { layer.openTooltip(); } catch {}
-    });
-  }
+    // Modo seleção primeiro
+    if (handleSelecaoClick(p, layer)) return;
+
+    lastTip = { id: key };
+    tipPinned = true;
+    try { layer.openTooltip?.(); } catch {}
+    abrirPopup(p);
+  });
 
   layer.posteData = p;
   idToMarker.set(key, layer);
