@@ -501,43 +501,6 @@ postesPane.style.zIndex = 630;
 
 osm.addTo(map);
 
-// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — MODIFICADOS =========
-// Poste de Concreto: Cinza, formato duplo T/retangular
-const SVG_POSTE_CONCRETO =
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
-  <rect x="26" y="10" width="12" height="110" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
-  <line x1="28" y1="30" x2="36" y2="30" stroke="#757575" stroke-width="1.5"/>
-  <line x1="28" y1="50" x2="36" y2="50" stroke="#757575" stroke-width="1.5"/>
-  <line x1="28" y1="70" x2="36" y2="70" stroke="#757575" stroke-width="1.5"/>
-  <line x1="28" y1="90" x2="36" y2="90" stroke="#757575" stroke-width="1.5"/>
-  <rect x="18" y="15" width="28" height="4" fill="#757575" rx="1"/>
-  <circle cx="20" cy="14" r="2" fill="#DDD"/>
-  <circle cx="44" cy="14" r="2" fill="#DDD"/>
-</svg>`;
-
-// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
-
-// Poste de Concreto: Cinza, agora com DUAS CRUZETAS (igual madeira)
-const SVG_POSTE_CONCRETO = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
-  <!-- Corpo do poste -->
-  <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
-
-  <!-- Duas cruzetas (travessas) -->
-  <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
-  <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
-
-  <!-- Parafusos (bolinhas) -->
-  <circle cx="18" cy="24" r="2" fill="#E5E7EB"/>
-  <circle cx="46" cy="24" r="2" fill="#E5E7EB"/>
-  <circle cx="22" cy="34" r="2" fill="#E5E7EB"/>
-  <circle cx="42" cy="34" r="2" fill="#E5E7EB"/>
-
-  <!-- Marquinhas leves (só pra dar “cara” de concreto) -->
-  <line x1="30" y1="55" x2="34" y2="55" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
-  <line x1="30" y1="75" x2="34" y2="75" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
-  <line x1="30" y1="95" x2="34" y2="95" stroke="#7A7A7A" stroke-width="1" opacity="0.9"/>
-</svg>`;
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
 
 // Poste de Concreto: agora com 2 cruzetas (igual ao de madeira) + menor
@@ -616,6 +579,7 @@ function dotStyle(qtdEmpresas){
     fillOpacity: 0.9
   };
 }
+
 
 
 // ====================================================================
