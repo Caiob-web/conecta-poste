@@ -4,6 +4,35 @@
 // =====================================================================
 
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
+/* ==================================================================== Tooltip permanente para poste crítico (>8 empresas) ==================================================================== */
+(function injectPosteAlertTooltipStyles(){
+  const css = `
+    .poste-alert-tooltip{
+      background: rgba(255,255,255,0.96);
+      color: #b91c1c;
+      border: 1px solid rgba(185,28,28,.35);
+      border-radius: 999px;
+      padding: 2px 7px;              /* pequeno */
+      box-shadow: 0 6px 16px rgba(0,0,0,.18);
+      font: 800 11px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      white-space: nowrap;
+      pointer-events: none;          /* não atrapalha clique no poste */
+    }
+    .poste-alert-tooltip i{
+      margin-right: 6px;
+      font-size: 11px;
+      line-height: 1;
+    }
+    .poste-alert-tooltip.leaflet-tooltip-right:before{ border-right-color: rgba(185,28,28,.35) !important; }
+    .poste-alert-tooltip.leaflet-tooltip-left:before{ border-left-color: rgba(185,28,28,.35) !important; }
+    .poste-alert-tooltip.leaflet-tooltip-top:before{ border-top-color: rgba(185,28,28,.35) !important; }
+    .poste-alert-tooltip.leaflet-tooltip-bottom:before{ border-bottom-color: rgba(185,28,28,.35) !important; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
 (function injectHudStyles() {
   const css = `
     /* HUD raiz (caixa externa) */
@@ -1147,10 +1176,34 @@ function criarLayerPoste(p){
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
   const icon = getPosteIcon(p);
 
+  // ✅ ALERTA: aparece no poste quando tem mais de 8 empresas
+  const critico = qtd > 8;
+
+  // Tooltip normal x Tooltip de alerta (pequeno e permanente)
+  const tooltipHtml = critico
+    ? `<i class="fa fa-triangle-exclamation"></i> ${qtd}`
+    : `ID: ${p.id} — ${txtQtd}`;
+
+  const tooltipOpts = critico
+    ? {
+        permanent: true,          // sempre visível
+        direction: "right",       // na frente do poste (lado direito)
+        offset: [12, -10],        // desloca pra ficar pequeno ao lado, não em cima do poste
+        opacity: 1,
+        className: "poste-alert-tooltip"
+      }
+    : {
+        direction: "top",
+        sticky: true
+      };
+
   const layer = L.marker([p.lat, p.lon], {
     icon,
     pane: "postes"
   })
+  .bindTooltip(tooltipHtml, tooltipOpts)
+
+
     .bindTooltip(`ID: ${p.id} — ${txtQtd}`, { direction: "top", sticky: true })
     .on("mouseover", () => { lastTip = { id: key }; tipPinned = false; })
     .on("click", (e) => {
