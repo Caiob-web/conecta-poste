@@ -1190,6 +1190,7 @@ const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSY
 
 // Cria (ou retorna do cache) o layer do poste
 // Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
+// Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
 function criarLayerPoste(p){
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
@@ -1201,18 +1202,22 @@ function criarLayerPoste(p){
   // ✅ ALERTA: aparece no poste quando tem mais de 8 empresas
   const critico = qtd > 8;
 
-  // Ícone de atenção (sua imagem)
+  // Ícone de atenção
   const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
 
   const tooltipHtml = critico
     ? `<img class="poste-alert-img" src="${ALERT_ICON_URL}" alt="alerta"> ${qtd}`
     : `ID: ${p.id} — ${txtQtd}`;
 
+  // 🎯 Aqui é o truque:
+  // - direction: "center" => ancora no centro do marcador
+  // - offset: [14, -2]   => empurra um pouco pra direita, levemente pra cima
+  //   (fica na frente do poste, mas ainda colado nele)
   const tooltipOpts = critico
     ? {
-        permanent: true,        // sempre visível
-        direction: "top",       // em CIMA do poste
-        offset: [0, -6],        // pequeno ajuste vertical (cola no poste)
+        permanent: true,
+        direction: "center",
+        offset: [14, -2],        // ajuste fino da posição "na frente"
         opacity: 1,
         className: "poste-alert-tooltip"
       }
@@ -1246,7 +1251,6 @@ function criarLayerPoste(p){
   idToMarker.set(key, layer);
   return layer;
 }
-
 // ✅ Reset agora sempre usa o cache se já carregou uma vez
 function hardReset(){
   carregarTodosPostesGradualmente();
