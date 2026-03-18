@@ -1,5 +1,5 @@
 /* =========================================================
-   BASE (mantidas as regras originais do seu style.css)
+   BASE
 ========================================================= */
 body, html {
   margin: 0;
@@ -8,9 +8,30 @@ body, html {
   font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Wrapper dos mapas */
+.map-wrap {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Mapa 2D (Leaflet) */
 #map {
+  position: absolute;
+  inset: 0;
   height: 100vh;
   width: 100vw;
+  z-index: 0;
+}
+
+/* Mapa 3D (MapLibre) */
+#map3d {
+  position: absolute;
+  inset: 0;
+  height: 100vh;
+  width: 100vw;
+  z-index: 1;
+  display: none;
 }
 
 /* =========================================================
@@ -30,13 +51,13 @@ body, html {
 }
 
 /* =========================================================
-   PAINEL DE BUSCA (organização, campos, ícones e botões)
+   PAINEL DE BUSCA
 ========================================================= */
 .painel-busca{
   position: absolute;
   top: 80px;
   right: 20px;
-  width: 340px; /* confortável */
+  width: 340px;
   background: var(--bg);
   border-left: 5px solid var(--azul);
   border-radius: var(--radius);
@@ -55,7 +76,56 @@ body, html {
   border-bottom: 1px dashed var(--borda);
 }
 
-/* Campos */
+/* =========================================================
+   TOGGLE 2D / 3D
+========================================================= */
+.map-mode-toggle{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:10px;
+  margin: 0 0 12px 0;
+}
+
+.map-mode-toggle button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:44px;
+  padding:0 12px;
+  border:1px solid var(--borda);
+  border-radius:10px;
+  background: var(--bg-suave);
+  color: var(--texto);
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:.2px;
+  cursor:pointer;
+  transition: transform .08s ease, box-shadow .12s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+
+.map-mode-toggle button:hover{
+  background:#eef2ff;
+}
+
+.map-mode-toggle button:active{
+  transform: translateY(1px);
+}
+
+.map-mode-toggle button.active{
+  background: var(--azul);
+  border-color: var(--azul);
+  color:#fff;
+}
+
+.map-mode-toggle button i{
+  margin-right: 8px;
+  opacity:.9;
+}
+
+/* =========================================================
+   CAMPOS
+========================================================= */
 .painel-busca .field{
   position: relative;
   margin-bottom: 10px;
@@ -88,7 +158,6 @@ body, html {
   box-shadow: 0 0 0 3px rgba(0,85,165,.15);
 }
 
-/* Ícones nos campos */
 .painel-busca .field .fa{
   position: absolute;
   right: 12px;
@@ -99,7 +168,9 @@ body, html {
   pointer-events: none;
 }
 
-/* Grade de botões (2 colunas) */
+/* =========================================================
+   BOTÕES DE AÇÃO
+========================================================= */
 .painel-busca .actions{
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -107,7 +178,6 @@ body, html {
   margin-top: 6px;
 }
 
-/* Botão base (secundário) */
 .painel-busca .actions button{
   display: inline-flex;
   align-items: center;
@@ -139,7 +209,7 @@ body, html {
   transform: translateY(1px);
 }
 
-/* Botões “primários” — Buscar, Filtrar, Análise */
+/* Botões principais */
 .painel-busca .actions button:nth-child(1),
 .painel-busca .actions button:nth-child(3),
 .painel-busca .actions button:nth-child(4){
@@ -155,14 +225,53 @@ body, html {
   border-color: var(--azul-esc);
 }
 
-/* Estado “perigoso/alerta” opcional (ex.: Resetar) */
 .painel-busca .actions button:has(.fa-undo):hover{
   background:#fff1f2;
   border-color:#fecdd3;
 }
 
 /* =========================================================
-   BOTÕES DE TOPO (toggle, localização, logout)
+   TOGGLE DE CAMADA
+========================================================= */
+.layer-toggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid var(--borda);
+  border-radius:10px;
+  background: var(--bg-suave);
+  margin: 10px 0 8px;
+  user-select:none;
+}
+
+.layer-toggle input{
+  width:18px;
+  height:18px;
+  cursor:pointer;
+}
+
+.layer-toggle .txt{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-size:13px;
+  color: var(--texto);
+}
+
+.layer-toggle .txt small{
+  color: var(--texto-2);
+  font-size:11px;
+}
+
+.layer-toggle img{
+  width:22px;
+  height:22px;
+  object-fit:contain;
+}
+
+/* =========================================================
+   BOTÕES DE TOPO
 ========================================================= */
 .botao-topo{
   position: absolute;
@@ -206,6 +315,7 @@ body, html {
   font-size: 13px;
   color: var(--texto-2);
   box-shadow: 0 6px 20px rgba(0,0,0,.10);
+  z-index: 900;
 }
 
 .legenda-item{
@@ -226,8 +336,14 @@ body, html {
   border:1px solid #94a3b8;
 }
 
+.legenda-item .ico{
+  width:20px;
+  height:20px;
+  object-fit:contain;
+}
+
 /* =========================================================
-   HUD / WIDGET CLIMA + HORA (visual alinhado ao painel)
+   HUD / CLIMA
 ========================================================= */
 #widget-clima{
   position:absolute;
@@ -236,7 +352,6 @@ body, html {
   z-index:2000;
 }
 
-/* Caso o JS injete #tempo, estas regras harmonizam o look */
 #tempo{
   display:flex;
   flex-direction:column;
@@ -368,7 +483,6 @@ body, html {
   cursor:pointer;
 }
 
-/* (opcional) ícone/botão Street View se você decidir mover para o HUD */
 #tempo .sv-btn{
   display:inline-flex;
   align-items:center;
@@ -439,9 +553,15 @@ body, html {
     right:12px;
     top:76px;
   }
+
   .painel-busca .actions{
     grid-template-columns: 1fr 1fr;
   }
+
+  .map-mode-toggle{
+    grid-template-columns: 1fr 1fr;
+  }
+
   #widget-clima{
     left:12px;
     right:auto;
@@ -449,7 +569,7 @@ body, html {
 }
 
 /* =========================================================
-   INDICADORES (BI) – Detalhes por Município
+   INDICADORES (BI)
 ========================================================= */
 .bi-detalhes{
   margin-top: 10px;
