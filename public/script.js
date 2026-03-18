@@ -529,27 +529,24 @@
 const map = L.map("map").setView([-23.2, -45.9], 8);
 
 // =====================================================================
-// MODO 3D (MapLibre)
+// =====================================================================
+// MODO 3D (MapLibre) + POSTES NO 3D
 // =====================================================================
 let map3d = null;
 let map3dLoaded = false;
 let modoMapaAtual = "2d";
 
-function getMapLibreStyleByBaseMode() {
-  // Por enquanto usamos um style vetorial estável para o 3D
-  // Depois podemos evoluir para múltiplos estilos
-  return "https://demotiles.maplibre.org/style.json";
-}
+const MAP3D_STYLE = "https://tiles.openfreemap.org/styles/bright";
 
 function criarMapa3D(center, zoom) {
   if (map3d) return map3d;
 
   map3d = new maplibregl.Map({
     container: "map3d",
-    style: getMapLibreStyleByBaseMode(),
+    style: MAP3D_STYLE,
     center: [center.lng, center.lat],
     zoom: Math.max(zoom - 1, 1),
-    pitch: 60,
+    pitch: 55,
     bearing: -20,
     antialias: true
   });
@@ -559,6 +556,8 @@ function criarMapa3D(center, zoom) {
   map3d.on("load", () => {
     map3dLoaded = true;
     adicionarPredios3D();
+    garantirCamadasPostes3D();
+    sincronizarPostesNo3D();
   });
 
   return map3d;
@@ -566,74 +565,307 @@ function criarMapa3D(center, zoom) {
 
 function adicionarPredios3D() {
   if (!map3d || !map3dLoaded) return;
-
-  const style = map3d.getStyle();
-  if (!style || !style.layers) return;
-
   if (map3d.getLayer("3d-buildings")) return;
 
-  const labelLayerId = style.layers.find(
-    (layer) => layer.type === "symbol" && layer.layout && layer.layout["text-field"]
-  )?.id;
-
-  try {
-    map3d.addLayer(
-      {
-        id: "3d-buildings",
-        source: "openmaptiles",
-        "source-layer": "building",
-        type: "fill-extrusion",
-        minzoom: 15,
-        paint: {
-          "fill-extrusion-color": "#9ca3af",
-          "fill-extrusion-height": [
-            "coalesce",
-            ["get", "render_height"],
-            ["get", "height"],
-            8
-          ],
-          "fill-extrusion-base": [
-            "coalesce",
-            ["get", "render_min_height"],
-            ["get", "min_height"],
-            0
-          ],
-          "fill-extrusion-opacity": 0.88
-        }
-      },
-      labelLayerId
-    );
-  } catch (e) {
-    console.warn("Não foi possível adicionar prédios 3D:", e);
+  const layers = map3d.getStyle().layers || [];
+  let labelLayerId;
+  for (let i = 0; i < layers.length; i++) {
+    if (layers[i].type === "symbol" && layers[i].layout && layers[i].layout["text-field"]) {
+      labelLayerId = layers[i].id;
+      break;
+    }
   }
+
+  // garante a source vetorial usada pelos prédios
+  if (!map3d.getSource("openfreemap")) {
+    map3d.addSource("openfreemap", {
+      type: "vector",
+      url: "https://tiles.openfreemap.org/planet"
+    });
+  }
+
+  map3d.addLayer(
+    {
+      id: "3d-buildings",
+      source: "openfreemap",
+      "source-layer": "building",
+      type: "fill-extrusion",
+      minzoom: 15,
+      filter: ["!=", ["get", "hide_3d"], true],
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["get", "render_height"], ["get", "height"], 0],
+          0, "#d1d5db",
+          60, "#94a3b8",
+          200, "#64748b"
+        ],
+        "fill-extrusion-height": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          15, 0,
+          16,
+          ["coalesce", ["get", "render_height"], ["get", "height"], 8]
+        ],
+        "fill-extrusion-base": [
+          "coalesce",
+          ["get", "render_min_height"],
+          ["get", "min_height"],
+          0
+        ],
+        "fill-extrusion-opacity": 0.9
+      }
+    },
+    labelLayerId
+  );
+}
+
+function getPostesAtuaisPara3D() {
+  const saida = [];
+  const vistos = new Set();
+
+  // pega o que está atualmente no cluster do Leaflet
+  if (markers && typeof markers.eachLayer === "function") {
+    markers.eachLayer((layer) => {
+      const p = layer && layer.posteData;
+      if (!p) return;
+      const k = keyId(p.id);
+      if (vistos.has(k)) return;
+      vistos.add(k);
+      saida.push(p);
+    });
+  }
+
+  // fallback: se nada veio do cluster, usa todos
+  if (!saida.length && Array.isArray(todosPostes) && todosPostes.length) {
+    todosPostes.forEach((p) => {
+      const k = keyId(p.id);
+      if (vistos.has(k)) return;
+      vistos.add(k);
+      saida.push(p);
+    });
+  }
+
+  return saida;
+}
+
+function postesParaGeoJSON(lista) {
+  return {
+    type: "FeatureCollection",
+    features: (lista || []).map((p) => {
+      const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          id: String(p.id || ""),
+          qtd_empresas: qtd,
+          nome_municipio: p.nome_municipio || "",
+          nome_bairro: p.nome_bairro || "",
+          nome_logradouro: p.nome_logradouro || "",
+          coordenadas: p.coordenadas || "",
+          empresas: empresasToString(p) || "Disponível"
+        }
+      };
+    })
+  };
+}
+
+function garantirCamadasPostes3D() {
+  if (!map3d || !map3dLoaded) return;
+
+  if (!map3d.getSource("postes-geojson")) {
+    map3d.addSource("postes-geojson", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] }
+    });
+  }
+
+  if (!map3d.getLayer("postes-3d-circles")) {
+    map3d.addLayer({
+      id: "postes-3d-circles",
+      type: "circle",
+      source: "postes-geojson",
+      minzoom: 8,
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8, 2,
+          12, 3,
+          15, 5,
+          18, 7
+        ],
+        "circle-color": [
+          "case",
+          [">=", ["get", "qtd_empresas"], 5], "#ef4444",
+          "#22c55e"
+        ],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.2,
+        "circle-opacity": 0.95
+      }
+    });
+  }
+
+  if (!map3d.getLayer("postes-3d-labels")) {
+    map3d.addLayer({
+      id: "postes-3d-labels",
+      type: "symbol",
+      source: "postes-geojson",
+      minzoom: 17,
+      layout: {
+        "text-field": ["get", "id"],
+        "text-size": 11,
+        "text-offset": [0, 1.2],
+        "text-anchor": "top",
+        "text-allow-overlap": false
+      },
+      paint: {
+        "text-color": "#111827",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    });
+  }
+
+  // clique nos postes do 3D
+  const clickHandler = (e) => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+
+    const id = String(f.properties.id || "");
+    const poste = todosPostes.find((p) => keyId(p.id) === keyId(id));
+    if (!poste) return;
+
+    new maplibregl.Popup({ closeButton: true, maxWidth: "380px" })
+      .setLngLat(f.geometry.coordinates)
+      .setHTML(montarPopupModeloCard(poste))
+      .addTo(map3d);
+  };
+
+  if (!map3d.__postes3dEventsBound) {
+    map3d.on("click", "postes-3d-circles", clickHandler);
+    map3d.on("click", "postes-3d-labels", clickHandler);
+
+    map3d.on("mouseenter", "postes-3d-circles", () => {
+      map3d.getCanvas().style.cursor = "pointer";
+    });
+    map3d.on("mouseleave", "postes-3d-circles", () => {
+      map3d.getCanvas().style.cursor = "";
+    });
+
+    map3d.on("mouseenter", "postes-3d-labels", () => {
+      map3d.getCanvas().style.cursor = "pointer";
+    });
+    map3d.on("mouseleave", "postes-3d-labels", () => {
+      map3d.getCanvas().style.cursor = "";
+    });
+
+    map3d.__postes3dEventsBound = true;
+  }
+}
+
+function sincronizarPostesNo3D() {
+  if (!map3d || !map3dLoaded) return;
+
+  garantirCamadasPostes3D();
+
+  const lista = getPostesAtuaisPara3D();
+  const geojson = postesParaGeoJSON(lista);
+
+  const src = map3d.getSource("postes-geojson");
+  if (src) src.setData(geojson);
 }
 
 function syncLeafletTo3D() {
   if (!map3d) return;
+
   const center = map.getCenter();
   const zoom = map.getZoom();
 
   map3d.jumpTo({
     center: [center.lng, center.lat],
     zoom: Math.max(zoom - 1, 1),
-    pitch: 60,
+    pitch: 55,
     bearing: -20
   });
 
+  sincronizarPostesNo3D();
+
   setTimeout(() => {
     try { map3d.resize(); } catch (_) {}
-  }, 50);
+  }, 80);
 }
 
 function sync3DToLeaflet() {
   if (!map3d) return;
+
   const center = map3d.getCenter();
   const zoom = map3d.getZoom();
 
   map.setView([center.lat, center.lng], Math.round(zoom + 1));
+
   setTimeout(() => {
     try { map.invalidateSize(); } catch (_) {}
   }, 150);
+}
+
+window.ativarMapa3D = function () {
+  const map2dEl = document.getElementById("map");
+  const map3dEl = document.getElementById("map3d");
+
+  if (!map2dEl || !map3dEl) return;
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+
+  map2dEl.style.display = "none";
+  map3dEl.style.display = "block";
+
+  if (!map3d) {
+    criarMapa3D(center, zoom);
+  } else {
+    syncLeafletTo3D();
+  }
+
+  modoMapaAtual = "3d";
+
+  setTimeout(() => {
+    try {
+      map3d.resize();
+      sincronizarPostesNo3D();
+    } catch (_) {}
+  }, 200);
+};
+
+window.ativarMapa2D = function () {
+  const map2dEl = document.getElementById("map");
+  const map3dEl = document.getElementById("map3d");
+
+  if (!map2dEl || !map3dEl) return;
+
+  if (map3d) sync3DToLeaflet();
+
+  map3dEl.style.display = "none";
+  map2dEl.style.display = "block";
+  modoMapaAtual = "2d";
+
+  setTimeout(() => {
+    try { map.invalidateSize(); } catch (_) {}
+  }, 200);
+};
+
+function atualizar3DSeAtivo() {
+  if (modoMapaAtual === "3d" && map3d && map3dLoaded) {
+    sincronizarPostesNo3D();
+  }
 }
 
 window.ativarMapa3D = function () {
@@ -926,6 +1158,15 @@ function setBase(mode) {
   if (currentBaseMode === "sat") currentBase = esriSat;
   else if (currentBaseMode === "satlabels") currentBase = satComRotulos;
   else currentBase = osm;
+
+  currentBase.addTo(map);
+
+  if (modoMapaAtual === "3d" && map3d) {
+    setTimeout(() => {
+      try { map3d.resize(); } catch (_) {}
+    }, 100);
+  }
+}
 
   currentBase.addTo(map);
 
@@ -1419,6 +1660,7 @@ function criarLayerPoste(p){
 // ✅ Reset agora sempre usa o cache se já carregou uma vez
 function hardReset(){
   carregarTodosPostesGradualmente();
+  atualizar3DSeAtivo();
 }
 
 // Adiciona 1 poste
@@ -1435,6 +1677,7 @@ function exibirTodosPostes() {
   refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
+  atualizar3DSeAtivo();
 }
 
 // ✅ Carrega todos os postes UMA vez; depois só reaproveita o cache
@@ -1750,6 +1993,7 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
     }
   }
   scheduleIdle(addChunk);
+  atualizar3DSeAtivo();
 }
 
 // ---- Indicadores / BI (refs de gráfico) ----
@@ -2156,7 +2400,7 @@ function filtrarLocal() {
 
 function resetarMapa() {
   limparSelecaoESair({ manterMarcadores: true });
-
+  atualizar3DSeAtivo();
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
   showOverlay("Carregando todos os postes…");
@@ -2404,7 +2648,8 @@ function consultarIDsEmMassa() {
     .split(/[^0-9]+/).filter(Boolean);
 
   if (!ids.length) return alert("Nenhum ID fornecido.");
-
+   
+  atualizar3DSeAtivo();
   showOverlay("Processando IDs e gerando análise…");
 
   markers.clearLayers();
@@ -2478,6 +2723,7 @@ function consultarIDsEmMassa() {
   };
 
   reabrirTooltipFixo(0);
+  atualizar3DSeAtivo();
   reabrirPopupFixo(0);
   hideOverlay();
 }
