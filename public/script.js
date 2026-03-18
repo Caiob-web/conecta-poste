@@ -8,8 +8,7 @@
 /* ====================================================================
    Tooltip permanente para poste crítico (>8 empresas)
 ==================================================================== */
-/* ==================================================================== Tooltip permanente para poste crítico (>8 empresas) ==================================================================== */
-(function injectPosteAlertTooltipStyles(){
+(function injectPosteAlertTooltipStyles() {
   const css = `
     .poste-alert-tooltip{
       background: rgba(255,255,255,0.96);
@@ -31,8 +30,6 @@
       display: inline-block;
     }
 
-    /* garante que o tooltip de alerta NÃO tenha aquela setinha de balão
-       e fique só como um "selo" em cima do poste */
     .leaflet-tooltip.poste-alert-tooltip{
       background: rgba(255,255,255,0.96) !important;
       border-radius: 999px !important;
@@ -51,13 +48,11 @@
 
 (function injectHudStyles() {
   const css = `
-    /* HUD raiz (caixa externa) */
     #tempo{
       display:flex; flex-direction:column; gap:10px; padding:12px 14px;
       border-radius:14px; background:rgba(255,255,255,0.92);
       box-shadow:0 8px 24px rgba(0,0,0,0.12); backdrop-filter:saturate(1.15) blur(2px);
     }
-    /* Hora */
     #tempo .hora-row{
       display:flex; align-items:center; gap:8px;
       font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
@@ -68,7 +63,6 @@
       background:linear-gradient(180deg,#1e3a8a,#2563eb);
       box-shadow:0 0 0 2px #e5e7eb inset; display:inline-block;
     }
-    /* Cartão do clima + seletor */
     #tempo .weather-card{
       display:flex; flex-direction:column; gap:10px; padding:12px 14px;
       border-radius:12px; background:rgba(255,255,255,0.95);
@@ -79,7 +73,6 @@
     #tempo .weather-row img{ width:28px; height:28px; object-fit:contain; }
     #tempo .tempo-text{ display:flex; flex-direction:column; gap:2px; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#1f2937; }
     #tempo .tempo-text b{ font-weight:700; } #tempo .tempo-text small{ color:#6b7280; }
-    /* Linha do seletor de mapa dentro do cartão */
     #tempo .map-row{
       margin-top:6px; padding-top:8px; border-top:1px dashed rgba(0,0,0,.10);
       display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -96,7 +89,6 @@
     #tempo .select-wrap .ico-caret{ position:absolute; right:10px; width:14px; height:14px; opacity:.6; pointer-events:none; }
     #tempo select{ appearance:none; border:0; outline:none; background:transparent; padding:0; margin:0; font: 13px/1.2 system-ui,-apple-system, Segoe UI, Roboto, Arial; color:#111827; cursor:pointer; }
 
-    /* ---- Modal Indicadores (BI) ---- */
     .bi-backdrop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4000; background:rgba(0,0,0,.35);}
     .bi-card{width:min(960px,96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.2); font-family:'Segoe UI',system-ui;}
     .bi-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee;}
@@ -114,7 +106,6 @@
     .bi-table th,.bi-table td{padding:10px; border-bottom:1px solid #eee}
     .bi-table td.num{text-align:right}
 
-    /* Célula com logo do município */
     .bi-muni-cell{
       display:flex;
       align-items:center;
@@ -146,7 +137,6 @@
       font-size:11px;
     }
 
-    /* Detalhes por município */
     .bi-detalhes{
       margin-top:10px;
       border-top:1px solid #e5e7eb;
@@ -198,7 +188,6 @@
       text-align:right;
     }
 
-    /* Garante tooltip acima de labels/polylines */
     .leaflet-tooltip-pane{ z-index: 650 !important; pointer-events:auto; }
   `;
   const style = document.createElement("style");
@@ -229,7 +218,6 @@
     .mp-local-principal { font-weight: 500; font-size: 12px; }
     .mp-local-secundario, .mp-local-coord { font-size: 11px; color: #666; }
 
-    /* Linhas com botão de copiar */
     .mp-copy-line{
       display:flex; align-items:center; gap:6px; font-size:11px; margin:2px 0;
     }
@@ -280,7 +268,7 @@
 /* ====================================================================
    Sidebar fixa + botão recolher
 ==================================================================== */
-(function injectDockSidebarStyles(){
+(function injectDockSidebarStyles() {
   const css = `
     :root{ --dock-w: 340px; }
     .painel-busca{
@@ -305,13 +293,13 @@
     body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px !important; }
     .dock-hud{ margin-top:12px; }
   `;
-  const style = document.createElement('style');
-  style.id = 'dock-sidebar-styles';
+  const style = document.createElement("style");
+  style.id = "dock-sidebar-styles";
   style.textContent = css;
   document.head.appendChild(style);
 
-  window.addEventListener('DOMContentLoaded', () => {
-    const tgl = document.getElementById('togglePainel');
+  window.addEventListener("DOMContentLoaded", () => {
+    const tgl = document.getElementById("togglePainel");
     if (tgl) tgl.innerHTML = '<i class="fa fa-chevron-right"></i>';
   });
 })();
@@ -319,7 +307,7 @@
 /* ====================================================================
    CLUSTER: mostrar SÓ NÚMEROS (sem bolhas)
 ==================================================================== */
-(function injectClusterNumberStyles(){
+(function injectClusterNumberStyles() {
   const css = `
     .cluster-num-only{
       background:transparent !important; border:none !important; box-shadow:none !important;
@@ -328,7 +316,7 @@
       transform: translate(-50%, -50%); user-select:none; pointer-events:auto;
     }
   `;
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
 })();
@@ -336,7 +324,7 @@
 /* ====================================================================
    Estilo do botão de seleção de postes (estado ativo)
 ==================================================================== */
-(function injectSelecaoButtonStyles(){
+(function injectSelecaoButtonStyles() {
   const css = `
     .painel-busca .actions button.selecionando{
       box-shadow:0 0 0 2px rgba(59,130,246,.6);
@@ -351,7 +339,7 @@
 /* ====================================================================
    Estilos dos ícones de poste
 ==================================================================== */
-(function injectPosteIconStyles(){
+(function injectPosteIconStyles() {
   const css = `
     .poste-marker-icon{
       transform-origin:center bottom;
@@ -370,7 +358,7 @@
 /* ====================================================================
    Estilos da tela de visualização inicial (modo de carregamento)
 ==================================================================== */
-(function injectModoInicialStyles(){
+(function injectModoInicialStyles() {
   const css = `
     .modo-backdrop{
       position:fixed;
@@ -529,7 +517,6 @@
 const map = L.map("map").setView([-23.2, -45.9], 8);
 
 // =====================================================================
-// =====================================================================
 // MODO 3D (MapLibre) + POSTES NO 3D
 // =====================================================================
 let map3d = null;
@@ -576,7 +563,6 @@ function adicionarPredios3D() {
     }
   }
 
-  // garante a source vetorial usada pelos prédios
   if (!map3d.getSource("openfreemap")) {
     map3d.addSource("openfreemap", {
       type: "vector",
@@ -622,296 +608,6 @@ function adicionarPredios3D() {
   );
 }
 
-function getPostesAtuaisPara3D() {
-  const saida = [];
-  const vistos = new Set();
-
-  // pega o que está atualmente no cluster do Leaflet
-  if (markers && typeof markers.eachLayer === "function") {
-    markers.eachLayer((layer) => {
-      const p = layer && layer.posteData;
-      if (!p) return;
-      const k = keyId(p.id);
-      if (vistos.has(k)) return;
-      vistos.add(k);
-      saida.push(p);
-    });
-  }
-
-  // fallback: se nada veio do cluster, usa todos
-  if (!saida.length && Array.isArray(todosPostes) && todosPostes.length) {
-    todosPostes.forEach((p) => {
-      const k = keyId(p.id);
-      if (vistos.has(k)) return;
-      vistos.add(k);
-      saida.push(p);
-    });
-  }
-
-  return saida;
-}
-
-function postesParaGeoJSON(lista) {
-  return {
-    type: "FeatureCollection",
-    features: (lista || []).map((p) => {
-      const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      return {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [Number(p.lon), Number(p.lat)]
-        },
-        properties: {
-          id: String(p.id || ""),
-          qtd_empresas: qtd,
-          nome_municipio: p.nome_municipio || "",
-          nome_bairro: p.nome_bairro || "",
-          nome_logradouro: p.nome_logradouro || "",
-          coordenadas: p.coordenadas || "",
-          empresas: empresasToString(p) || "Disponível"
-        }
-      };
-    })
-  };
-}
-
-function garantirCamadasPostes3D() {
-  if (!map3d || !map3dLoaded) return;
-
-  if (!map3d.getSource("postes-geojson")) {
-    map3d.addSource("postes-geojson", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] }
-    });
-  }
-
-  if (!map3d.getLayer("postes-3d-circles")) {
-    map3d.addLayer({
-      id: "postes-3d-circles",
-      type: "circle",
-      source: "postes-geojson",
-      minzoom: 8,
-      paint: {
-        "circle-radius": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          8, 2,
-          12, 3,
-          15, 5,
-          18, 7
-        ],
-        "circle-color": [
-          "case",
-          [">=", ["get", "qtd_empresas"], 5], "#ef4444",
-          "#22c55e"
-        ],
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 1.2,
-        "circle-opacity": 0.95
-      }
-    });
-  }
-
-  if (!map3d.getLayer("postes-3d-labels")) {
-    map3d.addLayer({
-      id: "postes-3d-labels",
-      type: "symbol",
-      source: "postes-geojson",
-      minzoom: 17,
-      layout: {
-        "text-field": ["get", "id"],
-        "text-size": 11,
-        "text-offset": [0, 1.2],
-        "text-anchor": "top",
-        "text-allow-overlap": false
-      },
-      paint: {
-        "text-color": "#111827",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 1.5
-      }
-    });
-  }
-
-  // clique nos postes do 3D
-  const clickHandler = (e) => {
-    const f = e.features && e.features[0];
-    if (!f) return;
-
-    const id = String(f.properties.id || "");
-    const poste = todosPostes.find((p) => keyId(p.id) === keyId(id));
-    if (!poste) return;
-
-    new maplibregl.Popup({ closeButton: true, maxWidth: "380px" })
-      .setLngLat(f.geometry.coordinates)
-      .setHTML(montarPopupModeloCard(poste))
-      .addTo(map3d);
-  };
-
-  if (!map3d.__postes3dEventsBound) {
-    map3d.on("click", "postes-3d-circles", clickHandler);
-    map3d.on("click", "postes-3d-labels", clickHandler);
-
-    map3d.on("mouseenter", "postes-3d-circles", () => {
-      map3d.getCanvas().style.cursor = "pointer";
-    });
-    map3d.on("mouseleave", "postes-3d-circles", () => {
-      map3d.getCanvas().style.cursor = "";
-    });
-
-    map3d.on("mouseenter", "postes-3d-labels", () => {
-      map3d.getCanvas().style.cursor = "pointer";
-    });
-    map3d.on("mouseleave", "postes-3d-labels", () => {
-      map3d.getCanvas().style.cursor = "";
-    });
-
-    map3d.__postes3dEventsBound = true;
-  }
-}
-
-function sincronizarPostesNo3D() {
-  if (!map3d || !map3dLoaded) return;
-
-  garantirCamadasPostes3D();
-
-  const lista = getPostesAtuaisPara3D();
-  const geojson = postesParaGeoJSON(lista);
-
-  const src = map3d.getSource("postes-geojson");
-  if (src) src.setData(geojson);
-}
-
-function syncLeafletTo3D() {
-  if (!map3d) return;
-
-  const center = map.getCenter();
-  const zoom = map.getZoom();
-
-  map3d.jumpTo({
-    center: [center.lng, center.lat],
-    zoom: Math.max(zoom - 1, 1),
-    pitch: 55,
-    bearing: -20
-  });
-
-  sincronizarPostesNo3D();
-
-  setTimeout(() => {
-    try { map3d.resize(); } catch (_) {}
-  }, 80);
-}
-
-function sync3DToLeaflet() {
-  if (!map3d) return;
-
-  const center = map3d.getCenter();
-  const zoom = map3d.getZoom();
-
-  map.setView([center.lat, center.lng], Math.round(zoom + 1));
-
-  setTimeout(() => {
-    try { map.invalidateSize(); } catch (_) {}
-  }, 150);
-}
-
-window.ativarMapa3D = function () {
-  const map2dEl = document.getElementById("map");
-  const map3dEl = document.getElementById("map3d");
-
-  if (!map2dEl || !map3dEl) return;
-
-  const center = map.getCenter();
-  const zoom = map.getZoom();
-
-  map2dEl.style.display = "none";
-  map3dEl.style.display = "block";
-
-  if (!map3d) {
-    criarMapa3D(center, zoom);
-  } else {
-    syncLeafletTo3D();
-  }
-
-  modoMapaAtual = "3d";
-
-  setTimeout(() => {
-    try {
-      map3d.resize();
-      sincronizarPostesNo3D();
-    } catch (_) {}
-  }, 200);
-};
-
-window.ativarMapa2D = function () {
-  const map2dEl = document.getElementById("map");
-  const map3dEl = document.getElementById("map3d");
-
-  if (!map2dEl || !map3dEl) return;
-
-  if (map3d) sync3DToLeaflet();
-
-  map3dEl.style.display = "none";
-  map2dEl.style.display = "block";
-  modoMapaAtual = "2d";
-
-  setTimeout(() => {
-    try { map.invalidateSize(); } catch (_) {}
-  }, 200);
-};
-
-function atualizar3DSeAtivo() {
-  if (modoMapaAtual === "3d" && map3d && map3dLoaded) {
-    sincronizarPostesNo3D();
-  }
-}
-
-window.ativarMapa3D = function () {
-  const map2dEl = document.getElementById("map");
-  const map3dEl = document.getElementById("map3d");
-
-  if (!map2dEl || !map3dEl) return;
-
-  const center = map.getCenter();
-  const zoom = map.getZoom();
-
-  map2dEl.style.display = "none";
-  map3dEl.style.display = "block";
-
-  if (!map3d) {
-    criarMapa3D(center, zoom);
-  } else {
-    syncLeafletTo3D();
-  }
-
-  modoMapaAtual = "3d";
-
-  setTimeout(() => {
-    try { map3d.resize(); } catch (_) {}
-  }, 200);
-};
-
-window.ativarMapa2D = function () {
-  const map2dEl = document.getElementById("map");
-  const map3dEl = document.getElementById("map3d");
-
-  if (!map2dEl || !map3dEl) return;
-
-  if (map3d) {
-    sync3DToLeaflet();
-  }
-
-  map3dEl.style.display = "none";
-  map2dEl.style.display = "block";
-  modoMapaAtual = "2d";
-
-  setTimeout(() => {
-    try { map.invalidateSize(); } catch (_) {}
-  }, 200);
-};
-
 // Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
 const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
@@ -924,7 +620,6 @@ const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_la
 });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
 
-// pane para postes
 const postesPane = map.createPane("postes");
 postesPane.style.zIndex = 630;
 
@@ -932,30 +627,21 @@ osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
 
-// Poste de Concreto
 const SVG_POSTE_CONCRETO = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
-  <!-- corpo do poste -->
   <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
-
-  <!-- 2 cruzetas -->
   <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
   <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
-
-  <!-- “parafusos” nas cruzetas -->
   <circle cx="18" cy="24" r="2" fill="#DDD"/>
   <circle cx="46" cy="24" r="2" fill="#DDD"/>
   <circle cx="22" cy="34" r="2" fill="#DDD"/>
   <circle cx="42" cy="34" r="2" fill="#DDD"/>
-
-  <!-- marcações -->
   <line x1="29" y1="55" x2="35" y2="55" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
   <line x1="29" y1="75" x2="35" y2="75" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
   <line x1="29" y1="95" x2="35" y2="95" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
 </svg>
 `.trim();
 
-// Poste de Madeira
 const SVG_POSTE_MADEIRA = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>
@@ -968,7 +654,6 @@ const SVG_POSTE_MADEIRA = `
 </svg>
 `.trim();
 
-// Tamanho dos postes
 const POSTE_ICON_SIZE = [22, 44];
 const POSTE_ICON_ANCHOR = [11, 42];
 const POSTE_TOOLTIP_ANCHOR = [0, -38];
@@ -992,14 +677,38 @@ const ICON_POSTE_MADEIRA = L.icon({
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
+// Dados e sets para autocomplete
+const todosPostes = [];
+const empresasContagem = {};
+const municipiosSet = new Set();
+const bairrosSet = new Set();
+const logradourosSet = new Set();
+let censoMode = false, censoIds = null;
+
+// Helpers pra lidar com empresas (nome + id_insercao)
+function getEmpresasNomesArray(p) {
+  if (!Array.isArray(p.empresas)) return [];
+  return p.empresas.map((e) =>
+    typeof e === "string" ? e : (e.nome || e.empresa || "")
+  );
+}
+function empresasToString(p) {
+  return getEmpresasNomesArray(p).filter(Boolean).join(", ");
+}
+function hasEmpresaNome(p, buscaLower) {
+  if (!buscaLower) return true;
+  return getEmpresasNomesArray(p).some((nome) =>
+    (nome || "").toLowerCase().includes(buscaLower)
+  );
+}
+
 function getPosteIcon(poste) {
-  const qtd = Array.isArray(poste.empresas) ? poste.empresas.length : 0;
   const matRaw = (poste.material || poste.tipo || poste.tipo_poste || "").toString().toLowerCase();
   const isMadeira = matRaw.includes("madeira");
   return isMadeira ? ICON_POSTE_MADEIRA : ICON_POSTE_CONCRETO;
 }
 
-function dotStyle(qtdEmpresas){
+function dotStyle(qtdEmpresas) {
   return {
     radius: 4,
     color: "#111827",
@@ -1168,15 +877,46 @@ function setBase(mode) {
   }
 }
 
-  currentBase.addTo(map);
+// -------------------- Cluster (só números) ---------------------------
+const markers = L.markerClusterGroup({
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: false,
+  maxClusterRadius: 60,
+  disableClusteringAtZoom: 17,
+  chunkedLoading: true,
+  chunkDelay: 5,
+  chunkInterval: 50,
+  iconCreateFunction: (cluster) =>
+    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
+});
 
-  // Se estiver no 3D, força recálculo visual
-  if (modoMapaAtual === "3d" && map3d) {
-    setTimeout(() => {
-      try { map3d.resize(); } catch (_) {}
-    }, 100);
-  }
-}
+// Clique no cluster: spiderfy + abre 1º filho
+markers.off("clusterclick");
+markers.on("clusterclick", (e) => {
+  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+  const childs = e.layer.getAllChildMarkers();
+  e.layer.spiderfy();
+  requestAnimationFrame(() => {
+    const first = childs && childs[0];
+    if (first && first.posteData) {
+      try { first.openTooltip?.(); } catch {}
+      abrirPopup(first.posteData);
+      lastTip = { id: keyId(first.posteData.id) };
+      tipPinned = true;
+    }
+  });
+});
+
+map.addLayer(markers);
+
+// -------------------- Carregamento GRADATIVO GLOBAL ------------------
+const idToMarker = new Map();
+let todosCarregados = false;
+function keyId(id) { return String(id); }
+const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
+function scheduleIdle(fn) { document.hidden ? setTimeout(fn, 0) : idle(fn); }
+function refreshClustersSoon() { requestAnimationFrame(() => markers.refreshClusters()); }
 
 /* ====================================================================
    Overlay de carregamento (spinner geral)
@@ -1194,21 +934,53 @@ function hideOverlay() {
   overlay.style.display = "none";
 }
 
-// mostra enquanto carrega a base
 showOverlay("Carregando base de postes…");
 
 /* ====================================================================
+   Popup fixo: instância única, sem piscar
+==================================================================== */
+const mainPopup = L.popup({ closeOnClick: false, autoClose: false, maxWidth: 360 });
+let popupPinned = false;
+let lastPopup = null;
+
+function reabrirPopupFixo(delay = 0) {
+  if (!popupPinned || !lastPopup) return;
+  const open = () => {
+    mainPopup.setLatLng([lastPopup.lat, lastPopup.lon]).setContent(lastPopup.html);
+    if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
+  };
+  delay ? setTimeout(open, delay) : open();
+}
+map.on("popupclose", (e) => {
+  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
+});
+
+/* ====================================================================
+   Tooltip fixo (reabrir após cluster/reset)
+==================================================================== */
+let tipPinned = false;
+let lastTip = null;
+
+function reabrirTooltipFixo(delay = 0) {
+  if (!lastTip || !tipPinned) return;
+  const open = () => {
+    const layer = idToMarker.get(keyId(lastTip.id));
+    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
+  };
+  delay ? setTimeout(open, delay) : open();
+}
+
+/* ====================================================================
    Helpers (escape / copiar / toggle empresa)
-   ✅ CORRIGIDO: Aspas agora são escapadas como "
 ==================================================================== */
 function escapeHtml(str) {
   if (str == null) return "";
   return String(str)
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "'");
+    .replace(/'/g, "&#39;");
 }
 function escapeAttr(str) { return escapeHtml(str); }
 
@@ -1348,23 +1120,23 @@ const transformadores = [];
 const idToTransformadorMarker = new Map();
 let transformadoresCarregados = false;
 
-function normKey(k){
+function normKey(k) {
   return String(k || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
-function buildNormMap(obj){
+function buildNormMap(obj) {
   const m = new Map();
   for (const [k, v] of Object.entries(obj || {})) m.set(normKey(k), v);
   return m;
 }
-function pickAny(obj, candidates = []){
+function pickAny(obj, candidates = []) {
   const m = buildNormMap(obj);
-  for (const c of candidates){
+  for (const c of candidates) {
     const v = m.get(normKey(c));
     if (v !== undefined && v !== null && String(v).trim() !== "") return v;
   }
   return null;
 }
-function extractLatLon(t){
+function extractLatLon(t) {
   const coord = pickAny(t, ["coordenadas", "coord", "coordenada", "latlon", "geo", "geolocalizacao"]);
   if (coord && typeof coord === "string" && coord.includes(",")) {
     const [la, lo] = coord.split(/,\s*/).map(Number);
@@ -1386,7 +1158,7 @@ function flattenObject(obj, prefix = "", out = {}) {
   }
   return out;
 }
-function formatAny(v){
+function formatAny(v) {
   if (v === null || v === undefined || String(v).trim() === "") return "—";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
   if (typeof v === "object") return JSON.stringify(v);
@@ -1453,7 +1225,7 @@ async function carregarTransformadores() {
       const pos = extractLatLon(t);
       if (!pos) return;
 
-      const key = String(pickAny(t, ["id","id_transformador","codigo","cod_transformador"]) ?? idx);
+      const key = String(pickAny(t, ["id", "id_transformador", "codigo", "cod_transformador"]) ?? idx);
       if (idToTransformadorMarker.has(key)) return;
 
       const mk = L.marker([pos.lat, pos.lon], { icon, pane: "transformadores" });
@@ -1487,143 +1259,29 @@ function syncTransformadoresToggle() {
 }
 window.addEventListener("DOMContentLoaded", syncTransformadoresToggle);
 
-// -------------------- Cluster (só números) ---------------------------
-const markers = L.markerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: false,
-  maxClusterRadius: 60,
-  disableClusteringAtZoom: 17,
-  chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
-  iconCreateFunction: (cluster) =>
-    new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
-});
-
-// Clique no cluster: spiderfy + abre 1º filho
-markers.off("clusterclick");
-markers.on("clusterclick", (e) => {
-  if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-  const childs = e.layer.getAllChildMarkers();
-  e.layer.spiderfy();
-  requestAnimationFrame(() => {
-    const first = childs && childs[0];
-    if (first && first.posteData) {
-      try { first.openTooltip?.(); } catch {}
-      abrirPopup(first.posteData);
-      lastTip = { id: keyId(first.posteData.id) };
-      tipPinned = true;
-    }
-  });
-});
-
-map.addLayer(markers);
-
-// -------------------- Carregamento GRADATIVO GLOBAL ------------------
-const idToMarker = new Map();   // cache: id(string) -> L.Layer
-let todosCarregados = false;
-function keyId(id){ return String(id); }
-const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
-function scheduleIdle(fn){ document.hidden ? setTimeout(fn, 0) : idle(fn); }
-function refreshClustersSoon(){ requestAnimationFrame(() => markers.refreshClusters()); }
-
-/* ====================================================================
-   Popup fixo: instância única, sem piscar
-==================================================================== */
-const mainPopup = L.popup({ closeOnClick:false, autoClose:false, maxWidth:360 });
-let popupPinned = false;
-let lastPopup = null;
-
-function reabrirPopupFixo(delay = 0){
-  if (!popupPinned || !lastPopup) return;
-  const open = () => {
-    mainPopup.setLatLng([lastPopup.lat, lastPopup.lon]).setContent(lastPopup.html);
-    if (!map.hasLayer(mainPopup)) mainPopup.addTo(map);
-  };
-  delay ? setTimeout(open, delay) : open();
-}
-map.on("popupclose", (e) => {
-  if (e.popup === mainPopup) { popupPinned = false; lastPopup = null; }
-});
-
-/* ====================================================================
-   Tooltip fixo (reabrir após cluster/reset)
-==================================================================== */
-let tipPinned = false;
-let lastTip = null;
-
-function reabrirTooltipFixo(delay = 0) {
-  if (!lastTip || !tipPinned) return;
-  const open = () => {
-    const layer = idToMarker.get(keyId(lastTip.id));
-    if (layer && markers.hasLayer(layer)) { try { layer.openTooltip(); } catch {} }
-  };
-  delay ? setTimeout(open, delay) : open();
-}
-
-// Dados e sets para autocomplete
-const todosPostes = [];
-const empresasContagem = {};
-const municipiosSet = new Set();
-const bairrosSet = new Set();
-const logradourosSet = new Set();
-let censoMode = false, censoIds = null;
-
-// Helpers pra lidar com empresas (nome + id_insercao)
-function getEmpresasNomesArray(p) {
-  if (!Array.isArray(p.empresas)) return [];
-  return p.empresas.map((e) =>
-    typeof e === "string" ? e : (e.nome || e.empresa || "")
-  );
-}
-function empresasToString(p) {
-  return getEmpresasNomesArray(p).filter(Boolean).join(", ");
-}
-function hasEmpresaNome(p, buscaLower) {
-  if (!buscaLower) return true;
-  return getEmpresasNomesArray(p).some((nome) =>
-    (nome || "").toLowerCase().includes(buscaLower)
-  );
-}
-
 // ====================================================================
 // Criação dos marcadores de postes + tooltip de alerta
 // ====================================================================
-
-// Ícone de alerta (imagem externa — ideal é colocar um /assets/alerta.png depois)
 const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
 
-// Cria (ou retorna do cache) o layer do poste
-// Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
-// Cria (ou retorna do cache) o layer do poste (AGORA ÍCONE SVG)
-function criarLayerPoste(p){
+function criarLayerPoste(p) {
   const key = keyId(p.id);
   if (idToMarker.has(key)) return idToMarker.get(key);
 
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
   const txtQtd = qtd ? `${qtd} ${qtd === 1 ? "empresa" : "empresas"}` : "Disponível";
   const icon = getPosteIcon(p);
-
-  // ✅ ALERTA: aparece no poste quando tem mais de 8 empresas
   const critico = qtd > 8;
-
-  // Ícone de atenção
-  const ALERT_ICON_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYx2n2F4RJqJMFPBJwB_S7gp5tXOJBys8EkQ&s";
 
   const tooltipHtml = critico
     ? `<img class="poste-alert-img" src="${ALERT_ICON_URL}" alt="alerta"> ${qtd}`
     : `ID: ${p.id} — ${txtQtd}`;
 
-  // 🎯 Aqui é o truque:
-  // - direction: "center" => ancora no centro do marcador
-  // - offset: [14, -2]   => empurra um pouco pra direita, levemente pra cima
-  //   (fica na frente do poste, mas ainda colado nele)
   const tooltipOpts = critico
     ? {
         permanent: true,
         direction: "center",
-        offset: [14, -2],        // ajuste fino da posição "na frente"
+        offset: [14, -2],
         opacity: 1,
         className: "poste-alert-tooltip"
       }
@@ -1636,29 +1294,273 @@ function criarLayerPoste(p){
     icon,
     pane: "postes"
   })
-  .bindTooltip(tooltipHtml, tooltipOpts)
-  .on("mouseover", () => {
-    lastTip = { id: key };
-    tipPinned = false;
-  })
-  .on("click", (e) => {
-    if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-
-    // Modo seleção primeiro
-    if (handleSelecaoClick(p, layer)) return;
-
-    lastTip = { id: key };
-    tipPinned = true;
-    try { layer.openTooltip?.(); } catch {}
-    abrirPopup(p);
-  });
+    .bindTooltip(tooltipHtml, tooltipOpts)
+    .on("mouseover", () => {
+      lastTip = { id: key };
+      tipPinned = false;
+    })
+    .on("click", (e) => {
+      if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      if (handleSelecaoClick(p, layer)) return;
+      lastTip = { id: key };
+      tipPinned = true;
+      try { layer.openTooltip?.(); } catch {}
+      abrirPopup(p);
+    });
 
   layer.posteData = p;
   idToMarker.set(key, layer);
   return layer;
 }
+
+// =====================================================================
+// MODO 3D — POSTES
+// =====================================================================
+function getPostesAtuaisPara3D() {
+  const saida = [];
+  const vistos = new Set();
+
+  if (markers && typeof markers.eachLayer === "function") {
+    markers.eachLayer((layer) => {
+      const p = layer && layer.posteData;
+      if (!p) return;
+      const k = keyId(p.id);
+      if (vistos.has(k)) return;
+      vistos.add(k);
+      saida.push(p);
+    });
+  }
+
+  if (!saida.length && Array.isArray(todosPostes) && todosPostes.length) {
+    todosPostes.forEach((p) => {
+      const k = keyId(p.id);
+      if (vistos.has(k)) return;
+      vistos.add(k);
+      saida.push(p);
+    });
+  }
+
+  return saida;
+}
+
+function postesParaGeoJSON(lista) {
+  return {
+    type: "FeatureCollection",
+    features: (lista || []).map((p) => {
+      const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          id: String(p.id || ""),
+          qtd_empresas: qtd,
+          nome_municipio: p.nome_municipio || "",
+          nome_bairro: p.nome_bairro || "",
+          nome_logradouro: p.nome_logradouro || "",
+          coordenadas: p.coordenadas || "",
+          empresas: empresasToString(p) || "Disponível"
+        }
+      };
+    })
+  };
+}
+
+function garantirCamadasPostes3D() {
+  if (!map3d || !map3dLoaded) return;
+
+  if (!map3d.getSource("postes-geojson")) {
+    map3d.addSource("postes-geojson", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] }
+    });
+  }
+
+  if (!map3d.getLayer("postes-3d-circles")) {
+    map3d.addLayer({
+      id: "postes-3d-circles",
+      type: "circle",
+      source: "postes-geojson",
+      minzoom: 8,
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8, 2,
+          12, 3,
+          15, 5,
+          18, 7
+        ],
+        "circle-color": [
+          "case",
+          [">=", ["get", "qtd_empresas"], 5], "#ef4444",
+          "#22c55e"
+        ],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.2,
+        "circle-opacity": 0.95
+      }
+    });
+  }
+
+  if (!map3d.getLayer("postes-3d-labels")) {
+    map3d.addLayer({
+      id: "postes-3d-labels",
+      type: "symbol",
+      source: "postes-geojson",
+      minzoom: 17,
+      layout: {
+        "text-field": ["get", "id"],
+        "text-size": 11,
+        "text-offset": [0, 1.2],
+        "text-anchor": "top",
+        "text-allow-overlap": false
+      },
+      paint: {
+        "text-color": "#111827",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    });
+  }
+
+  const clickHandler = (e) => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+
+    const id = String(f.properties.id || "");
+    const poste = todosPostes.find((p) => keyId(p.id) === keyId(id));
+    if (!poste) return;
+
+    new maplibregl.Popup({ closeButton: true, maxWidth: "380px" })
+      .setLngLat(f.geometry.coordinates)
+      .setHTML(montarPopupModeloCard(poste))
+      .addTo(map3d);
+  };
+
+  if (!map3d.__postes3dEventsBound) {
+    map3d.on("click", "postes-3d-circles", clickHandler);
+    map3d.on("click", "postes-3d-labels", clickHandler);
+
+    map3d.on("mouseenter", "postes-3d-circles", () => {
+      map3d.getCanvas().style.cursor = "pointer";
+    });
+    map3d.on("mouseleave", "postes-3d-circles", () => {
+      map3d.getCanvas().style.cursor = "";
+    });
+
+    map3d.on("mouseenter", "postes-3d-labels", () => {
+      map3d.getCanvas().style.cursor = "pointer";
+    });
+    map3d.on("mouseleave", "postes-3d-labels", () => {
+      map3d.getCanvas().style.cursor = "";
+    });
+
+    map3d.__postes3dEventsBound = true;
+  }
+}
+
+function sincronizarPostesNo3D() {
+  if (!map3d || !map3dLoaded) return;
+
+  garantirCamadasPostes3D();
+
+  const lista = getPostesAtuaisPara3D();
+  const geojson = postesParaGeoJSON(lista);
+
+  const src = map3d.getSource("postes-geojson");
+  if (src) src.setData(geojson);
+}
+
+function syncLeafletTo3D() {
+  if (!map3d) return;
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+
+  map3d.jumpTo({
+    center: [center.lng, center.lat],
+    zoom: Math.max(zoom - 1, 1),
+    pitch: 55,
+    bearing: -20
+  });
+
+  sincronizarPostesNo3D();
+
+  setTimeout(() => {
+    try { map3d.resize(); } catch (_) {}
+  }, 80);
+}
+
+function sync3DToLeaflet() {
+  if (!map3d) return;
+
+  const center = map3d.getCenter();
+  const zoom = map3d.getZoom();
+
+  map.setView([center.lat, center.lng], Math.round(zoom + 1));
+
+  setTimeout(() => {
+    try { map.invalidateSize(); } catch (_) {}
+  }, 150);
+}
+
+window.ativarMapa3D = function () {
+  const map2dEl = document.getElementById("map");
+  const map3dEl = document.getElementById("map3d");
+
+  if (!map2dEl || !map3dEl) return;
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+
+  map2dEl.style.display = "none";
+  map3dEl.style.display = "block";
+
+  if (!map3d) {
+    criarMapa3D(center, zoom);
+  } else {
+    syncLeafletTo3D();
+  }
+
+  modoMapaAtual = "3d";
+
+  setTimeout(() => {
+    try {
+      map3d.resize();
+      sincronizarPostesNo3D();
+    } catch (_) {}
+  }, 200);
+};
+
+window.ativarMapa2D = function () {
+  const map2dEl = document.getElementById("map");
+  const map3dEl = document.getElementById("map3d");
+
+  if (!map2dEl || !map3dEl) return;
+
+  if (map3d) sync3DToLeaflet();
+
+  map3dEl.style.display = "none";
+  map2dEl.style.display = "block";
+  modoMapaAtual = "2d";
+
+  setTimeout(() => {
+    try { map.invalidateSize(); } catch (_) {}
+  }, 200);
+};
+
+function atualizar3DSeAtivo() {
+  if (modoMapaAtual === "3d" && map3d && map3dLoaded) {
+    sincronizarPostesNo3D();
+  }
+}
+
 // ✅ Reset agora sempre usa o cache se já carregou uma vez
-function hardReset(){
+function hardReset() {
   carregarTodosPostesGradualmente();
   atualizar3DSeAtivo();
 }
@@ -1694,6 +1596,7 @@ function carregarTodosPostesGradualmente() {
     }
     reabrirTooltipFixo(0);
     reabrirPopupFixo(0);
+    atualizar3DSeAtivo();
     hideOverlay();
     return;
   }
@@ -1713,6 +1616,7 @@ function carregarTodosPostesGradualmente() {
       todosCarregados = true;
       reabrirTooltipFixo(0);
       reabrirPopupFixo(0);
+      atualizar3DSeAtivo();
       hideOverlay();
     }
   }
@@ -1725,42 +1629,42 @@ function carregarTodosPostesGradualmente() {
 const GEOJSON_BASE = "/data/geojson";
 
 const MUNICIPIOS_META = [
-  { id:"aparecida",      db:"APARECIDA",             label:"APARECIDA",              logo:"https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
-  { id:"biritiba",       db:"BIRITIBA MIRIM",         label:"BIRITIBA MIRIM",          logo:"https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
-  { id:"cacapava",       db:"CAÇAPAVA",                label:"CAÇAPAVA",                 logo:"https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
-  { id:"cachoeira",      db:"CACHOEIRA PAULISTA",      label:"CACHOEIRA PAULISTA",      logo:"https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
-  { id:"canas",          db:"CANAS",                   label:"CANAS",                   logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
-  { id:"caraguatatuba",  db:"CARAGUATATUBA",           label:"CARAGUATATUBA",           logo:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
-  { id:"cruzeiro",       db:"CRUZEIRO",                label:"CRUZEIRO",                logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
-  { id:"ferraz",         db:"FERRAZ DE VASCONCELOS",  label:"FERRAZ DE VASCONCELOS",  logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
-  { id:"guararema",      db:"GUARAREMA",               label:"GUARAREMA",               logo:"https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
-  { id:"guaratingueta",  db:"GUARATINGUETÁ",           label:"GUARATINGUETÁ",           logo:"https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
-  { id:"guarulhos",      db:"GUARULHOS",               label:"GUARULHOS",               logo:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
-  { id:"itaquaquecetuba",db:"ITAQUAQUECETUBA",         label:"ITAQUAQUECETUBA",         logo:"https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
-  { id:"jacarei",        db:"JACAREÍ",                 label:"JACAREÍ",                 logo:"https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
-  { id:"jambeiro",       db:"JAMBEIRO",                label:"JAMBEIRO",                logo:"https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
-  { id:"lorena",         db:"LORENA",                  label:"LORENA",                  logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
-  { id:"mogi",           db:"MOGI DAS CRUZES",         label:"MOGI DAS CRUZES",         logo:"https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
-  { id:"monteirolobato", db:"MONTEIRO LOBATO",        label:"MONTEIRO LOBATO",        logo:"https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
-  { id:"pindamonhangaba",db:"PINDAMONHANGABA",         label:"PINDAMONHANGABA",         logo:"https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
-  { id:"poa",            db:"POÁ",                     label:"POÁ",                     logo:"https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
-  { id:"potim",          db:"POTIM",                   label:"POTIM",                   logo:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
-  { id:"roseira",        db:"ROSEIRA",                 label:"ROSEIRA",                 logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
-  { id:"salesopolis",    db:"SALESÓPOLIS",             label:"SALESÓPOLIS",             logo:"https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
-  { id:"santabranca",    db:"SANTA BRANCA",            label:"SANTA BRANCA",            logo:"https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
-  { id:"sjc",            db:"SÃO JOSÉ DOS CAMPOS",     label:"SÃO JOSÉ DOS CAMPOS",     logo:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
-  { id:"saosebastiao",   db:"SÃO SEBASTIÃO",           label:"SÃO SEBASTIÃO",           logo:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
-  { id:"suzano",         db:"SUZANO",                  label:"SUZANO",                  logo:"https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
-  { id:"taubate",        db:"TAUBATÉ",                 label:"TAUBATÉ",                 logo:"https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
-  { id:"tremembe",       db:"TREMEMBÉ",                label:"TREMEMBÉ",                logo:"https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
+  { id: "aparecida", db: "APARECIDA", label: "APARECIDA", logo: "https://upload.wikimedia.org/wikipedia/commons/6/6f/Bras%C3%A3o_de_Aparecida.jpg" },
+  { id: "biritiba", db: "BIRITIBA MIRIM", label: "BIRITIBA MIRIM", logo: "https://upload.wikimedia.org/wikipedia/commons/4/42/Biritiba_Mirim_%28SP%29_-_Brasao.svg" },
+  { id: "cacapava", db: "CAÇAPAVA", label: "CAÇAPAVA", logo: "https://www.camaracacapava.sp.gov.br/public/admin/globalarq/uploads/files/brasao-da-cidade.png" },
+  { id: "cachoeira", db: "CACHOEIRA PAULISTA", label: "CACHOEIRA PAULISTA", logo: "https://upload.wikimedia.org/wikipedia/commons/3/32/Bras%C3%A3o_de_Cachoeira_Paulista.png" },
+  { id: "canas", db: "CANAS", label: "CANAS", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSg067-ZJ_PZzDuuwryzTkiYYaqXWOhQW2SrQ&s" },
+  { id: "caraguatatuba", db: "CARAGUATATUBA", label: "CARAGUATATUBA", logo: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Brasao_Caraguatatuba_SaoPaulo_Brasil.svg" },
+  { id: "cruzeiro", db: "CRUZEIRO", label: "CRUZEIRO", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVKs5qniu5fCCJ0WNQUyPlTdIZwr7TJAI94w&s" },
+  { id: "ferraz", db: "FERRAZ DE VASCONCELOS", label: "FERRAZ DE VASCONCELOS", logo: "https://upload.wikimedia.org/wikipedia/commons/2/2a/Brasao_ferraz.JPG" },
+  { id: "guararema", db: "GUARAREMA", label: "GUARAREMA", logo: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Bras%C3%A3o_de_Guararema-SP.png" },
+  { id: "guaratingueta", db: "GUARATINGUETÁ", label: "GUARATINGUETÁ", logo: "https://upload.wikimedia.org/wikipedia/commons/1/17/Brasaoguara.jpg" },
+  { id: "guarulhos", db: "GUARULHOS", label: "GUARULHOS", logo: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Bras%C3%A3o_de_Guarulhos.png" },
+  { id: "itaquaquecetuba", db: "ITAQUAQUECETUBA", label: "ITAQUAQUECETUBA", logo: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Bras%C3%A3o_de_armas_itaquaquecetuba.jpg" },
+  { id: "jacarei", db: "JACAREÍ", label: "JACAREÍ", logo: "https://www.jacarei.sp.leg.br/wp-content/uploads/2018/08/C%C3%A2mara-realiza-audi%C3%AAncia-para-discuss%C3%A3o-do-trabalho-de-revis%C3%A3o-do-Bras%C3%A3o-de-Armas-do-Munic%C3%ADpio.jpg" },
+  { id: "jambeiro", db: "JAMBEIRO", label: "JAMBEIRO", logo: "https://upload.wikimedia.org/wikipedia/commons/1/15/Jambeiro%2C_bras%C3%A3o_municipal.png" },
+  { id: "lorena", db: "LORENA", label: "LORENA", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Lorena_brasao.png" },
+  { id: "mogi", db: "MOGI DAS CRUZES", label: "MOGI DAS CRUZES", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Bras%C3%A3o_de_Mogi_das_Cruzes_%28SP%29.png" },
+  { id: "monteirolobato", db: "MONTEIRO LOBATO", label: "MONTEIRO LOBATO", logo: "https://monteirolobato.sp.gov.br/admin/ckeditor/getimage?imageId=41" },
+  { id: "pindamonhangaba", db: "PINDAMONHANGABA", label: "PINDAMONHANGABA", logo: "https://upload.wikimedia.org/wikipedia/commons/4/40/Bras%C3%A3o_Pindamonhangaba.png" },
+  { id: "poa", db: "POÁ", label: "POÁ", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5b/Brasaopoaense.gif" },
+  { id: "potim", db: "POTIM", label: "POTIM", logo: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Potim_brasao.png" },
+  { id: "roseira", db: "ROSEIRA", label: "ROSEIRA", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZMJ4log_5opnq1asDpe3MAWNJbzxyljyyYg&s" },
+  { id: "salesopolis", db: "SALESÓPOLIS", label: "SALESÓPOLIS", logo: "https://upload.wikimedia.org/wikipedia/commons/3/38/Brasao_salesopolis.jpg" },
+  { id: "santabranca", db: "SANTA BRANCA", label: "SANTA BRANCA", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Bras%C3%A3o_do_Municipio_de_Santa_Branca-SP.png" },
+  { id: "sjc", db: "SÃO JOSÉ DOS CAMPOS", label: "SÃO JOSÉ DOS CAMPOS", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-bWQ-MvK79eykZnLcN9fX-IhQiwdakJUyBA&s" },
+  { id: "saosebastiao", db: "SÃO SEBASTIÃO", label: "SÃO SEBASTIÃO", logo: "https://upload.wikimedia.org/wikipedia/commons/f/f6/Brasao_saosebastiao.gif" },
+  { id: "suzano", db: "SUZANO", label: "SUZANO", logo: "https://upload.wikimedia.org/wikipedia/commons/c/ce/BrasaoSuzano.svg" },
+  { id: "taubate", db: "TAUBATÉ", label: "TAUBATÉ", logo: "https://upload.wikimedia.org/wikipedia/commons/9/94/Brasaotaubate.png" },
+  { id: "tremembe", db: "TREMEMBÉ", label: "TREMEMBÉ", logo: "https://simbolosmunicipais.com.br/multimidia/sp/sp-tremembe-brasao-tHWCFSiL.jpg" },
 ];
 
 const MUNI_COLORS = {};
 const MUNI_COLORS_PALETTE = [
-  "#22c55e","#3b82f6","#eab308","#f97316","#a855f7",
-  "#f43f5e","#14b8a6","#6366f1","#84cc16","#ec4899",
-  "#10b981","#0ea5e9","#ef4444","#8b5cf6","#06b6d4",
-  "#facc15","#4ade80","#fb7185","#f59e0b","#0f766e"
+  "#22c55e", "#3b82f6", "#eab308", "#f97316", "#a855f7",
+  "#f43f5e", "#14b8a6", "#6366f1", "#84cc16", "#ec4899",
+  "#10b981", "#0ea5e9", "#ef4444", "#8b5cf6", "#06b6d4",
+  "#facc15", "#4ade80", "#fb7185", "#f59e0b", "#0f766e"
 ];
 MUNICIPIOS_META.forEach((m, idx) => {
   MUNI_COLORS[m.id] = MUNI_COLORS_PALETTE[idx % MUNI_COLORS_PALETTE.length];
@@ -1824,7 +1728,7 @@ let modoAtual = null;
 let modalModoEl = null;
 const selecionadosSet = new Set();
 
-function buildModalModoInicial(){
+function buildModalModoInicial() {
   if (modalModoEl) return modalModoEl;
 
   const backdrop = document.createElement("div");
@@ -1950,16 +1854,16 @@ function buildModalModoInicial(){
   return modalModoEl;
 }
 
-function abrirModalModoInicial(){
+function abrirModalModoInicial() {
   const m = buildModalModoInicial();
   m.style.display = "flex";
 }
 
-function fecharModalModoInicial(){
+function fecharModalModoInicial() {
   if (modalModoEl) modalModoEl.style.display = "none";
 }
 
-function carregarPostesPorMunicipiosGradual(muniDbSet){
+function carregarPostesPorMunicipiosGradual(muniDbSet) {
   markers.clearLayers();
 
   const candidatos = todosPostes.filter((p) =>
@@ -1975,17 +1879,18 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
   const lote = document.hidden ? 3500 : 1200;
   let i = 0;
 
-  function addChunk(){
+  function addChunk() {
     const slice = candidatos.slice(i, i + lote);
     const layers = slice.map(criarLayerPoste);
     if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
     i += lote;
-    if (i < candidatos.length){
+    if (i < candidatos.length) {
       scheduleIdle(addChunk);
     } else {
       hideOverlay();
       reabrirTooltipFixo(0);
       reabrirPopupFixo(0);
+      atualizar3DSeAtivo();
       try {
         const bounds = L.latLngBounds(candidatos.map(p => [p.lat, p.lon]));
         map.fitBounds(bounds);
@@ -1993,7 +1898,6 @@ function carregarPostesPorMunicipiosGradual(muniDbSet){
     }
   }
   scheduleIdle(addChunk);
-  atualizar3DSeAtivo();
 }
 
 // ---- Indicadores / BI (refs de gráfico) ----
@@ -2228,7 +2132,7 @@ function gerarCSVParaEO(filtroIds) {
 
       detalhes.forEach((e) => {
         const nome = typeof e === "string" ? e : (e.nome || e.empresa || "");
-        
+
         let idIns = "";
         if (typeof e === "object" && e !== null) idIns = e.id_insercao ?? "";
         else if (p.id_insercao != null) idIns = p.id_insercao;
@@ -2251,7 +2155,7 @@ function gerarCSVParaEO(filtroIds) {
 
         const rowString = row.map(val => {
           const v = String(val || "");
-          if (v.includes('"') || v.includes(';') || v.includes('\n')) {
+          if (v.includes('"') || v.includes(";") || v.includes("\n")) {
             return `"${v.replace(/"/g, '""')}"`;
           }
           return v;
@@ -2271,7 +2175,6 @@ function gerarCSVParaEO(filtroIds) {
   document.body.removeChild(link);
 }
 
-// Alias pra manter compatibilidade com chamadas antigas
 const gerarCSVParaBase44 = gerarCSVParaEO;
 
 // ---------------------------------------------------------------------
@@ -2287,6 +2190,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
     exibirTodosPostes();
     reabrirTooltipFixo(0);
     reabrirPopupFixo(0);
+    atualizar3DSeAtivo();
     return;
   }
 
@@ -2302,6 +2206,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
       exibirTodosPostes();
       reabrirTooltipFixo(0);
       reabrirPopupFixo(0);
+      atualizar3DSeAtivo();
       return;
     }
   }
@@ -2318,7 +2223,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
         if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
         if (handleSelecaoClick(poste, c)) return;
         lastTip = { id: keyId(poste.id) }; tipPinned = true;
-        try{ c.openTooltip?.(); } catch{}
+        try { c.openTooltip?.(); } catch {}
         abrirPopup(poste);
       });
 
@@ -2329,6 +2234,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
   refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
+  atualizar3DSeAtivo();
 });
 
 // ---------------------------------------------------------------------
@@ -2352,7 +2258,7 @@ function buscarCoordenada() {
 
 function filtrarLocal() {
   const getVal = (id) => (document.getElementById(id)?.value || "").trim().toLowerCase();
-  const [mun, bai, log, emp] = ["busca-municipio","busca-bairro","busca-logradouro","busca-empresa"].map(getVal);
+  const [mun, bai, log, emp] = ["busca-municipio", "busca-bairro", "busca-logradouro", "busca-empresa"].map(getVal);
 
   const filtro = todosPostes.filter(
     (p) =>
@@ -2370,6 +2276,7 @@ function filtrarLocal() {
   refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
+  atualizar3DSeAtivo();
 
   fetch("/api/postes/report", {
     method: "POST",
@@ -2400,12 +2307,12 @@ function filtrarLocal() {
 
 function resetarMapa() {
   limparSelecaoESair({ manterMarcadores: true });
-  atualizar3DSeAtivo();
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
   showOverlay("Carregando todos os postes…");
   modoAtual = "todos";
   hardReset();
+  atualizar3DSeAtivo();
 }
 
 // ---------------------------------------------------------------------
@@ -2648,8 +2555,7 @@ function consultarIDsEmMassa() {
     .split(/[^0-9]+/).filter(Boolean);
 
   if (!ids.length) return alert("Nenhum ID fornecido.");
-   
-  atualizar3DSeAtivo();
+
   showOverlay("Processando IDs e gerando análise…");
 
   markers.clearLayers();
@@ -2684,15 +2590,15 @@ function consultarIDsEmMassa() {
         .forEach((p) => {
           const empresasStr = empresasToString(p) || "Disponível";
           const m = L.circleMarker([p.lat, p.lon], {
-              radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
-            })
+            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
+          })
             .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
             .on("click", (e) => {
               if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
               if (handleSelecaoClick(p, m)) return;
               lastTip = { id: keyId(p.id) }; tipPinned = true;
-              try{ m.openTooltip?.(); }catch{}
+              try { m.openTooltip?.(); } catch {}
               abrirPopup(p);
             })
             .addTo(map);
@@ -2723,8 +2629,8 @@ function consultarIDsEmMassa() {
   };
 
   reabrirTooltipFixo(0);
-  atualizar3DSeAtivo();
   reabrirPopupFixo(0);
+  atualizar3DSeAtivo();
   hideOverlay();
 }
 
@@ -2739,7 +2645,7 @@ function adicionarNumerado(p, num) {
     if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
     if (handleSelecaoClick(p, mk)) return;
     lastTip = { id: keyId(p.id) }; tipPinned = true;
-    try{ mk.openTooltip?.(); }catch{}
+    try { mk.openTooltip?.(); } catch {}
     abrirPopup(p);
   });
   mk.posteData = p;
@@ -2877,7 +2783,7 @@ function agregaPorMunicipio({ empresa = "", apenasVisiveis = false } = {}) {
 function rowsToCSV(rows) {
   const header = "Municipio,Quantidade\n";
   const body = rows
-    .map(r => `"${(r.municipio || "").replace(/"/g,'""')}",${r.qtd}`)
+    .map(r => `"${(r.municipio || "").replace(/"/g, '""')}",${r.qtd}`)
     .join("\n");
   return header + body + "\n";
 }
@@ -2891,7 +2797,7 @@ function getMunicipioMetaByName(nome) {
   );
 }
 
-(function injectExtraPanelButtons(){
+(function injectExtraPanelButtons() {
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
 
@@ -3113,9 +3019,9 @@ function getDetalhesMunicipioAgregado(municipio, { empresa = "", apenasVisiveis 
   return {
     totalPostes,
     totalEmpresas: empCounts.size,
-    empresasRows: toRows(empCounts),         // todas as empresas
-    bairrosRows: toRows(bairroCounts, 50),   // top 50
-    logradourosRows: toRows(logCounts, 50),  // top 50
+    empresasRows: toRows(empCounts),
+    bairrosRows: toRows(bairroCounts, 50),
+    logradourosRows: toRows(logCounts, 50),
   };
 }
 
@@ -3221,7 +3127,6 @@ function atualizarIndicadores() {
     resumo.innerHTML = `Total de postes${txtEmp}: <b>${total.toLocaleString("pt-BR")}</b>${txtScope}`;
   }
 
-  // gráfico com top 20 municípios
   const chartRows = rows.slice(0, 20);
   const labels = chartRows.map((r) => r.municipio);
   const data = chartRows.map((r) => r.qtd);
@@ -3279,21 +3184,17 @@ function atualizarIndicadores() {
    Reabertura do tooltip/popup após reconstrução do cluster
 ==================================================================== */
 markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
-markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
+markers.on("spiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 map.on("layeradd", (ev) => { if (ev.layer === markers) { reabrirTooltipFixo(120); } });
+
 // =====================================================================
 // SINCRONIZAÇÃO EXTRA ENTRE 2D e 3D
 // =====================================================================
-
-// Quando mover o Leaflet, se o modo atual for 3D e o mapa 3D já existir,
-// podemos manter coerência quando o usuário voltar
 map.on("moveend zoomend", () => {
   if (modoMapaAtual === "2d") return;
   if (!map3d) return;
-  // não forçamos sync contínuo para não brigar com a navegação do 3D
 });
 
-// Se quiser, depois podemos adicionar postes também no 3D
 window.getMapa3D = () => map3d;
 window.getModoMapaAtual = () => modoMapaAtual;
