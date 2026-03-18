@@ -517,7 +517,7 @@
 const map = L.map("map").setView([-23.2, -45.9], 8);
 
 // =====================================================================
-// MODO 3D (MapLibre) + POSTES NO 3D
+// MODO 3D (MapLibre) + CLUSTER NATIVO + CARGA ÚNICA
 // =====================================================================
 let map3d = null;
 let map3dLoaded = false;
@@ -525,88 +525,16 @@ let modoMapaAtual = "2d";
 
 const MAP3D_STYLE = "https://tiles.openfreemap.org/styles/bright";
 
-function criarMapa3D(center, zoom) {
-  if (map3d) return map3d;
+// cache único do 3D
+let postes3DSourceLoaded = false;
+let postes3DGeoJSON = null;
 
-  map3d = new maplibregl.Map({
-    container: "map3d",
-    style: MAP3D_STYLE,
-    center: [center.lng, center.lat],
-    zoom: Math.max(zoom - 1, 1),
-    pitch: 55,
-    bearing: -20,
-    antialias: true
-  });
-
-  map3d.addControl(new maplibregl.NavigationControl(), "top-right");
-
-  map3d.on("load", () => {
-    map3dLoaded = true;
-    adicionarPredios3D();
-    garantirCamadasPostes3D();
-    sincronizarPostesNo3D();
-  });
-
-  return map3d;
-}
-
-function adicionarPredios3D() {
-  if (!map3d || !map3dLoaded) return;
-  if (map3d.getLayer("3d-buildings")) return;
-
-  const layers = map3d.getStyle().layers || [];
-  let labelLayerId;
-  for (let i = 0; i < layers.length; i++) {
-    if (layers[i].type === "symbol" && layers[i].layout && layers[i].layout["text-field"]) {
-      labelLayerId = layers[i].id;
-      break;
-    }
-  }
-
-  if (!map3d.getSource("openfreemap")) {
-    map3d.addSource("openfreemap", {
-      type: "vector",
-      url: "https://tiles.openfreemap.org/planet"
-    });
-  }
-
-  map3d.addLayer(
-    {
-      id: "3d-buildings",
-      source: "openfreemap",
-      "source-layer": "building",
-      type: "fill-extrusion",
-      minzoom: 15,
-      filter: ["!=", ["get", "hide_3d"], true],
-      paint: {
-        "fill-extrusion-color": [
-          "interpolate",
-          ["linear"],
-          ["coalesce", ["get", "render_height"], ["get", "height"], 0],
-          0, "#d1d5db",
-          60, "#94a3b8",
-          200, "#64748b"
-        ],
-        "fill-extrusion-height": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          15, 0,
-          16,
-          ["coalesce", ["get", "render_height"], ["get", "height"], 8]
-        ],
-        "fill-extrusion-base": [
-          "coalesce",
-          ["get", "render_min_height"],
-          ["get", "min_height"],
-          0
-        ],
-        "fill-extrusion-opacity": 0.9
-      }
-    },
-    labelLayerId
-  );
-}
+// ids das camadas
+const MAP3D_SOURCE_ID = "postes-geojson";
+const MAP3D_CLUSTER_CIRCLES_ID = "postes-3d-clusters";
+const MAP3D_CLUSTER_COUNT_ID = "postes-3d-cluster-count";
+const MAP3D_POINTS_ID = "postes-3d-points";
+const MAP3D_POINT_LABELS_ID = "postes-3d-point-labels";
 
 // Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
@@ -1314,40 +1242,16 @@ function criarLayerPoste(p) {
 }
 
 // =====================================================================
-// MODO 3D — POSTES
+// MODO 3D — helpers e camadas
 // =====================================================================
-function getPostesAtuaisPara3D() {
-  const saida = [];
-  const vistos = new Set();
+function montarGeoJSONPostes3D() {
+  if (postes3DGeoJSON) return postes3DGeoJSON;
 
-  if (markers && typeof markers.eachLayer === "function") {
-    markers.eachLayer((layer) => {
-      const p = layer && layer.posteData;
-      if (!p) return;
-      const k = keyId(p.id);
-      if (vistos.has(k)) return;
-      vistos.add(k);
-      saida.push(p);
-    });
-  }
-
-  if (!saida.length && Array.isArray(todosPostes) && todosPostes.length) {
-    todosPostes.forEach((p) => {
-      const k = keyId(p.id);
-      if (vistos.has(k)) return;
-      vistos.add(k);
-      saida.push(p);
-    });
-  }
-
-  return saida;
-}
-
-function postesParaGeoJSON(lista) {
-  return {
+  postes3DGeoJSON = {
     type: "FeatureCollection",
-    features: (lista || []).map((p) => {
+    features: (todosPostes || []).map((p) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+
       return {
         type: "Feature",
         geometry: {
@@ -1366,32 +1270,181 @@ function postesParaGeoJSON(lista) {
       };
     })
   };
+
+  return postes3DGeoJSON;
+}
+
+function criarMapa3D(center, zoom) {
+  if (map3d) return map3d;
+
+  map3d = new maplibregl.Map({
+    container: "map3d",
+    style: MAP3D_STYLE,
+    center: [center.lng, center.lat],
+    zoom: Math.max(zoom - 1, 1),
+    pitch: 55,
+    bearing: -20,
+    antialias: false,
+    preserveDrawingBuffer: false
+  });
+
+  map3d.addControl(new maplibregl.NavigationControl(), "top-right");
+
+  map3d.on("load", async () => {
+    map3dLoaded = true;
+    adicionarPredios3D();
+    await garantirSourcePostes3D();
+    garantirCamadasPostes3D();
+    bindEventosPostes3D();
+  });
+
+  return map3d;
+}
+
+function adicionarPredios3D() {
+  if (!map3d || !map3dLoaded) return;
+  if (map3d.getLayer("3d-buildings")) return;
+
+  const layers = map3d.getStyle().layers || [];
+  let labelLayerId;
+  for (let i = 0; i < layers.length; i++) {
+    if (layers[i].type === "symbol" && layers[i].layout && layers[i].layout["text-field"]) {
+      labelLayerId = layers[i].id;
+      break;
+    }
+  }
+
+  if (!map3d.getSource("openfreemap")) {
+    map3d.addSource("openfreemap", {
+      type: "vector",
+      url: "https://tiles.openfreemap.org/planet"
+    });
+  }
+
+  map3d.addLayer(
+    {
+      id: "3d-buildings",
+      source: "openfreemap",
+      "source-layer": "building",
+      type: "fill-extrusion",
+      minzoom: 15,
+      filter: ["!=", ["get", "hide_3d"], true],
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["get", "render_height"], ["get", "height"], 0],
+          0, "#d1d5db",
+          60, "#94a3b8",
+          200, "#64748b"
+        ],
+        "fill-extrusion-height": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          15, 0,
+          16, ["coalesce", ["get", "render_height"], ["get", "height"], 8]
+        ],
+        "fill-extrusion-base": [
+          "coalesce",
+          ["get", "render_min_height"],
+          ["get", "min_height"],
+          0
+        ],
+        "fill-extrusion-opacity": 0.85
+      }
+    },
+    labelLayerId
+  );
+}
+
+async function garantirSourcePostes3D() {
+  if (!map3d || !map3dLoaded) return;
+  if (postes3DSourceLoaded && map3d.getSource(MAP3D_SOURCE_ID)) return;
+
+  const geojson = montarGeoJSONPostes3D();
+
+  if (!map3d.getSource(MAP3D_SOURCE_ID)) {
+    map3d.addSource(MAP3D_SOURCE_ID, {
+      type: "geojson",
+      data: geojson,
+      cluster: true,
+      clusterMaxZoom: 17,
+      clusterRadius: 60,
+      clusterProperties: {
+        max_qtd_empresas: ["max", ["get", "qtd_empresas"]]
+      }
+    });
+  }
+
+  postes3DSourceLoaded = true;
 }
 
 function garantirCamadasPostes3D() {
   if (!map3d || !map3dLoaded) return;
+  if (!map3d.getSource(MAP3D_SOURCE_ID)) return;
 
-  if (!map3d.getSource("postes-geojson")) {
-    map3d.addSource("postes-geojson", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] }
+  if (!map3d.getLayer(MAP3D_CLUSTER_CIRCLES_ID)) {
+    map3d.addLayer({
+      id: MAP3D_CLUSTER_CIRCLES_ID,
+      type: "circle",
+      source: MAP3D_SOURCE_ID,
+      filter: ["has", "point_count"],
+      paint: {
+        "circle-color": [
+          "step",
+          ["get", "point_count"],
+          "#60a5fa", 50,
+          "#3b82f6", 200,
+          "#2563eb", 1000,
+          "#1d4ed8"
+        ],
+        "circle-radius": [
+          "step",
+          ["get", "point_count"],
+          16, 50,
+          20, 200,
+          26, 1000,
+          32
+        ],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2,
+        "circle-opacity": 0.95
+      }
     });
   }
 
-  if (!map3d.getLayer("postes-3d-circles")) {
+  if (!map3d.getLayer(MAP3D_CLUSTER_COUNT_ID)) {
     map3d.addLayer({
-      id: "postes-3d-circles",
+      id: MAP3D_CLUSTER_COUNT_ID,
+      type: "symbol",
+      source: MAP3D_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: {
+        "text-field": ["get", "point_count_abbreviated"],
+        "text-size": 12,
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"]
+      },
+      paint: {
+        "text-color": "#ffffff"
+      }
+    });
+  }
+
+  if (!map3d.getLayer(MAP3D_POINTS_ID)) {
+    map3d.addLayer({
+      id: MAP3D_POINTS_ID,
       type: "circle",
-      source: "postes-geojson",
-      minzoom: 8,
+      source: MAP3D_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      minzoom: 14,
       paint: {
         "circle-radius": [
           "interpolate",
           ["linear"],
           ["zoom"],
-          8, 2,
-          12, 3,
-          15, 5,
+          14, 3,
+          16, 5,
           18, 7
         ],
         "circle-color": [
@@ -1406,12 +1459,13 @@ function garantirCamadasPostes3D() {
     });
   }
 
-  if (!map3d.getLayer("postes-3d-labels")) {
+  if (!map3d.getLayer(MAP3D_POINT_LABELS_ID)) {
     map3d.addLayer({
-      id: "postes-3d-labels",
+      id: MAP3D_POINT_LABELS_ID,
       type: "symbol",
-      source: "postes-geojson",
-      minzoom: 17,
+      source: MAP3D_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      minzoom: 18,
       layout: {
         "text-field": ["get", "id"],
         "text-size": 11,
@@ -1426,8 +1480,46 @@ function garantirCamadasPostes3D() {
       }
     });
   }
+}
 
-  const clickHandler = (e) => {
+function bindEventosPostes3D() {
+  if (!map3d || map3d.__postes3dEventsBound) return;
+
+  map3d.on("click", MAP3D_CLUSTER_CIRCLES_ID, (e) => {
+    const feature = e.features && e.features[0];
+    if (!feature) return;
+
+    const clusterId = feature.properties.cluster_id;
+    const source = map3d.getSource(MAP3D_SOURCE_ID);
+    if (!source || typeof source.getClusterExpansionZoom !== "function") return;
+
+    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+      map3d.easeTo({
+        center: feature.geometry.coordinates,
+        zoom
+      });
+    });
+  });
+
+  map3d.on("click", MAP3D_CLUSTER_COUNT_ID, (e) => {
+    const feature = e.features && e.features[0];
+    if (!feature) return;
+
+    const clusterId = feature.properties.cluster_id;
+    const source = map3d.getSource(MAP3D_SOURCE_ID);
+    if (!source || typeof source.getClusterExpansionZoom !== "function") return;
+
+    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+      map3d.easeTo({
+        center: feature.geometry.coordinates,
+        zoom
+      });
+    });
+  });
+
+  const clickPoste = (e) => {
     const f = e.features && e.features[0];
     if (!f) return;
 
@@ -1441,38 +1533,24 @@ function garantirCamadasPostes3D() {
       .addTo(map3d);
   };
 
-  if (!map3d.__postes3dEventsBound) {
-    map3d.on("click", "postes-3d-circles", clickHandler);
-    map3d.on("click", "postes-3d-labels", clickHandler);
+  map3d.on("click", MAP3D_POINTS_ID, clickPoste);
+  map3d.on("click", MAP3D_POINT_LABELS_ID, clickPoste);
 
-    map3d.on("mouseenter", "postes-3d-circles", () => {
+  [
+    MAP3D_CLUSTER_CIRCLES_ID,
+    MAP3D_CLUSTER_COUNT_ID,
+    MAP3D_POINTS_ID,
+    MAP3D_POINT_LABELS_ID
+  ].forEach((layerId) => {
+    map3d.on("mouseenter", layerId, () => {
       map3d.getCanvas().style.cursor = "pointer";
     });
-    map3d.on("mouseleave", "postes-3d-circles", () => {
+    map3d.on("mouseleave", layerId, () => {
       map3d.getCanvas().style.cursor = "";
     });
+  });
 
-    map3d.on("mouseenter", "postes-3d-labels", () => {
-      map3d.getCanvas().style.cursor = "pointer";
-    });
-    map3d.on("mouseleave", "postes-3d-labels", () => {
-      map3d.getCanvas().style.cursor = "";
-    });
-
-    map3d.__postes3dEventsBound = true;
-  }
-}
-
-function sincronizarPostesNo3D() {
-  if (!map3d || !map3dLoaded) return;
-
-  garantirCamadasPostes3D();
-
-  const lista = getPostesAtuaisPara3D();
-  const geojson = postesParaGeoJSON(lista);
-
-  const src = map3d.getSource("postes-geojson");
-  if (src) src.setData(geojson);
+  map3d.__postes3dEventsBound = true;
 }
 
 function syncLeafletTo3D() {
@@ -1487,8 +1565,6 @@ function syncLeafletTo3D() {
     pitch: 55,
     bearing: -20
   });
-
-  sincronizarPostesNo3D();
 
   setTimeout(() => {
     try { map3d.resize(); } catch (_) {}
@@ -1508,11 +1584,15 @@ function sync3DToLeaflet() {
   }, 150);
 }
 
-window.ativarMapa3D = function () {
+window.ativarMapa3D = async function () {
   const map2dEl = document.getElementById("map");
   const map3dEl = document.getElementById("map3d");
 
   if (!map2dEl || !map3dEl) return;
+  if (!todosPostes.length) {
+    alert("Os postes ainda não terminaram de carregar.");
+    return;
+  }
 
   const center = map.getCenter();
   const zoom = map.getZoom();
@@ -1528,12 +1608,21 @@ window.ativarMapa3D = function () {
 
   modoMapaAtual = "3d";
 
+  const esperarLoad = () =>
+    new Promise((resolve) => {
+      if (map3dLoaded) return resolve();
+      map3d.once("load", resolve);
+    });
+
+  await esperarLoad();
+
+  await garantirSourcePostes3D();
+  garantirCamadasPostes3D();
+  syncLeafletTo3D();
+
   setTimeout(() => {
-    try {
-      map3d.resize();
-      sincronizarPostesNo3D();
-    } catch (_) {}
-  }, 200);
+    try { map3d.resize(); } catch (_) {}
+  }, 150);
 };
 
 window.ativarMapa2D = function () {
@@ -1553,15 +1642,36 @@ window.ativarMapa2D = function () {
   }, 200);
 };
 
-function atualizar3DSeAtivo() {
-  if (modoMapaAtual === "3d" && map3d && map3dLoaded) {
-    sincronizarPostesNo3D();
+function reconstruirFonte3D() {
+  postes3DGeoJSON = null;
+
+  if (!map3d || !map3dLoaded) return;
+  const src = map3d.getSource(MAP3D_SOURCE_ID);
+  if (!src) return;
+
+  try {
+    src.setData(montarGeoJSONPostes3D());
+  } catch (e) {
+    console.error("Erro ao reconstruir fonte 3D:", e);
   }
+}
+
+function atualizar3DSeAtivo() {
+  if (modoMapaAtual !== "3d") return;
+  if (!map3d || !map3dLoaded) return;
+
+  setTimeout(() => {
+    try {
+      map3d.resize();
+      syncLeafletTo3D();
+    } catch (_) {}
+  }, 50);
 }
 
 // ✅ Reset agora sempre usa o cache se já carregou uma vez
 function hardReset() {
   carregarTodosPostesGradualmente();
+  reconstruirFonte3D();
   atualizar3DSeAtivo();
 }
 
@@ -2022,6 +2132,8 @@ fetch("/api/postes", { credentials: "include" })
       });
     });
 
+    montarGeoJSONPostes3D();
+
     preencherListas();
     hideOverlay();
     abrirModalModoInicial();
@@ -2276,6 +2388,8 @@ function filtrarLocal() {
   refreshClustersSoon();
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
+
+  // se quiser que o 3D continue sempre com TODOS os postes, NÃO chame reconstruirFonte3D aqui
   atualizar3DSeAtivo();
 
   fetch("/api/postes/report", {
@@ -2312,7 +2426,6 @@ function resetarMapa() {
   showOverlay("Carregando todos os postes…");
   modoAtual = "todos";
   hardReset();
-  atualizar3DSeAtivo();
 }
 
 // ---------------------------------------------------------------------
@@ -3187,14 +3300,6 @@ markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); }
 markers.on("spiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 map.on("layeradd", (ev) => { if (ev.layer === markers) { reabrirTooltipFixo(120); } });
-
-// =====================================================================
-// SINCRONIZAÇÃO EXTRA ENTRE 2D e 3D
-// =====================================================================
-map.on("moveend zoomend", () => {
-  if (modoMapaAtual === "2d") return;
-  if (!map3d) return;
-});
 
 window.getMapa3D = () => map3d;
 window.getModoMapaAtual = () => modoMapaAtual;
