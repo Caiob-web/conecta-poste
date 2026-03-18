@@ -528,6 +528,158 @@
 // ------------------------- Mapa & Camadas base -----------------------
 const map = L.map("map").setView([-23.2, -45.9], 8);
 
+// =====================================================================
+// MODO 3D (MapLibre)
+// =====================================================================
+let map3d = null;
+let map3dLoaded = false;
+let modoMapaAtual = "2d";
+
+function getMapLibreStyleByBaseMode() {
+  // Por enquanto usamos um style vetorial estável para o 3D
+  // Depois podemos evoluir para múltiplos estilos
+  return "https://demotiles.maplibre.org/style.json";
+}
+
+function criarMapa3D(center, zoom) {
+  if (map3d) return map3d;
+
+  map3d = new maplibregl.Map({
+    container: "map3d",
+    style: getMapLibreStyleByBaseMode(),
+    center: [center.lng, center.lat],
+    zoom: Math.max(zoom - 1, 1),
+    pitch: 60,
+    bearing: -20,
+    antialias: true
+  });
+
+  map3d.addControl(new maplibregl.NavigationControl(), "top-right");
+
+  map3d.on("load", () => {
+    map3dLoaded = true;
+    adicionarPredios3D();
+  });
+
+  return map3d;
+}
+
+function adicionarPredios3D() {
+  if (!map3d || !map3dLoaded) return;
+
+  const style = map3d.getStyle();
+  if (!style || !style.layers) return;
+
+  if (map3d.getLayer("3d-buildings")) return;
+
+  const labelLayerId = style.layers.find(
+    (layer) => layer.type === "symbol" && layer.layout && layer.layout["text-field"]
+  )?.id;
+
+  try {
+    map3d.addLayer(
+      {
+        id: "3d-buildings",
+        source: "openmaptiles",
+        "source-layer": "building",
+        type: "fill-extrusion",
+        minzoom: 15,
+        paint: {
+          "fill-extrusion-color": "#9ca3af",
+          "fill-extrusion-height": [
+            "coalesce",
+            ["get", "render_height"],
+            ["get", "height"],
+            8
+          ],
+          "fill-extrusion-base": [
+            "coalesce",
+            ["get", "render_min_height"],
+            ["get", "min_height"],
+            0
+          ],
+          "fill-extrusion-opacity": 0.88
+        }
+      },
+      labelLayerId
+    );
+  } catch (e) {
+    console.warn("Não foi possível adicionar prédios 3D:", e);
+  }
+}
+
+function syncLeafletTo3D() {
+  if (!map3d) return;
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+
+  map3d.jumpTo({
+    center: [center.lng, center.lat],
+    zoom: Math.max(zoom - 1, 1),
+    pitch: 60,
+    bearing: -20
+  });
+
+  setTimeout(() => {
+    try { map3d.resize(); } catch (_) {}
+  }, 50);
+}
+
+function sync3DToLeaflet() {
+  if (!map3d) return;
+  const center = map3d.getCenter();
+  const zoom = map3d.getZoom();
+
+  map.setView([center.lat, center.lng], Math.round(zoom + 1));
+  setTimeout(() => {
+    try { map.invalidateSize(); } catch (_) {}
+  }, 150);
+}
+
+window.ativarMapa3D = function () {
+  const map2dEl = document.getElementById("map");
+  const map3dEl = document.getElementById("map3d");
+
+  if (!map2dEl || !map3dEl) return;
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+
+  map2dEl.style.display = "none";
+  map3dEl.style.display = "block";
+
+  if (!map3d) {
+    criarMapa3D(center, zoom);
+  } else {
+    syncLeafletTo3D();
+  }
+
+  modoMapaAtual = "3d";
+
+  setTimeout(() => {
+    try { map3d.resize(); } catch (_) {}
+  }, 200);
+};
+
+window.ativarMapa2D = function () {
+  const map2dEl = document.getElementById("map");
+  const map3dEl = document.getElementById("map3d");
+
+  if (!map2dEl || !map3dEl) return;
+
+  if (map3d) {
+    sync3DToLeaflet();
+  }
+
+  map3dEl.style.display = "none";
+  map2dEl.style.display = "block";
+  modoMapaAtual = "2d";
+
+  setTimeout(() => {
+    try { map.invalidateSize(); } catch (_) {}
+  }, 200);
+};
+
 // Base layers
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
 const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
@@ -764,12 +916,25 @@ function handleSelecaoClick(poste, layer) {
 
 // --------------------- base layer switcher ---------------------------
 let currentBase = osm;
+let currentBaseMode = "rua";
+
 function setBase(mode) {
+  currentBaseMode = mode || "rua";
+
   if (map.hasLayer(currentBase)) map.removeLayer(currentBase);
-  if (mode === "sat") currentBase = esriSat;
-  else if (mode === "satlabels") currentBase = satComRotulos;
+
+  if (currentBaseMode === "sat") currentBase = esriSat;
+  else if (currentBaseMode === "satlabels") currentBase = satComRotulos;
   else currentBase = osm;
+
   currentBase.addTo(map);
+
+  // Se estiver no 3D, força recálculo visual
+  if (modoMapaAtual === "3d" && map3d) {
+    setTimeout(() => {
+      try { map3d.resize(); } catch (_) {}
+    }, 100);
+  }
 }
 
 /* ====================================================================
@@ -2871,3 +3036,18 @@ markers.on("animationend", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); }
 markers.on("spiderfied",   () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 markers.on("unspiderfied", () => { reabrirTooltipFixo(0); reabrirPopupFixo(0); });
 map.on("layeradd", (ev) => { if (ev.layer === markers) { reabrirTooltipFixo(120); } });
+// =====================================================================
+// SINCRONIZAÇÃO EXTRA ENTRE 2D e 3D
+// =====================================================================
+
+// Quando mover o Leaflet, se o modo atual for 3D e o mapa 3D já existir,
+// podemos manter coerência quando o usuário voltar
+map.on("moveend zoomend", () => {
+  if (modoMapaAtual === "2d") return;
+  if (!map3d) return;
+  // não forçamos sync contínuo para não brigar com a navegação do 3D
+});
+
+// Se quiser, depois podemos adicionar postes também no 3D
+window.getMapa3D = () => map3d;
+window.getModoMapaAtual = () => modoMapaAtual;
