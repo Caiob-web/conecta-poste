@@ -597,87 +597,39 @@ const ICON_POSTE_CONCRETO = L.icon({
 });
 
 
-// ========= SVGs DETALHADOS PARA MODO 3D (SPRITES MAPLIBRE) =========
-const SVG_3D_POSTE_CONCRETO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 160">
-  <!-- Fios superiores -->
-  <line x1="0" y1="14" x2="80" y2="14" stroke="#222" stroke-width="1.2" opacity="0.7"/>
-  <line x1="0" y1="20" x2="80" y2="20" stroke="#222" stroke-width="1.2" opacity="0.7"/>
-  <line x1="0" y1="26" x2="80" y2="26" stroke="#222" stroke-width="1.2" opacity="0.7"/>
-  <!-- Cruzeta superior -->
-  <rect x="8" y="10" width="64" height="5" fill="#888" stroke="#444" stroke-width="1" rx="1"/>
-  <!-- Isoladores cruzeta superior -->
-  <ellipse cx="14" cy="10" rx="3" ry="4" fill="#6fa" stroke="#3a7a3a" stroke-width="0.8"/>
-  <ellipse cx="40" cy="10" rx="3" ry="4" fill="#6fa" stroke="#3a7a3a" stroke-width="0.8"/>
-  <ellipse cx="66" cy="10" rx="3" ry="4" fill="#6fa" stroke="#3a7a3a" stroke-width="0.8"/>
-  <!-- Cruzeta inferior -->
-  <rect x="16" y="30" width="48" height="5" fill="#888" stroke="#444" stroke-width="1" rx="1"/>
-  <!-- Isoladores cruzeta inferior -->
-  <ellipse cx="22" cy="30" rx="3" ry="4" fill="#6fa" stroke="#3a7a3a" stroke-width="0.8"/>
-  <ellipse cx="40" cy="30" rx="3" ry="4" fill="#6fa" stroke="#3a7a3a" stroke-width="0.8"/>
-  <ellipse cx="58" cy="30" rx="3" ry="4" fill="#6fa" stroke="#3a7a3a" stroke-width="0.8"/>
-  <!-- Fios inferiores -->
-  <line x1="10" y1="35" x2="70" y2="35" stroke="#222" stroke-width="1" opacity="0.6"/>
-  <!-- Transformador -->
-  <rect x="30" y="52" width="22" height="28" fill="#7a6040" stroke="#4a3820" stroke-width="1.2" rx="2"/>
-  <rect x="33" y="49" width="4" height="6" fill="#bbb" stroke="#666" stroke-width="0.8" rx="1"/>
-  <rect x="43" y="49" width="4" height="6" fill="#bbb" stroke="#666" stroke-width="0.8" rx="1"/>
-  <rect x="32" y="54" width="16" height="4" fill="#9a8060" stroke="#5a4020" stroke-width="0.6" rx="1"/>
-  <rect x="32" y="60" width="16" height="4" fill="#9a8060" stroke="#5a4020" stroke-width="0.6" rx="1"/>
-  <rect x="32" y="66" width="16" height="4" fill="#9a8060" stroke="#5a4020" stroke-width="0.6" rx="1"/>
-  <!-- Braço luminária -->
-  <path d="M38 85 Q28 85 24 90" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
-  <ellipse cx="22" cy="91" rx="5" ry="3" fill="#ccc" stroke="#888" stroke-width="1"/>
-  <!-- Fuste do poste -->
-  <rect x="36" y="10" width="8" height="148" fill="#b0b0b0" stroke="#888" stroke-width="1" rx="1"/>
-  <!-- Textura no fuste -->
-  <line x1="37" y1="50" x2="43" y2="50" stroke="#999" stroke-width="0.7" opacity="0.6"/>
-  <line x1="37" y1="70" x2="43" y2="70" stroke="#999" stroke-width="0.7" opacity="0.6"/>
-  <line x1="37" y1="90" x2="43" y2="90" stroke="#999" stroke-width="0.7" opacity="0.6"/>
-  <line x1="37" y1="110" x2="43" y2="110" stroke="#999" stroke-width="0.7" opacity="0.6"/>
-  <line x1="37" y1="130" x2="43" y2="130" stroke="#999" stroke-width="0.7" opacity="0.6"/>
-  <!-- Base do poste -->
-  <rect x="34" y="154" width="12" height="6" fill="#999" stroke="#666" stroke-width="1" rx="1"/>
-</svg>`.trim();
-const SVG_3D_POSTE_MADEIRA  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 160">
-  <!-- Fios superiores -->
-  <line x1="0" y1="16" x2="80" y2="16" stroke="#222" stroke-width="1.2" opacity="0.7"/>
-  <line x1="0" y1="22" x2="80" y2="22" stroke="#222" stroke-width="1.2" opacity="0.7"/>
-  <line x1="0" y1="28" x2="80" y2="28" stroke="#222" stroke-width="1.2" opacity="0.7"/>
-  <!-- Cruzeta superior (madeira, mais espessa) -->
-  <rect x="6" y="12" width="68" height="8" fill="#5a3a1a" stroke="#3a2010" stroke-width="1.2" rx="1"/>
-  <!-- Escoras diagonais superiores -->
-  <line x1="40" y1="20" x2="14" y2="36" stroke="#5a3a1a" stroke-width="3" stroke-linecap="round"/>
-  <line x1="40" y1="20" x2="66" y2="36" stroke="#5a3a1a" stroke-width="3" stroke-linecap="round"/>
-  <!-- Grampo metálico superior -->
-  <rect x="36" y="10" width="8" height="12" fill="none" stroke="#aaa" stroke-width="1.5" rx="1"/>
-  <!-- Cruzeta inferior (madeira) -->
-  <rect x="16" y="34" width="48" height="7" fill="#5a3a1a" stroke="#3a2010" stroke-width="1.2" rx="1"/>
-  <!-- Escoras diagonais inferiores -->
-  <line x1="40" y1="41" x2="22" y2="52" stroke="#5a3a1a" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="40" y1="41" x2="58" y2="52" stroke="#5a3a1a" stroke-width="2.5" stroke-linecap="round"/>
-  <!-- Grampo metálico inferior -->
-  <rect x="36" y="32" width="8" height="11" fill="none" stroke="#aaa" stroke-width="1.5" rx="1"/>
-  <!-- Fios inferiores -->
-  <line x1="12" y1="41" x2="68" y2="41" stroke="#222" stroke-width="1" opacity="0.6"/>
-  <!-- Fuste do poste — madeira escura com veios -->
-  <rect x="36" y="8" width="8" height="148" fill="#4a2e10" stroke="#2e1a06" stroke-width="1.2" rx="1"/>
-  <!-- Veios de madeira -->
-  <line x1="37" y1="55" x2="38" y2="100" stroke="#3a2008" stroke-width="0.6" opacity="0.5"/>
-  <line x1="41" y1="55" x2="42" y2="100" stroke="#3a2008" stroke-width="0.6" opacity="0.5"/>
-  <!-- Grampos no fuste -->
-  <rect x="34" y="58" width="12" height="4" fill="none" stroke="#aaa" stroke-width="1.2" rx="0.5"/>
-  <rect x="34" y="80" width="12" height="4" fill="none" stroke="#aaa" stroke-width="1.2" rx="0.5"/>
-  <rect x="34" y="102" width="12" height="4" fill="none" stroke="#aaa" stroke-width="1.2" rx="0.5"/>
-  <!-- Degraus de subida (pregos/grampos laterais) -->
-  <line x1="34" y1="120" x2="30" y2="120" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="46" y1="128" x2="50" y2="128" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="34" y1="136" x2="30" y2="136" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/>
-  <!-- Base do poste -->
-  <rect x="34" y="154" width="12" height="6" fill="#3a2008" stroke="#2a1404" stroke-width="1" rx="1"/>
-</svg>`.trim();
+// ========= SVGs PARA MODO 3D — mesmo visual do 2D, fundo transparente =========
+// Concreto 3D: mesmo SVG do 2D com tamanho ampliado para melhor resolução no zoom
+const SVG_3D_POSTE_CONCRETO = [
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128" width="64" height="128">',
+  '  <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>',
+  '  <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>',
+  '  <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>',
+  '  <circle cx="18" cy="24" r="2" fill="#DDD"/>',
+  '  <circle cx="46" cy="24" r="2" fill="#DDD"/>',
+  '  <circle cx="22" cy="34" r="2" fill="#DDD"/>',
+  '  <circle cx="42" cy="34" r="2" fill="#DDD"/>',
+  '  <line x1="29" y1="55" x2="35" y2="55" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>',
+  '  <line x1="29" y1="75" x2="35" y2="75" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>',
+  '  <line x1="29" y1="95" x2="35" y2="95" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>',
+  '</svg>'
+].join('');
+
+// Madeira 3D: mesmo SVG do 2D com tamanho ampliado
+const SVG_3D_POSTE_MADEIRA = [
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128" width="64" height="128">',
+  '  <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>',
+  '  <rect x="16" y="25" width="32" height="4" fill="#6D4C20" stroke="#4A3516" stroke-width="1.5" rx="1"/>',
+  '  <rect x="20" y="35" width="24" height="4" fill="#6D4C20" stroke="#4A3516" stroke-width="1.5" rx="1"/>',
+  '  <circle cx="18" cy="24" r="2" fill="#DDD"/>',
+  '  <circle cx="46" cy="24" r="2" fill="#DDD"/>',
+  '  <circle cx="22" cy="34" r="2" fill="#DDD"/>',
+  '  <circle cx="42" cy="34" r="2" fill="#DDD"/>',
+  '</svg>'
+].join('');
 
 const DATA_URI_3D_CONCRETO = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_3D_POSTE_CONCRETO)}`;
 const DATA_URI_3D_MADEIRA  = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_3D_POSTE_MADEIRA)}`;
+
 
 const ICON_POSTE_MADEIRA = L.icon({
   iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
@@ -2243,27 +2195,34 @@ function exibirTodosPostes() {
       map3d.on("load", async () => {
         map3dLoaded = true;
 
-        // Carrega sprites dos postes (concreto e madeira) como imagens no MapLibre
-        await Promise.all([
-          new Promise((resolve) => {
+        // Carrega sprites dos postes via Canvas para garantir fundo 100% transparente
+        function svgToImageData(svgDataUri, w, h) {
+          return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-              if (!map3d.hasImage("poste-concreto")) map3d.addImage("poste-concreto", img);
-              resolve();
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              ctx.clearRect(0, 0, w, h);
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(ctx.getImageData(0, 0, w, h));
             };
-            img.onerror = resolve;
-            img.src = DATA_URI_3D_CONCRETO;
-          }),
-          new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-              if (!map3d.hasImage("poste-madeira")) map3d.addImage("poste-madeira", img);
-              resolve();
-            };
-            img.onerror = resolve;
-            img.src = DATA_URI_3D_MADEIRA;
-          })
+            img.onerror = () => resolve(null);
+            img.src = svgDataUri;
+          });
+        }
+
+        const [imgDataConcreto, imgDataMadeira] = await Promise.all([
+          svgToImageData(DATA_URI_3D_CONCRETO, 64, 128),
+          svgToImageData(DATA_URI_3D_MADEIRA,  64, 128)
         ]);
+
+        if (imgDataConcreto && !map3d.hasImage("poste-concreto")) {
+          map3d.addImage("poste-concreto", imgDataConcreto, { width: 64, height: 128, data: imgDataConcreto.data });
+        }
+        if (imgDataMadeira && !map3d.hasImage("poste-madeira")) {
+          map3d.addImage("poste-madeira", imgDataMadeira, { width: 64, height: 128, data: imgDataMadeira.data });
+        }
 
         resetarEstrutura3D();
         adicionarPredios3D();
