@@ -596,129 +596,20 @@ const ICON_POSTE_CONCRETO = L.icon({
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
-// ========= SVGs DETALHADOS PARA MODO 3D (ISOMÉTRICOS COM TRANSFORMADOR) =========
+const ICON_POSTE_MADEIRA = L.icon({
+  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
+  iconSize: POSTE_ICON_SIZE,
+  iconAnchor: POSTE_ICON_ANCHOR,
+  tooltipAnchor: POSTE_TOOLTIP_ANCHOR,
+  popupAnchor: POSTE_POPUP_ANCHOR,
+  className: "leaflet-marker-icon poste-marker-icon"
+});
 
-const SVG_3D_POSTE_CONCRETO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 280" width="120" height="280">
-  <path d="M 0 66.5 Q 30 56.5 30 52.5 Q 40 40 120 0" fill="none" stroke="#444" stroke-width="1" opacity="0.6"/>
-  <path d="M 0 51.5 Q 60 41.5 60 37.5 Q 80 20 120 -15" fill="none" stroke="#444" stroke-width="1" opacity="0.6"/>
-  <path d="M 0 36.5 Q 90 26.5 90 22.5 Q 110 5 120 -25" fill="none" stroke="#444" stroke-width="1" opacity="0.6"/>
+// ========= SVGs DETALHADOS PARA MODO 3D (inspirados na foto real) =========
+const SVG_3D_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS saindo das cruzetas (perspectiva levemente diagonal) -->\n  <line x1="0"  y1="28" x2="80" y2="32" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="35" x2="80" y2="39" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="55" x2="76" y2="58" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="61" x2="76" y2="64" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (concreto/metal — cinza) -->\n  <rect x="6"  y="22" width="68" height="7" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <!-- parafusos cruzeta superior -->\n  <circle cx="12" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="40" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="68" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="16" y="48" width="48" height="6" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <circle cx="21" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="40" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="59" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <rect x="19"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- FUSTE principal (concreto — cinza levemente cônico) -->\n  <polygon points="37,15 43,15 45,198 35,198"\n           fill="#c8c8c8" stroke="#999" stroke-width="1"/>\n  <!-- reflexo lateral esquerdo do fuste -->\n  <polygon points="37,15 39,15 41,198 35,198"\n           fill="rgba(255,255,255,0.18)"/>\n  <!-- sombra lateral direita do fuste -->\n  <polygon points="41,15 43,15 45,198 43,198"\n           fill="rgba(0,0,0,0.10)"/>\n  <!-- marcações horizontais do fuste (linhas de fôrma) -->\n  <line x1="36" y1="80"  x2="44" y2="81"  stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="110" x2="44" y2="111" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="140" x2="44" y2="141" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="170" x2="44" y2="171" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n\n  <!-- TRANSFORMADOR CILÍNDRICO -->\n  <ellipse cx="40" cy="70" rx="8" ry="3.5"\n           fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <rect x="32" y="70" width="16" height="20" rx="2"\n        fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <ellipse cx="40" cy="90" rx="8" ry="3"\n           fill="#7a6a5a" stroke="#5a4a3a" stroke-width="0.8"/>\n  <!-- frisos do transformador -->\n  <line x1="33" y1="74" x2="47" y2="74" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="78" x2="47" y2="78" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="82" x2="47" y2="82" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="86" x2="47" y2="86" stroke="#6a5a4a" stroke-width="0.8"/>\n  <!-- buchas do transformador -->\n  <rect x="34" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="38.5" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="43" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n\n  <!-- BRAÇO DE LUMINÁRIA -->\n  <path d="M37 105 Q28 103 24 110" fill="none" stroke="#aaa" stroke-width="2.2" stroke-linecap="round"/>\n  <!-- cabeça da luminária -->\n  <ellipse cx="23" cy="111" rx="5.5" ry="2.5" fill="#ddd" stroke="#999" stroke-width="0.8"/>\n  <rect x="18" y="111" width="11" height="3" rx="1.5" fill="#ccc" stroke="#999" stroke-width="0.6"/>\n\n</svg>';
+const SVG_3D_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS -->\n  <line x1="0"  y1="26" x2="80" y2="30" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="33" x2="80" y2="37" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="52" x2="76" y2="55" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="58" x2="76" y2="61" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (madeira espessa — tom quente) -->\n  <rect x="5"  y="19" width="70" height="9" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <!-- veios madeira cruzeta superior -->\n  <line x1="6"  y1="22" x2="74" y2="22" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <line x1="6"  y1="25" x2="74" y2="25" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <!-- parafusos U -->\n  <line x1="12" y1="19" x2="12" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="19" x2="40" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="68" y1="19" x2="68" y2="28" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS SUPERIORES -->\n  <line x1="40" y1="28" x2="13" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n  <line x1="40" y1="28" x2="67" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="15" y="44" width="50" height="8" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <line x1="16" y1="47" x2="64" y2="47" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <rect x="19" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <line x1="21" y1="44" x2="21" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="44" x2="40" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="59" y1="44" x2="59" y2="52" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS INFERIORES -->\n  <line x1="40" y1="52" x2="20" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n  <line x1="40" y1="52" x2="60" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n\n  <!-- FUSTE principal (madeira — marrom escuro cônico) -->\n  <polygon points="37,12 43,12 46,198 34,198"\n           fill="#7a4e1e" stroke="#4a2e0a" stroke-width="1.2"/>\n  <!-- reflexo lateral fuste -->\n  <polygon points="37,12 39,12 42,198 34,198"\n           fill="rgba(255,200,120,0.12)"/>\n  <!-- sombra lateral fuste -->\n  <polygon points="41,12 43,12 46,198 44,198"\n           fill="rgba(0,0,0,0.15)"/>\n  <!-- veios verticais madeira -->\n  <line x1="38.5" y1="55" x2="38" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n  <line x1="41.5" y1="55" x2="42" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n\n  <!-- GRAMPOS METÁLICOS no fuste -->\n  <rect x="35" y="72"  width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="100" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="130" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n\n  <!-- DEGRAUS DE SUBIDA (pregos alternados) -->\n  <line x1="34" y1="148" x2="29" y2="148" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="158" x2="51" y2="158" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="34" y1="168" x2="29" y2="168" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="178" x2="51" y2="178" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n\n</svg>';
 
-  <polygon points="50,30 60,35 60,270 50,265" fill="#737373" stroke="#525252" stroke-width="0.5"/>
-  <polygon points="60,35 70,30 70,265 60,270" fill="#a3a3a3" stroke="#737373" stroke-width="0.5"/>
-  <polygon points="60,25 70,30 60,35 50,30" fill="#d4d4d4" stroke="#a3a3a3" stroke-width="0.5"/>
-
-  <polygon points="25,65 95,30 95,35 25,70" fill="#d4d4d4" stroke="#a3a3a3" stroke-width="0.5"/>
-  <polygon points="25,65 95,30 98,31.5 28,66.5" fill="#f5f5f5" stroke="#d4d4d4" stroke-width="0.5"/>
-  <polygon points="95,30 98,31.5 98,36.5 95,35" fill="#a3a3a3" stroke="#737373" stroke-width="0.5"/>
-
-  <path d="M 28 62.5 L 28 52.5 A 2 1 0 0 0 32 52.5 L 32 62.5 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="30" cy="52.5" rx="2" ry="1" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <path d="M 58 47.5 L 58 37.5 A 2 1 0 0 0 62 37.5 L 62 47.5 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="60" cy="37.5" rx="2" ry="1" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <path d="M 88 32.5 L 88 22.5 A 2 1 0 0 0 92 22.5 L 92 32.5 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="90" cy="22.5" rx="2" ry="1" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-
-  <polygon points="35,90 85,65 85,70 35,95" fill="#d4d4d4" stroke="#a3a3a3" stroke-width="0.5"/>
-  <polygon points="35,90 85,65 88,66.5 38,91.5" fill="#f5f5f5" stroke="#d4d4d4" stroke-width="0.5"/>
-  <polygon points="85,65 88,66.5 88,71.5 85,70" fill="#a3a3a3" stroke="#737373" stroke-width="0.5"/>
-
-  <polygon points="45,115 60,107.5 60,110 45,117.5" fill="#374151"/>
-  <polygon points="45,145 60,137.5 60,140 45,147.5" fill="#374151"/>
-
-  <ellipse cx="38" cy="155" rx="12" ry="6" fill="#4b5563" stroke="#1f2937" stroke-width="0.5"/>
-  <path d="M 26 115 L 26 155 A 12 6 0 0 0 50 155 L 50 115 Z" fill="#6b7280" stroke="#374151" stroke-width="0.5"/>
-  
-  <line x1="30" y1="120" x2="30" y2="152" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="34" y1="122" x2="34" y2="154" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="38" y1="123" x2="38" y2="155" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="42" y1="122" x2="42" y2="154" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="46" y1="120" x2="46" y2="152" stroke="#4b5563" stroke-width="1.5"/>
-
-  <ellipse cx="38" cy="115" rx="12" ry="6" fill="#9ca3af" stroke="#4b5563" stroke-width="0.5"/>
-  <ellipse cx="38" cy="115" rx="8" ry="4" fill="#d1d5db" stroke="#9ca3af" stroke-width="0.5"/>
-
-  <path d="M 32 113 L 32 103 A 1.5 0.75 0 0 0 35 103 L 35 113 Z" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-  <ellipse cx="33.5" cy="103" rx="1.5" ry="0.75" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
-  
-  <path d="M 38 116 L 38 106 A 1.5 0.75 0 0 0 41 106 L 41 116 Z" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-  <ellipse cx="39.5" cy="106" rx="1.5" ry="0.75" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
-
-  <path d="M 44 113 L 44 103 A 1.5 0.75 0 0 0 47 103 L 47 113 Z" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-  <ellipse cx="45.5" cy="103" rx="1.5" ry="0.75" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
-
-  <path d="M 33.5 103 Q 30 85 30 52.5" fill="none" stroke="#111827" stroke-width="0.5"/>
-  <path d="M 39.5 106 Q 45 80 60 37.5" fill="none" stroke="#111827" stroke-width="0.5"/>
-  <path d="M 45.5 103 Q 65 70 90 22.5" fill="none" stroke="#111827" stroke-width="0.5"/>
-
-  <path d="M 65 140 Q 85 145 95 155" fill="none" stroke="#9ca3af" stroke-width="2.5"/>
-  <path d="M 90 152 C 90 148 102 150 102 156 C 102 158 90 158 90 152 Z" fill="#d1d5db" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="96" cy="155.5" rx="3" ry="1.5" fill="#fbbf24"/>
-  
-  <rect x="58" y="100" width="4" height="20" fill="#374151" rx="1"/>
-  <circle cx="58" cy="102" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <circle cx="58" cy="108" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <circle cx="58" cy="114" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <circle cx="58" cy="120" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-</svg>`;
-
-
-const SVG_3D_POSTE_MADEIRA = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 280" width="120" height="280">
-  <path d="M 0 66.5 Q 30 56.5 30 52.5 Q 40 40 120 0" fill="none" stroke="#444" stroke-width="1" opacity="0.6"/>
-  <path d="M 0 51.5 Q 60 41.5 60 37.5 Q 80 20 120 -15" fill="none" stroke="#444" stroke-width="1" opacity="0.6"/>
-  <path d="M 0 36.5 Q 90 26.5 90 22.5 Q 110 5 120 -25" fill="none" stroke="#444" stroke-width="1" opacity="0.6"/>
-
-  <polygon points="50,30 60,35 60,270 50,265" fill="#78350f" stroke="#451a03" stroke-width="0.5"/>
-  <polygon points="60,35 70,30 70,265 60,270" fill="#92400e" stroke="#451a03" stroke-width="0.5"/>
-  <polygon points="60,25 70,30 60,35 50,30" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-
-  <polygon points="25,65 95,30 95,35 25,70" fill="#92400e" stroke="#78350f" stroke-width="0.5"/>
-  <polygon points="25,65 95,30 98,31.5 28,66.5" fill="#b45309" stroke="#92400e" stroke-width="0.5"/>
-  <polygon points="95,30 98,31.5 98,36.5 95,35" fill="#78350f" stroke="#451a03" stroke-width="0.5"/>
-
-  <path d="M 28 62.5 L 28 52.5 A 2 1 0 0 0 32 52.5 L 32 62.5 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="30" cy="52.5" rx="2" ry="1" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <path d="M 58 47.5 L 58 37.5 A 2 1 0 0 0 62 37.5 L 62 47.5 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="60" cy="37.5" rx="2" ry="1" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <path d="M 88 32.5 L 88 22.5 A 2 1 0 0 0 92 22.5 L 92 32.5 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="90" cy="22.5" rx="2" ry="1" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-
-  <polygon points="35,90 85,65 85,70 35,95" fill="#92400e" stroke="#78350f" stroke-width="0.5"/>
-  <polygon points="35,90 85,65 88,66.5 38,91.5" fill="#b45309" stroke="#92400e" stroke-width="0.5"/>
-  <polygon points="85,65 88,66.5 88,71.5 85,70" fill="#78350f" stroke="#451a03" stroke-width="0.5"/>
-
-  <polygon points="45,115 60,107.5 60,110 45,117.5" fill="#374151"/>
-  <polygon points="45,145 60,137.5 60,140 45,147.5" fill="#374151"/>
-  <ellipse cx="38" cy="155" rx="12" ry="6" fill="#4b5563" stroke="#1f2937" stroke-width="0.5"/>
-  <path d="M 26 115 L 26 155 A 12 6 0 0 0 50 155 L 50 115 Z" fill="#6b7280" stroke="#374151" stroke-width="0.5"/>
-  <line x1="30" y1="120" x2="30" y2="152" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="34" y1="122" x2="34" y2="154" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="38" y1="123" x2="38" y2="155" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="42" y1="122" x2="42" y2="154" stroke="#4b5563" stroke-width="1.5"/>
-  <line x1="46" y1="120" x2="46" y2="152" stroke="#4b5563" stroke-width="1.5"/>
-  <ellipse cx="38" cy="115" rx="12" ry="6" fill="#9ca3af" stroke="#4b5563" stroke-width="0.5"/>
-  <ellipse cx="38" cy="115" rx="8" ry="4" fill="#d1d5db" stroke="#9ca3af" stroke-width="0.5"/>
-  
-  <path d="M 32 113 L 32 103 A 1.5 0.75 0 0 0 35 103 L 35 113 Z" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-  <ellipse cx="33.5" cy="103" rx="1.5" ry="0.75" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
-  <path d="M 38 116 L 38 106 A 1.5 0.75 0 0 0 41 106 L 41 116 Z" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-  <ellipse cx="39.5" cy="106" rx="1.5" ry="0.75" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
-  <path d="M 44 113 L 44 103 A 1.5 0.75 0 0 0 47 103 L 47 113 Z" fill="#b45309" stroke="#78350f" stroke-width="0.5"/>
-  <ellipse cx="45.5" cy="103" rx="1.5" ry="0.75" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
-
-  <path d="M 33.5 103 Q 30 85 30 52.5" fill="none" stroke="#111827" stroke-width="0.5"/>
-  <path d="M 39.5 106 Q 45 80 60 37.5" fill="none" stroke="#111827" stroke-width="0.5"/>
-  <path d="M 45.5 103 Q 65 70 90 22.5" fill="none" stroke="#111827" stroke-width="0.5"/>
-
-  <path d="M 65 140 Q 85 145 95 155" fill="none" stroke="#9ca3af" stroke-width="2.5"/>
-  <path d="M 90 152 C 90 148 102 150 102 156 C 102 158 90 158 90 152 Z" fill="#d1d5db" stroke="#9ca3af" stroke-width="0.5"/>
-  <ellipse cx="96" cy="155.5" rx="3" ry="1.5" fill="#fbbf24"/>
-
-  <rect x="58" y="100" width="4" height="20" fill="#374151" rx="1"/>
-  <circle cx="58" cy="102" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <circle cx="58" cy="108" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <circle cx="58" cy="114" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-  <circle cx="58" cy="120" r="1.5" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.5"/>
-</svg>`;
+// DATA_URI_3D não usadas — carregamento agora via Blob direto do SVG string
 
 // Dados e sets para autocomplete
 const todosPostes = [];
