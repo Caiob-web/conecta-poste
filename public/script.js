@@ -196,7 +196,7 @@
 })();
 
 /* ====================================================================
-   Estilos do popup tipo “card”
+   Estilos do popup tipo "card"
 ==================================================================== */
 (function injectPopupCardStyles() {
   const css = `
@@ -710,6 +710,9 @@ function limparSelecaoESair(opts = {}) {
     selecaoPolyline = null;
   }
   atualizarEstadoBotaoSelecao();
+
+  // Sincroniza visual de seleção no modo 3D também
+  if (typeof atualizarSelecao3DVisual === "function") atualizarSelecao3DVisual();
 }
 
 function handleSelecaoClick(poste, layer) {
@@ -780,6 +783,10 @@ function handleSelecaoClick(poste, layer) {
   }
 
   atualizarEstadoBotaoSelecao();
+
+  // Sincroniza visual de seleção no modo 3D também
+  if (typeof atualizarSelecao3DVisual === "function") atualizarSelecao3DVisual();
+
   return true;
 }
 
@@ -1102,8 +1109,8 @@ function popupTransformadorHTML(t) {
   const linhas = Object.entries(flat)
     .map(([k, v]) => `
       <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#334155;white-space:nowrap;"><b>${escapeHtml(k)}</b></td>
-        <td style="padding:6px 8px;border-bottom:1px solid:#eee;color:#111827;word-break:break-word;">${escapeHtml(formatAny(v))}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#334155;white-space:nowrap;"><b>${escapeHtml(k)}</b></td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#111827;word-break:break-word;">${escapeHtml(formatAny(v))}</td>
       </tr>
     `).join("");
 
@@ -1240,6 +1247,61 @@ function criarLayerPoste(p) {
   idToMarker.set(key, layer);
   return layer;
 }
+
+// =====================================================================
+// Helpers de adicionar marcador ao cluster 2D
+// =====================================================================
+function adicionarMarker(p) {
+  const layer = criarLayerPoste(p);
+  markers.addLayer(layer);
+}
+
+// =====================================================================
+// carregarTodosPostesGradualmente + hardReset
+// =====================================================================
+function carregarTodosPostesGradualmente() {
+  markers.clearLayers();
+  refreshClustersSoon();
+
+  const lote = document.hidden ? 3500 : 1200;
+  let i = 0;
+
+  function addChunk() {
+    const slice = todosPostes.slice(i, i + lote);
+    const layers = slice.map(criarLayerPoste);
+    if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
+    i += lote;
+    if (i < todosPostes.length) {
+      scheduleIdle(addChunk);
+    } else {
+      todosCarregados = true;
+      hideOverlay();
+      reabrirTooltipFixo(0);
+      reabrirPopupFixo(0);
+      atualizar3DSeAtivo();
+    }
+  }
+  scheduleIdle(addChunk);
+}
+
+function hardReset() {
+  markers.clearLayers();
+  refreshClustersSoon();
+  idToMarker.clear();
+
+  if (typeof reconstruirFonte3D === "function") reconstruirFonte3D();
+
+  carregarTodosPostesGradualmente();
+}
+
+function exibirTodosPostes() {
+  markers.clearLayers();
+  refreshClustersSoon();
+  todosPostes.forEach(adicionarMarker);
+  refreshClustersSoon();
+  atualizar3DSeAtivo();
+}
+
 // =====================================================================
 // script-3d-override.js
 // Override completo do modo 3D com clusters + poste 3D + funções do 2D
@@ -2173,6 +2235,9 @@ function criarLayerPoste(p) {
   window.getMapa3D = () => map3d;
   window.getModoMapaAtual = () => modoMapaAtual;
 
+  // =====================================================================
+  // buscarID — funciona em 2D e 3D
+  // =====================================================================
   window.buscarID = function () {
     const id = document.getElementById("busca-id")?.value.trim();
     const p = todosPostes.find((x) => String(x.id) === String(id));
@@ -2180,6 +2245,9 @@ function criarLayerPoste(p) {
     focarPosteUniversal(p);
   };
 
+  // =====================================================================
+  // buscarCoordenada — funciona em 2D e 3D
+  // =====================================================================
   window.buscarCoordenada = function () {
     const inpt = document.getElementById("busca-coord")?.value.trim();
     const [lat, lon] = (inpt || "").split(/,\s*/).map(Number);
@@ -2187,6 +2255,9 @@ function criarLayerPoste(p) {
     focarCoordenadaUniversal(lat, lon);
   };
 
+  // =====================================================================
+  // filtrarLocal — funciona em 2D e 3D
+  // =====================================================================
   window.filtrarLocal = function () {
     const getVal = (id) => (document.getElementById(id)?.value || "").trim().toLowerCase();
     const [mun, bai, log, emp] = ["busca-municipio", "busca-bairro", "busca-logradouro", "busca-empresa"].map(getVal);
@@ -2201,6 +2272,7 @@ function criarLayerPoste(p) {
 
     if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
 
+    // Atualiza 2D
     markers.clearLayers();
     if (typeof refreshClustersSoon === "function") refreshClustersSoon();
     filtro.forEach((p) => adicionarMarker(p));
@@ -2208,8 +2280,10 @@ function criarLayerPoste(p) {
     if (typeof reabrirTooltipFixo === "function") reabrirTooltipFixo(0);
     if (typeof reabrirPopupFixo === "function") reabrirPopupFixo(0);
 
+    // Atualiza 3D
     aplicarFiltro3D(filtro);
 
+    // Zoom universal
     if (modoMapaAtual === "3d") {
       zoomToListaUniversal(filtro, true);
     } else {
@@ -2223,6 +2297,9 @@ function criarLayerPoste(p) {
     if (typeof gerarCSVParaBase44 === "function") gerarCSVParaBase44(filtro.map((p) => p.id));
   };
 
+  // =====================================================================
+  // resetarMapa — funciona em 2D e 3D
+  // =====================================================================
   window.resetarMapa = function () {
     if (typeof limparSelecaoESair === "function") limparSelecaoESair({ manterMarcadores: true });
     if (typeof popupPinned !== "undefined") popupPinned = false;
@@ -2235,11 +2312,16 @@ function criarLayerPoste(p) {
     restaurarDatasetCompleto3D();
 
     if (typeof hardReset === "function") {
+      hardReset();
+    } else {
       carregarTodosPostesGradualmente();
-      atualizar3DSeAtivo();
     }
+    atualizar3DSeAtivo();
   };
 
+  // =====================================================================
+  // consultarIDsEmMassa — funciona em 2D e 3D
+  // =====================================================================
   window.consultarIDsEmMassa = function () {
     const ids = (document.getElementById("ids-multiplos")?.value || "")
       .split(/[^0-9]+/).filter(Boolean);
@@ -2315,6 +2397,7 @@ function criarLayerPoste(p) {
       intermediarios: window.intermediarios.length,
     };
 
+    // Desenha análise em massa no 3D
     desenharAnaliseMassa3D(encontrados, window.intermediarios || []);
 
     if (modoMapaAtual === "3d") {
@@ -2327,6 +2410,7 @@ function criarLayerPoste(p) {
     if (typeof hideOverlay === "function") hideOverlay();
   };
 
+  // Rebind dos botões do DOM após carregamento
   document.addEventListener("DOMContentLoaded", () => {
     const maybeRebind = (id, evt, fn) => {
       const el = document.getElementById(id);
@@ -2743,7 +2827,8 @@ fetch("/api/postes", { credentials: "include" })
       });
     });
 
-    montarGeoJSONPostes3D();
+    // Pré-gera GeoJSON master para o 3D
+    if (typeof reconstruirFonte3D === "function") reconstruirFonte3D();
 
     preencherListas();
     hideOverlay();
@@ -2824,7 +2909,7 @@ function gerarExcelCliente(filtroIds) {
 }
 
 // ---------------------------------------------------------------------
-// Geração de CSV no cliente (Base44)
+// Geração de CSV no cliente (Base44 / EO)
 // ---------------------------------------------------------------------
 function gerarCSVParaEO(filtroIds) {
   const idSet = new Set((filtroIds || []).map(keyId));
@@ -2961,9 +3046,12 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------
-// Interações / filtros
+// Interações / filtros (versões 2D-only — as universais estão no IIFE 3D)
 // ---------------------------------------------------------------------
 function buscarID() {
+  if (typeof window.buscarID === "function" && window.buscarID !== buscarID) {
+    return window.buscarID();
+  }
   const id = document.getElementById("busca-id")?.value.trim();
   const p = todosPostes.find((x) => keyId(x.id) === keyId(id));
   if (!p) return alert("Poste não encontrado.");
@@ -2972,6 +3060,9 @@ function buscarID() {
 }
 
 function buscarCoordenada() {
+  if (typeof window.buscarCoordenada === "function" && window.buscarCoordenada !== buscarCoordenada) {
+    return window.buscarCoordenada();
+  }
   const inpt = document.getElementById("busca-coord")?.value.trim();
   const [lat, lon] = (inpt || "").split(/,\s*/).map(Number);
   if (isNaN(lat) || isNaN(lon)) return alert("Use o formato: lat,lon");
@@ -2980,6 +3071,9 @@ function buscarCoordenada() {
 }
 
 function filtrarLocal() {
+  if (typeof window.filtrarLocal === "function" && window.filtrarLocal !== filtrarLocal) {
+    return window.filtrarLocal();
+  }
   const getVal = (id) => (document.getElementById(id)?.value || "").trim().toLowerCase();
   const [mun, bai, log, emp] = ["busca-municipio", "busca-bairro", "busca-logradouro", "busca-empresa"].map(getVal);
 
@@ -3000,7 +3094,6 @@ function filtrarLocal() {
   reabrirTooltipFixo(0);
   reabrirPopupFixo(0);
 
-  // se quiser que o 3D continue sempre com TODOS os postes, NÃO chame reconstruirFonte3D aqui
   atualizar3DSeAtivo();
 
   fetch("/api/postes/report", {
@@ -3031,6 +3124,9 @@ function filtrarLocal() {
 }
 
 function resetarMapa() {
+  if (typeof window.resetarMapa === "function" && window.resetarMapa !== resetarMapa) {
+    return window.resetarMapa();
+  }
   limparSelecaoESair({ manterMarcadores: true });
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
@@ -3272,9 +3368,13 @@ setInterval(() => {
 }, 600000);
 
 // ---------------------------------------------------------------------
-// Consulta massiva + traçado
+// Consulta massiva + traçado (versão 2D-only — a universal está no IIFE 3D)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
+  if (typeof window.consultarIDsEmMassa === "function" && window.consultarIDsEmMassa !== consultarIDsEmMassa) {
+    return window.consultarIDsEmMassa();
+  }
+
   const ids = (document.getElementById("ids-multiplos")?.value || "")
     .split(/[^0-9]+/).filter(Boolean);
 
