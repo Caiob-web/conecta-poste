@@ -555,40 +555,17 @@ osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
 
-const SVG_POSTE_CONCRETO = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
-  <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
-  <rect x="16" y="25" width="32" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
-  <rect x="20" y="35" width="24" height="4" fill="#757575" stroke="#555" stroke-width="1.5" rx="1"/>
-  <circle cx="18" cy="24" r="2" fill="#DDD"/>
-  <circle cx="46" cy="24" r="2" fill="#DDD"/>
-  <circle cx="22" cy="34" r="2" fill="#DDD"/>
-  <circle cx="42" cy="34" r="2" fill="#DDD"/>
-  <line x1="29" y1="55" x2="35" y2="55" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
-  <line x1="29" y1="75" x2="35" y2="75" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
-  <line x1="29" y1="95" x2="35" y2="95" stroke="#7a7a7a" stroke-width="1.2" opacity="0.8"/>
-</svg>
-`.trim();
+const SVG_POSTE_CONCRETO = null; // substituído por imagem PNG real
 
-const SVG_POSTE_MADEIRA = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
-  <rect x="28" y="15" width="8" height="105" fill="#8B5A2B" stroke="#4A3516" stroke-width="2" rx="1"/>
-  <rect x="16" y="25" width="32" height="4" fill="#6D4C20" stroke="#4A3516" stroke-width="1.5" rx="1"/>
-  <rect x="20" y="35" width="24" height="4" fill="#6D4C20" stroke="#4A3516" stroke-width="1.5" rx="1"/>
-  <circle cx="18" cy="24" r="2" fill="#DDD"/>
-  <circle cx="46" cy="24" r="2" fill="#DDD"/>
-  <circle cx="22" cy="34" r="2" fill="#DDD"/>
-  <circle cx="42" cy="34" r="2" fill="#DDD"/>
-</svg>
-`.trim();
+const SVG_POSTE_MADEIRA = null; // substituído por imagem PNG real
 
-const POSTE_ICON_SIZE = [22, 44];
-const POSTE_ICON_ANCHOR = [11, 42];
-const POSTE_TOOLTIP_ANCHOR = [0, -38];
-const POSTE_POPUP_ANCHOR = [0, -42];
+const POSTE_ICON_SIZE = [40, 80];
+const POSTE_ICON_ANCHOR = [20, 78];
+const POSTE_TOOLTIP_ANCHOR = [0, -72];
+const POSTE_POPUP_ANCHOR = [0, -78];
 
 const ICON_POSTE_CONCRETO = L.icon({
-  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_CONCRETO)}`,
+  iconUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAABQCAYAAABrjzfBAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAK5UlEQVR42s2ay5Mcx3HGf1lVPe/H7szO7ANY4rWEDJASbdghKnTw0dLBR/8H/oN8k+++SqGQdXA4gpQvkkiaksImKUBkmA4CILHY9+xjdmemu6tSh+6ZnQWBIAVMAFMRHTvRM12d++WXWV9mlYSgCqBkQ/LPMrmjiBgmv1FQVUTOf3n+NBeeFqaHZM9evPnUIfkVUEQ11fOppl9o8r/Tn3mKQU8z8MlXXfxOv4WB2e8Ud+8wZRoLL2AUVDQzTQ2qHtUAgBE5R/JrU+uUWYI1GQ4T9MjQfxruF70HIoIquIOkmLlR868FUEFQVEARVPMX67NxG//bok/A8BRnT9+T3O2iikxPokIAXNFks2UTy9TbhZB7aAK5Ps0NGVoqICFnw9cwEnSC7jTLNfdWPt8USJLz2Bl9NhHMBJHMnGmCS04DGVuuimiKiJvirORMytGR8XwZt1Ukp4M+gTqIZM84m7942jNj2PUZ7BU951kqIBqwzlAuFhicaU6PjHSiJvNEPowAarnIhPNgUiOYMa0UjJjsIStgMsYhRhFRzJOX5heKWEXTEcYnlIuGwfER77/7DpERrJWJM8WANeBM/g6T3ROjGBl/Pr+sTCOqOGOmaDd251S8XGDUmA+q4AzJYY/97cdYV2R36xG/f+dn/NXtt2gutilEljRAUM2DLqeIgMhFdk77dmycimBUcTIh6FQKmWCvEyQQRfKU4fFUC4af/vvP+eDdXxKVG8TpiE69yMcfvs/i6hqNep2l5RUK5RrGmhwQcx4yk/kyl1/gkYAbB8vdw6CTFSNHMMg4hqaStARUpzI8MOjt0z864L1f/Se1aomTnV1+8I//RFSqcrC1Q7lc5vKN1zFFh/cexCIi2Yyik6wgmEmUm+l0JwEn+cvII1LJljHRjIfZLFlKUFF8UIpRgVIEh3uBgQaieo31K9f4j/v3GX7wK+587/tsbX/FQW8PKQq33niDIJY4hTQJqPe5u01ucJiCQ8/Tkwryx8NEp1MHT6RDchtFBHFCtWLYfbDLnz69y7/+20/YP3pMxxXZWL7Ch9v3sSFw++ot3nv/PVZXuxh1/N2dH/Dm7e/y1ttv0+4uUy1ZAjCMIU4UCR7wqBgEc85RVeSz0zw05OJKMU5XolCIAA8nx8d8/NH/8uFvf0O5WuX/H93ny+0H3Lx2A9c/4cR7SrUmf/vmHXYO9lAC1kaMjgfcv3sPtbB6eY2F1gJrVzb43p23uXRpFVfK3pkGSFMIgTE7kXc+/905gmG8VirWOQpRAfHKzuM9Pvz1e/R6OxQKjo3Xb4EtgDmj2VniyvWb/PYXv8QmjrXvXKex0uS169fY3zuiUa8RfMynH33Mg/sPGA1HfPLRRwyGIwqmQmehzfrGDdbXr7Oy0qXWblCuFjEFzXLsT975Fw3BE1Sx1hFFFlHD6ckpm/e32Hy4zaA/pLXQoN1pU61XEVvAljzL3UU0itAAn/3mHh+8+99EVeEf/vnHNJtNkrOYQjFCVcBbStUCXsEmlpHvc7h3xPZX+2w/2mZ3c5fBcETkIsrVMq3uAt21ZVyxFOFcBaMw7A95/GCPzS826R8cU4wqtBYbLNx8jXq1QrlYxRWLFEogTjjunbL16CvODvv44xGlUpGl1SXW2quYyDAMQ0IaMC4i8YFhEhM0YFIhqkQsX+uwtrGGlb8hHaUcH/Xp7fTY2dplb3OfT353Fzc4Stn78jGPvnxI//AUr1BfbHLtO1eptxoUKwXK9RIFG5GcjhieJcT9wObWJv2TE6rNReqlMp/+4TO6y8vUlpoc7RyzfbhHHCtJf0RrqUGpWMNSgMhTWMySVxIrSCb3jDFU20UanUvceOMKGoThaIR79xf/RWQNyyvLXH7rOs2lEtVGCSKHyXNVCErsU1I8n979nN5ej+5Ki4VGk6hS5vR0n/jomEpziWQYc+/e/7HxxnUIgUfDRyRpzNaXD4lPlfWbHVZX2oQQMLlOFICgpHFKogkaAhiDMQb39z/6IfVWHRsZPD7PxIHgAz74XFlkGdKVLK/fuUExcpSrJbxPGZzGfPH7/8GK5fH2Y6I9qK0tsLLeZTg8o7Pa5bg/YHWjQ7vdIYrSbPkTmei3yVI61p3GZLlXA67RrRI0JfGCkgAGpwargjcWNEzkkWBp1kt4VYZxjGhCY7HK5auX6H2+Q6NRp9NpUe00+NMnn7F2dZWzQUx3ZZHmUh3vFbwF8VN1Sm6kXiwVRDLB7NIkQcRgxKD5WhmmZPp05g6qpD4FBCuCBiH1KbXlJgtLLSqdZU6TPsuNCt+9/CarGx3EKN574uEIY3K9FL6pKsmXwUwfZO4L6ieLTC4nn1I1KAElELLfGyGOEzrXlmld6bK9s4+tOHZ39zB41CjD0QgfQl5j6KS2+bbDZQ+GZ9QO32IEhchy/a9vcXDwR9orC7x2eZ2oLqQ+yQTnCwzHE4T9y4YiVkCFFGh3OrS6NSqLZULkMy+IvpCBUxW5PNfjPoYkBoslHp1RahTRQq7tX8y2HMG8GtPnsM8Ywye//gPbj3ZYX7tCrV6hXC8SbDhXGy84jOrzGYdmLZHiWUK0d0b/qx3QlGQU5xrNzwTB52awsYbTkwHxIGFpqUX/bMAgHhGCR3QGlr2IgRoUFzl2NrfZ3j4kaEDEsHH7NrVGnTBDA91zPymZsDzeP6bkR0T1DrEPFII8V7i9uIH6tEaVEEUR5XKZ4mIbMTaPOF6uixVFzFR/RcAZweBIg6fWrFOtL/C1DtPLMFAwOBORJCmRcaAOnwijU08hchTKBXwwiAohzbSdFXk5LlbAWsvRF322vuhR79ZoLJXo9U4oFiPa7Sa37tzi8P4WxZDmyDo0DczKz+abUsloOGJ4CN3WOlHZ0uyWee1mh9JCRBQV6cVnbB4dEEQZHvcZ9M+y5e+lBEkIWGOor5Yo1ARbrxOHGEFotCoMD0csdttUyhX8KPDwwUPKV69Q1NJza4+/zMUKxllqXUMwgST4vDUGwSvlepGllS5Hrof2HZeuXWKhVSKOk1yFv4QgUfXEpJN+jCJgBBUliFJZqjBMBlgxBKckPp2Zcd86zUguzSW/xh3VoJ6oBI1WjVHicc5lHbKXnQfRkFVa05J73LFXZWFpERcV0OS81ftK1+LzPnJWXxTrRU7P+uxs7qA+b/POg4GTYQ31epWTox693hHGuieqtFdpoGSFfalcYbG9SLlcnrTr5gdBFFWhs7ZCtVG90N9+dXKLi3smSNZx9j55xjbZK0JwvJHj05QQshAPIcxPkGheG89SpM6cgyLnUgudRwONEFQJPmRqdt4MVFUwWXc+3+ydJwNlskntnGOmOWZmUZwr72f1xF5tFOcHLEIIhJDOPErMLCJ43Pc731XX+QqScSPJWocEefl18TfVzJmBlum95rkLEhEz2ReeszyYuTSErHsNc5aoxy4OIZBtq8zWx7PxiZhs83lyjkXmi4OighNLUD+faibk+yCIzKwWmWmQBA0EVZxzs1ZbsymaMCY/ADV1QGxuDFRFQibz/TyuxWMRbVSz7sP8uTg/LhKyMw/zp6jzg4nGjI9uzmEUo4qzlsi6OSyaZGp/Wc08Fk1ZCy54Q6op52eG5oaDmaqO45gkHs20uzozF4sxGCNEJprDNKOAD2AtYqP57CwAWBch1szcwJm037LWW4z3oBLNl2BVwBihuWaIasxsA2d2CGp2Eq5+qYInoF7nz8WqgSTVmacYgD8DuiZHi4Vfn3kAAAAASUVORK5CYII=",
   iconSize: POSTE_ICON_SIZE,
   iconAnchor: POSTE_ICON_ANCHOR,
   tooltipAnchor: POSTE_TOOLTIP_ANCHOR,
@@ -597,7 +574,7 @@ const ICON_POSTE_CONCRETO = L.icon({
 });
 
 const ICON_POSTE_MADEIRA = L.icon({
-  iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(SVG_POSTE_MADEIRA)}`,
+  iconUrl: "data:image/png;base64,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",
   iconSize: POSTE_ICON_SIZE,
   iconAnchor: POSTE_ICON_ANCHOR,
   tooltipAnchor: POSTE_TOOLTIP_ANCHOR,
@@ -1289,7 +1266,7 @@ function hardReset() {
   refreshClustersSoon();
   idToMarker.clear();
 
-  if (typeof reconstruirFonte3D === "function") reconstruirFonte3D();
+  if (typeof window.reconstruirFonte3D === "function") window.reconstruirFonte3D();
 
   carregarTodosPostesGradualmente();
 }
@@ -2232,6 +2209,10 @@ function exibirTodosPostes() {
   window.desenharAnaliseMassa3D = desenharAnaliseMassa3D;
   window.focarPosteUniversal = focarPosteUniversal;
   window.focarCoordenadaUniversal = focarCoordenadaUniversal;
+  window.montarGeoJSONPostes3D = montarGeoJSONPostes3D;
+  window.getMasterGeoJSON3D = getMasterGeoJSON3D;
+  window.aplicarFiltro3D = aplicarFiltro3D;
+  window.restaurarDatasetCompleto3D = restaurarDatasetCompleto3D;
   window.getMapa3D = () => map3d;
   window.getModoMapaAtual = () => modoMapaAtual;
 
@@ -2827,8 +2808,8 @@ fetch("/api/postes", { credentials: "include" })
       });
     });
 
-    // Pré-gera GeoJSON master para o 3D
-    if (typeof reconstruirFonte3D === "function") reconstruirFonte3D();
+    // Pré-gera GeoJSON master para o 3D (usa window para acessar função do IIFE)
+    if (typeof window.reconstruirFonte3D === "function") window.reconstruirFonte3D();
 
     preencherListas();
     hideOverlay();
