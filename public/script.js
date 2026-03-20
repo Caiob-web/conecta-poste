@@ -1412,33 +1412,32 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     }
   }
 
-  function resetarEstrutura3D() {
-    if (!map3d) return;
-    [
-      MAP3D_LAYER_CLUSTER_SHADOW,
-      MAP3D_LAYER_CLUSTER,
-      MAP3D_LAYER_CLUSTER_COUNT,
-      MAP3D_LAYER_POINT_GLOW,
-      MAP3D_LAYER_POINT_BODY,
-      MAP3D_LAYER_POINT_LABELS,
-      MAP3D_LAYER_SELECTED_GLOW,
-      MAP3D_LAYER_SELECTED,
-      MAP3D_LAYER_ROUTE,
-      MAP3D_LAYER_MASS,
-      MAP3D_LAYER_MASS_LABELS,
-      MAP3D_LAYER_POLE
-    ].forEach(removeLayerIfExists);
+   function resetarEstrutura3D() {
+  if (!map3d) return;
 
-    [
-      MAP3D_SOURCE_ACTIVE,
-      MAP3D_SOURCE_SELECTED,
-      MAP3D_SOURCE_ROUTE,
-      MAP3D_SOURCE_MASS,
-      MAP3D_SOURCE_POLES
-    ].forEach(removeSourceIfExists);
+  [
+    MAP3D_LAYER_CLUSTER_SHADOW,
+    MAP3D_LAYER_CLUSTER,
+    MAP3D_LAYER_CLUSTER_COUNT,
+    MAP3D_LAYER_POINT_GLOW,
+    MAP3D_LAYER_POINT_BODY,
+    MAP3D_LAYER_POINT_LABELS,
+    MAP3D_LAYER_SELECTED_GLOW,
+    MAP3D_LAYER_SELECTED,
+    MAP3D_LAYER_ROUTE,
+    MAP3D_LAYER_MASS,
+    MAP3D_LAYER_MASS_LABELS
+  ].forEach(removeLayerIfExists);
 
-    postes3DSourceLoaded = false;
-  }
+  [
+    MAP3D_SOURCE_ACTIVE,
+    MAP3D_SOURCE_SELECTED,
+    MAP3D_SOURCE_ROUTE,
+    MAP3D_SOURCE_MASS
+  ].forEach(removeSourceIfExists);
+
+  postes3DSourceLoaded = false;
+}
 
   function adicionarPredios3D() {
     if (!map3d || !map3dLoaded) return;
@@ -1526,11 +1525,6 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
       data: { type: "FeatureCollection", features: [] }
     });
 
-    map3d.addSource(MAP3D_SOURCE_POLES, {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] }
-    });
-
     postes3DSourceLoaded = true;
   }
 
@@ -1609,7 +1603,7 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     // (SVG com transformador, cruzetas e fios — específico do modo 3D)
     // Os ícones Leaflet 2D (SVG_POSTE_*) NÃO aparecem aqui.
     // =====================================================================
-    if (!map3d.getLayer(MAP3D_LAYER_POINT_BODY)) {
+  if (!map3d.getLayer(MAP3D_LAYER_POINT_BODY)) {
   map3d.addLayer({
     id: MAP3D_LAYER_POINT_BODY,
     type: "symbol",
@@ -1625,9 +1619,9 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
       "icon-size": [
         "interpolate", ["linear"], ["zoom"],
         13, 0.18,
-        16, 0.32,
-        18, 0.52,
-        20, 0.72
+        16, 0.28,
+        18, 0.40,
+        20, 0.55
       ],
       "icon-anchor": "bottom",
       "icon-allow-overlap": true,
@@ -1666,22 +1660,6 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     }
   });
 }
-
-    if (!map3d.getLayer(MAP3D_LAYER_POLE)) {
-      map3d.addLayer({
-        id: MAP3D_LAYER_POLE,
-        type: "fill-extrusion",
-        source: MAP3D_SOURCE_POLES,
-        minzoom: POLE_MIN_ZOOM,
-        paint: {
-          "fill-extrusion-color": ["case", ["==", ["get", "material_tipo"], "madeira"], "#8B5A2B", "#9E9E9E"],
-          "fill-extrusion-height": ["get", "altura"],
-          "fill-extrusion-base": 0,
-          "fill-extrusion-opacity": 0.98,
-          "fill-extrusion-vertical-gradient": true
-        }
-      });
-    }
 
     if (!map3d.getLayer(MAP3D_LAYER_SELECTED_GLOW)) {
       map3d.addLayer({
@@ -1894,8 +1872,12 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     return +(base + bonus).toFixed(2);
   }
 
-  function atualizarPostesExtrudados3D() {
-    if (!map3d || !map3dLoaded) return;
+ function atualizarPostesExtrudados3D() {
+  // DESATIVADO:
+  // o usuário quer ver apenas o ícone 2D do poste no mapa 3D,
+  // sem extrusão 3D em forma de coluna.
+  return;
+}
 
     const src = map3d.getSource(MAP3D_SOURCE_POLES);
     if (!src) return;
