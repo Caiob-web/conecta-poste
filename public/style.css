@@ -35,32 +35,46 @@ body, html {
 }
 
 /* =========================================================
-   MODO 3D ATIVO — oculta completamente o Leaflet
-   A classe .modo-3d-ativo é adicionada ao <body> pelo script.js
-   quando o usuário entra no modo 3D, e removida ao voltar ao 2D.
-
-   Por que visibility:hidden e não display:none?
-   - display:none quebraria o estado interno do Leaflet (tamanhos,
-     bounds, eventos), dificultando o retorno ao modo 2D.
-   - visibility:hidden oculta visualmente mas preserva o layout,
-     garantindo que ao remover a classe o Leaflet volte perfeito.
-   - z-index:-1 empurra o container para baixo do MapLibre (#map3d
-     tem z-index:1), eliminando qualquer sobreposição de SVG.
+   SEPARAÇÃO FÍSICA MODO 2D / MODO 3D
+   A classe .modo-3d-ativo é adicionada ao <body> pelo script.js.
+   Estratégia: mover o container inativo para left:-200vw.
+   Mais confiável que display:none ou visibility:hidden.
 ========================================================= */
+
+/* MODO 3D ATIVO: #map sai fisicamente da viewport */
 body.modo-3d-ativo #map {
-  visibility: hidden !important;
+  position: fixed !important;
+  left: -200vw !important;
+  top: 0 !important;
   pointer-events: none !important;
-  z-index: -1 !important;
+  z-index: -999 !important;
 }
 
-/* Oculta individualmente todos os panes do Leaflet:
-   markers (SVGs dos postes 2D), tooltips, tiles, popups, controles */
 body.modo-3d-ativo #map .leaflet-pane,
 body.modo-3d-ativo #map .leaflet-top,
 body.modo-3d-ativo #map .leaflet-bottom,
 body.modo-3d-ativo #map .leaflet-control-container {
-  visibility: hidden !important;
+  opacity: 0 !important;
   pointer-events: none !important;
+}
+
+body.modo-3d-ativo #map3d {
+  display: block !important;
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 1 !important;
+}
+
+/* MODO 2D ATIVO: #map3d sai fisicamente da viewport */
+body:not(.modo-3d-ativo) #map3d {
+  position: fixed !important;
+  left: -200vw !important;
+  display: block !important;
+  pointer-events: none !important;
+  z-index: -999 !important;
 }
 
 /* =========================================================
