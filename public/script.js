@@ -553,7 +553,9 @@ postesPane.style.zIndex = 630;
 
 osm.addTo(map);
 
-// ========= ÍCONES SVG DOS POSTES (CONCRETO / MADEIRA) — AJUSTADOS =========
+// ========= ÍCONES SVG DOS POSTES 2D (CONCRETO / MADEIRA) — EXCLUSIVOS DO MODO 2D =========
+// Estes SVGs são usados APENAS no modo 2D (Leaflet).
+// No modo 3D, os postes são renderizados exclusivamente pelo MapLibre com SVG_3D_*.
 
 const SVG_POSTE_CONCRETO = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
@@ -605,11 +607,13 @@ const ICON_POSTE_MADEIRA = L.icon({
   className: "leaflet-marker-icon poste-marker-icon"
 });
 
-// ========= SVGs DETALHADOS PARA MODO 3D (inspirados na foto real) =========
-const SVG_3D_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS saindo das cruzetas (perspectiva levemente diagonal) -->\n  <line x1="0"  y1="28" x2="80" y2="32" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="35" x2="80" y2="39" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="55" x2="76" y2="58" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="61" x2="76" y2="64" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (concreto/metal — cinza) -->\n  <rect x="6"  y="22" width="68" height="7" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <!-- parafusos cruzeta superior -->\n  <circle cx="12" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="40" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="68" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="16" y="48" width="48" height="6" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <circle cx="21" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="40" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="59" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <rect x="19"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- FUSTE principal (concreto — cinza levemente cônico) -->\n  <polygon points="37,15 43,15 45,198 35,198"\n           fill="#c8c8c8" stroke="#999" stroke-width="1"/>\n  <!-- reflexo lateral esquerdo do fuste -->\n  <polygon points="37,15 39,15 41,198 35,198"\n           fill="rgba(255,255,255,0.18)"/>\n  <!-- sombra lateral direita do fuste -->\n  <polygon points="41,15 43,15 45,198 43,198"\n           fill="rgba(0,0,0,0.10)"/>\n  <!-- marcações horizontais do fuste (linhas de fôrma) -->\n  <line x1="36" y1="80"  x2="44" y2="81"  stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="110" x2="44" y2="111" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="140" x2="44" y2="141" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="170" x2="44" y2="171" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n\n  <!-- TRANSFORMADOR CILÍNDRICO -->\n  <ellipse cx="40" cy="70" rx="8" ry="3.5"\n           fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <rect x="32" y="70" width="16" height="20" rx="2"\n        fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <ellipse cx="40" cy="90" rx="8" ry="3"\n           fill="#7a6a5a" stroke="#5a4a3a" stroke-width="0.8"/>\n  <!-- frisos do transformador -->\n  <line x1="33" y1="74" x2="47" y2="74" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="78" x2="47" y2="78" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="82" x2="47" y2="82" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="86" x2="47" y2="86" stroke="#6a5a4a" stroke-width="0.8"/>\n  <!-- buchas do transformador -->\n  <rect x="34" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="38.5" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="43" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n\n  <!-- BRAÇO DE LUMINÁRIA -->\n  <path d="M37 105 Q28 103 24 110" fill="none" stroke="#aaa" stroke-width="2.2" stroke-linecap="round"/>\n  <!-- cabeça da luminária -->\n  <ellipse cx="23" cy="111" rx="5.5" ry="2.5" fill="#ddd" stroke="#999" stroke-width="0.8"/>\n  <rect x="18" y="111" width="11" height="3" rx="1.5" fill="#ccc" stroke="#999" stroke-width="0.6"/>\n\n</svg>';
-const SVG_3D_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS -->\n  <line x1="0"  y1="26" x2="80" y2="30" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="33" x2="80" y2="37" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="52" x2="76" y2="55" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="58" x2="76" y2="61" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (madeira espessa — tom quente) -->\n  <rect x="5"  y="19" width="70" height="9" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <!-- veios madeira cruzeta superior -->\n  <line x1="6"  y1="22" x2="74" y2="22" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <line x1="6"  y1="25" x2="74" y2="25" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <!-- parafusos U -->\n  <line x1="12" y1="19" x2="12" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="19" x2="40" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="68" y1="19" x2="68" y2="28" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS SUPERIORES -->\n  <line x1="40" y1="28" x2="13" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n  <line x1="40" y1="28" x2="67" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="15" y="44" width="50" height="8" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <line x1="16" y1="47" x2="64" y2="47" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <rect x="19" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <line x1="21" y1="44" x2="21" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="44" x2="40" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="59" y1="44" x2="59" y2="52" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS INFERIORES -->\n  <line x1="40" y1="52" x2="20" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n  <line x1="40" y1="52" x2="60" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n\n  <!-- FUSTE principal (madeira — marrom escuro cônico) -->\n  <polygon points="37,12 43,12 46,198 34,198"\n           fill="#7a4e1e" stroke="#4a2e0a" stroke-width="1.2"/>\n  <!-- reflexo lateral fuste -->\n  <polygon points="37,12 39,12 42,198 34,198"\n           fill="rgba(255,200,120,0.12)"/>\n  <!-- sombra lateral fuste -->\n  <polygon points="41,12 43,12 46,198 44,198"\n           fill="rgba(0,0,0,0.15)"/>\n  <!-- veios verticais madeira -->\n  <line x1="38.5" y1="55" x2="38" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n  <line x1="41.5" y1="55" x2="42" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n\n  <!-- GRAMPOS METÁLICOS no fuste -->\n  <rect x="35" y="72"  width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="100" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="130" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n\n  <!-- DEGRAUS DE SUBIDA (pregos alternados) -->\n  <line x1="34" y1="148" x2="29" y2="148" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="158" x2="51" y2="158" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="34" y1="168" x2="29" y2="168" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="178" x2="51" y2="178" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n\n</svg>';
+// ========= SVGs DETALHADOS PARA MODO 3D (com transformador, cruzetas, fios) =========
+// Estes SVGs são usados APENAS no modo 3D (MapLibre sprites).
+// No modo 2D, os postes são renderizados exclusivamente pelo Leaflet com SVG_POSTE_*.
 
-// DATA_URI_3D não usadas — carregamento agora via Blob direto do SVG string
+const SVG_3D_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS saindo das cruzetas (perspectiva levemente diagonal) -->\n  <line x1="0"  y1="28" x2="80" y2="32" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="35" x2="80" y2="39" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="55" x2="76" y2="58" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="61" x2="76" y2="64" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (concreto/metal — cinza) -->\n  <rect x="6"  y="22" width="68" height="7" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <!-- parafusos cruzeta superior -->\n  <circle cx="12" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="40" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="68" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="16" y="48" width="48" height="6" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <circle cx="21" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="40" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="59" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <rect x="19"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- FUSTE principal (concreto — cinza levemente cônico) -->\n  <polygon points="37,15 43,15 45,198 35,198"\n           fill="#c8c8c8" stroke="#999" stroke-width="1"/>\n  <!-- reflexo lateral esquerdo do fuste -->\n  <polygon points="37,15 39,15 41,198 35,198"\n           fill="rgba(255,255,255,0.18)"/>\n  <!-- sombra lateral direita do fuste -->\n  <polygon points="41,15 43,15 45,198 43,198"\n           fill="rgba(0,0,0,0.10)"/>\n  <!-- marcações horizontais do fuste (linhas de fôrma) -->\n  <line x1="36" y1="80"  x2="44" y2="81"  stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="110" x2="44" y2="111" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="140" x2="44" y2="141" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="170" x2="44" y2="171" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n\n  <!-- TRANSFORMADOR CILÍNDRICO -->\n  <ellipse cx="40" cy="70" rx="8" ry="3.5"\n           fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <rect x="32" y="70" width="16" height="20" rx="2"\n        fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <ellipse cx="40" cy="90" rx="8" ry="3"\n           fill="#7a6a5a" stroke="#5a4a3a" stroke-width="0.8"/>\n  <!-- frisos do transformador -->\n  <line x1="33" y1="74" x2="47" y2="74" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="78" x2="47" y2="78" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="82" x2="47" y2="82" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="86" x2="47" y2="86" stroke="#6a5a4a" stroke-width="0.8"/>\n  <!-- buchas do transformador -->\n  <rect x="34" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="38.5" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="43" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n\n  <!-- BRAÇO DE LUMINÁRIA -->\n  <path d="M37 105 Q28 103 24 110" fill="none" stroke="#aaa" stroke-width="2.2" stroke-linecap="round"/>\n  <!-- cabeça da luminária -->\n  <ellipse cx="23" cy="111" rx="5.5" ry="2.5" fill="#ddd" stroke="#999" stroke-width="0.8"/>\n  <rect x="18" y="111" width="11" height="3" rx="1.5" fill="#ccc" stroke="#999" stroke-width="0.6"/>\n\n</svg>';
+
+const SVG_3D_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS -->\n  <line x1="0"  y1="26" x2="80" y2="30" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="33" x2="80" y2="37" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="52" x2="76" y2="55" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="58" x2="76" y2="61" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (madeira espessa — tom quente) -->\n  <rect x="5"  y="19" width="70" height="9" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <!-- veios madeira cruzeta superior -->\n  <line x1="6"  y1="22" x2="74" y2="22" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <line x1="6"  y1="25" x2="74" y2="25" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <!-- parafusos U -->\n  <line x1="12" y1="19" x2="12" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="19" x2="40" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="68" y1="19" x2="68" y2="28" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS SUPERIORES -->\n  <line x1="40" y1="28" x2="13" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n  <line x1="40" y1="28" x2="67" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="15" y="44" width="50" height="8" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <line x1="16" y1="47" x2="64" y2="47" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <rect x="19" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <line x1="21" y1="44" x2="21" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="44" x2="40" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="59" y1="44" x2="59" y2="52" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS INFERIORES -->\n  <line x1="40" y1="52" x2="20" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n  <line x1="40" y1="52" x2="60" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n\n  <!-- FUSTE principal (madeira — marrom escuro cônico) -->\n  <polygon points="37,12 43,12 46,198 34,198"\n           fill="#7a4e1e" stroke="#4a2e0a" stroke-width="1.2"/>\n  <!-- reflexo lateral fuste -->\n  <polygon points="37,12 39,12 42,198 34,198"\n           fill="rgba(255,200,120,0.12)"/>\n  <!-- sombra lateral fuste -->\n  <polygon points="41,12 43,12 46,198 44,198"\n           fill="rgba(0,0,0,0.15)"/>\n  <!-- veios verticais madeira -->\n  <line x1="38.5" y1="55" x2="38" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n  <line x1="41.5" y1="55" x2="42" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n\n  <!-- GRAMPOS METÁLICOS no fuste -->\n  <rect x="35" y="72"  width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="100" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="130" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n\n  <!-- DEGRAUS DE SUBIDA (pregos alternados) -->\n  <line x1="34" y1="148" x2="29" y2="148" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="158" x2="51" y2="158" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="34" y1="168" x2="29" y2="168" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="178" x2="51" y2="178" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n\n</svg>';
 
 // Dados e sets para autocomplete
 const todosPostes = [];
@@ -717,7 +721,6 @@ function limparSelecaoESair(opts = {}) {
   }
   atualizarEstadoBotaoSelecao();
 
-  // Sincroniza visual de seleção no modo 3D também
   if (typeof atualizarSelecao3DVisual === "function") atualizarSelecao3DVisual();
 }
 
@@ -790,7 +793,6 @@ function handleSelecaoClick(poste, layer) {
 
   atualizarEstadoBotaoSelecao();
 
-  // Sincroniza visual de seleção no modo 3D também
   if (typeof atualizarSelecao3DVisual === "function") atualizarSelecao3DVisual();
 
   return true;
@@ -1311,7 +1313,6 @@ function exibirTodosPostes() {
 // =====================================================================
 // script-3d-override.js
 // Override completo do modo 3D com clusters + poste 3D + funções do 2D
-// Carregue DEPOIS do seu script.js principal
 // =====================================================================
 (function () {
   if (typeof maplibregl === "undefined") {
@@ -1600,6 +1601,11 @@ function exibirTodosPostes() {
       });
     }
 
+    // =====================================================================
+    // MAP3D_LAYER_POINT_BODY — usa EXCLUSIVAMENTE os sprites SVG_3D_*
+    // (SVG com transformador, cruzetas e fios — específico do modo 3D)
+    // Os ícones Leaflet 2D (SVG_POSTE_*) NÃO aparecem aqui.
+    // =====================================================================
     if (!map3d.getLayer(MAP3D_LAYER_POINT_BODY)) {
       map3d.addLayer({
         id: MAP3D_LAYER_POINT_BODY,
@@ -1610,8 +1616,8 @@ function exibirTodosPostes() {
         layout: {
           "icon-image": [
             "case",
-            ["==", ["get", "material"], "madeira"], "poste-madeira",
-            "poste-concreto"
+            ["==", ["get", "material"], "madeira"], "poste-madeira-3d",
+            "poste-concreto-3d"
           ],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.18, 16, 0.32, 18, 0.52, 20, 0.72],
           "icon-anchor": "bottom",
@@ -1920,7 +1926,6 @@ function exibirTodosPostes() {
 
       try {
         if (map3d.getLayer(MAP3D_LAYER_POINT_GLOW)) {
-          // Pulso na sombra do chão (círculo embaixo do poste)
           map3d.setPaintProperty(MAP3D_LAYER_POINT_GLOW, "circle-opacity", 0.40 + pulse * 0.25);
         }
 
@@ -2133,6 +2138,11 @@ function exibirTodosPostes() {
     }, 150);
   }
 
+  // =====================================================================
+  // ativarMapa3D — oculta os markers Leaflet 2D para evitar duplicação.
+  // Os postes no modo 3D são renderizados EXCLUSIVAMENTE pelo MapLibre
+  // usando os sprites SVG_3D_POSTE_CONCRETO / SVG_3D_POSTE_MADEIRA.
+  // =====================================================================
   window.ativarMapa3D = async function () {
     const map2dEl = document.getElementById("map");
     const map3dEl = document.getElementById("map3d");
@@ -2146,8 +2156,14 @@ function exibirTodosPostes() {
     const center = map.getCenter();
     const zoom = map.getZoom();
 
+    // Oculta o mapa 2D (e com ele todos os markers Leaflet SVG simples).
+    // Isso garante que apenas o MapLibre renderize os postes em 3D.
     map2dEl.style.display = "none";
     map3dEl.style.display = "block";
+
+    // Remove o cluster Leaflet do DOM enquanto estiver no modo 3D
+    // para evitar qualquer vazamento visual dos ícones 2D.
+    if (map.hasLayer(markers)) map.removeLayer(markers);
 
     if (!map3d) {
       map3d = new maplibregl.Map({
@@ -2166,10 +2182,16 @@ function exibirTodosPostes() {
       map3d.on("load", async () => {
         map3dLoaded = true;
 
-        // Carrega sprites dos postes como PNG via Blob — fundo garantidamente transparente
+        // ---------------------------------------------------------------
+        // Converte SVG string em ImageData RGBA com fundo transparente.
+        // Usado para registrar os sprites dos postes 3D no MapLibre.
+        // ATENÇÃO: usa SVG_3D_POSTE_CONCRETO / SVG_3D_POSTE_MADEIRA —
+        // estes são os SVGs detalhados (com transformador, cruzetas, fios)
+        // exclusivos do modo 3D. Os SVGs do modo 2D (SVG_POSTE_*) não
+        // são carregados aqui.
+        // ---------------------------------------------------------------
         function svgToPngImageData(svgStr, w, h) {
           return new Promise((resolve) => {
-            // Garante que o SVG tem fundo explicitamente none
             const cleanSvg = svgStr
               .replace(/<svg /, '<svg style="background:none;" ')
               .replace(/background="[^"]*"/g, '')
@@ -2181,11 +2203,10 @@ function exibirTodosPostes() {
 
             img.onload = () => {
               const canvas = document.createElement("canvas");
-              const scale  = 2; // 2x para nitidez em telas HiDPI
+              const scale  = 2;
               canvas.width  = w * scale;
               canvas.height = h * scale;
               const ctx = canvas.getContext("2d", { willReadFrequently: true, alpha: true });
-              // NÃO preencher fundo — mantém canal alpha zerado (transparente)
               ctx.drawImage(img, 0, 0, w * scale, h * scale);
               const imageData = ctx.getImageData(0, 0, w * scale, h * scale);
               URL.revokeObjectURL(url);
@@ -2196,16 +2217,18 @@ function exibirTodosPostes() {
           });
         }
 
+        // Registra os sprites 3D com nomes distintos (sufixo "-3d")
+        // para nunca conflitar com os ícones Leaflet do modo 2D.
         const [spriteConcreto, spriteMadeira] = await Promise.all([
           svgToPngImageData(SVG_3D_POSTE_CONCRETO, 64, 128),
           svgToPngImageData(SVG_3D_POSTE_MADEIRA,  64, 128)
         ]);
 
-        if (spriteConcreto && !map3d.hasImage("poste-concreto")) {
-          map3d.addImage("poste-concreto", spriteConcreto, { pixelRatio: 2 });
+        if (spriteConcreto && !map3d.hasImage("poste-concreto-3d")) {
+          map3d.addImage("poste-concreto-3d", spriteConcreto, { pixelRatio: 2 });
         }
-        if (spriteMadeira && !map3d.hasImage("poste-madeira")) {
-          map3d.addImage("poste-madeira", spriteMadeira, { pixelRatio: 2 });
+        if (spriteMadeira && !map3d.hasImage("poste-madeira-3d")) {
+          map3d.addImage("poste-madeira-3d", spriteMadeira, { pixelRatio: 2 });
         }
 
         resetarEstrutura3D();
@@ -2241,6 +2264,10 @@ function exibirTodosPostes() {
     }, 150);
   };
 
+  // =====================================================================
+  // ativarMapa2D — restaura os markers Leaflet 2D (SVG simples de poste).
+  // Os postes 3D (MapLibre) ficam ocultos junto com o container map3d.
+  // =====================================================================
   window.ativarMapa2D = function () {
     const map2dEl = document.getElementById("map");
     const map3dEl = document.getElementById("map3d");
@@ -2252,6 +2279,9 @@ function exibirTodosPostes() {
     map3dEl.style.display = "none";
     map2dEl.style.display = "block";
     modoMapaAtual = "2d";
+
+    // Restaura o cluster Leaflet com os ícones SVG 2D simples
+    if (!map.hasLayer(markers)) map.addLayer(markers);
 
     setTimeout(() => {
       try { map.invalidateSize(); } catch (_) {}
@@ -2458,7 +2488,6 @@ function exibirTodosPostes() {
       intermediarios: window.intermediarios.length,
     };
 
-    // Desenha análise em massa no 3D
     desenharAnaliseMassa3D(encontrados, window.intermediarios || []);
 
     if (modoMapaAtual === "3d") {
@@ -2888,7 +2917,6 @@ fetch("/api/postes", { credentials: "include" })
       });
     });
 
-    // Pré-gera GeoJSON master para o 3D (usa window para acessar função do IIFE)
     if (typeof window.reconstruirFonte3D === "function") window.reconstruirFonte3D();
 
     preencherListas();
