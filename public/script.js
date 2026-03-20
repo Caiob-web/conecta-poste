@@ -554,9 +554,6 @@ postesPane.style.zIndex = 630;
 osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES 2D (CONCRETO / MADEIRA) — EXCLUSIVOS DO MODO 2D =========
-// Estes SVGs são usados APENAS no modo 2D (Leaflet).
-// No modo 3D, os postes são renderizados exclusivamente pelo MapLibre com SVG_3D_*.
-
 const SVG_POSTE_CONCRETO = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 128">
   <rect x="28" y="15" width="8" height="105" fill="#9E9E9E" stroke="#555" stroke-width="2" rx="1"/>
@@ -608,9 +605,6 @@ const ICON_POSTE_MADEIRA = L.icon({
 });
 
 // ========= SVGs DETALHADOS PARA MODO 3D (com transformador, cruzetas, fios) =========
-// Estes SVGs são usados APENAS no modo 3D (MapLibre sprites).
-// No modo 2D, os postes são renderizados exclusivamente pelo Leaflet com SVG_POSTE_*.
-
 const SVG_3D_POSTE_CONCRETO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS saindo das cruzetas (perspectiva levemente diagonal) -->\n  <line x1="0"  y1="28" x2="80" y2="32" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="35" x2="80" y2="39" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="55" x2="76" y2="58" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="61" x2="76" y2="64" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (concreto/metal — cinza) -->\n  <rect x="6"  y="22" width="68" height="7" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <!-- parafusos cruzeta superior -->\n  <circle cx="12" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="40" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <circle cx="68" cy="25.5" r="2.2" fill="#888" stroke="#555" stroke-width="0.8"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66"  y="18" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="16" y="48" width="48" height="6" rx="1.5"\n        fill="#b0b0b0" stroke="#777" stroke-width="1"/>\n  <circle cx="21" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="40" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <circle cx="59" cy="51" r="2"   fill="#888" stroke="#555" stroke-width="0.7"/>\n  <rect x="19"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57"  y="44" width="4" height="6" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n\n  <!-- FUSTE principal (concreto — cinza levemente cônico) -->\n  <polygon points="37,15 43,15 45,198 35,198"\n           fill="#c8c8c8" stroke="#999" stroke-width="1"/>\n  <!-- reflexo lateral esquerdo do fuste -->\n  <polygon points="37,15 39,15 41,198 35,198"\n           fill="rgba(255,255,255,0.18)"/>\n  <!-- sombra lateral direita do fuste -->\n  <polygon points="41,15 43,15 45,198 43,198"\n           fill="rgba(0,0,0,0.10)"/>\n  <!-- marcações horizontais do fuste (linhas de fôrma) -->\n  <line x1="36" y1="80"  x2="44" y2="81"  stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="110" x2="44" y2="111" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="140" x2="44" y2="141" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n  <line x1="36" y1="170" x2="44" y2="171" stroke="#aaa" stroke-width="0.6" opacity="0.7"/>\n\n  <!-- TRANSFORMADOR CILÍNDRICO -->\n  <ellipse cx="40" cy="70" rx="8" ry="3.5"\n           fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <rect x="32" y="70" width="16" height="20" rx="2"\n        fill="#8a7a6a" stroke="#5a4a3a" stroke-width="1"/>\n  <ellipse cx="40" cy="90" rx="8" ry="3"\n           fill="#7a6a5a" stroke="#5a4a3a" stroke-width="0.8"/>\n  <!-- frisos do transformador -->\n  <line x1="33" y1="74" x2="47" y2="74" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="78" x2="47" y2="78" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="82" x2="47" y2="82" stroke="#6a5a4a" stroke-width="0.8"/>\n  <line x1="33" y1="86" x2="47" y2="86" stroke="#6a5a4a" stroke-width="0.8"/>\n  <!-- buchas do transformador -->\n  <rect x="34" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="38.5" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n  <rect x="43" y="67" width="3" height="5" rx="1" fill="#ccc" stroke="#888" stroke-width="0.6"/>\n\n  <!-- BRAÇO DE LUMINÁRIA -->\n  <path d="M37 105 Q28 103 24 110" fill="none" stroke="#aaa" stroke-width="2.2" stroke-linecap="round"/>\n  <!-- cabeça da luminária -->\n  <ellipse cx="23" cy="111" rx="5.5" ry="2.5" fill="#ddd" stroke="#999" stroke-width="0.8"/>\n  <rect x="18" y="111" width="11" height="3" rx="1.5" fill="#ccc" stroke="#999" stroke-width="0.6"/>\n\n</svg>';
 
 const SVG_3D_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 200" width="80" height="200">\n\n  <!-- FIOS -->\n  <line x1="0"  y1="26" x2="80" y2="30" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="0"  y1="33" x2="80" y2="37" stroke="#222" stroke-width="1.1" opacity="0.75"/>\n  <line x1="4"  y1="52" x2="76" y2="55" stroke="#222" stroke-width="1"   opacity="0.65"/>\n  <line x1="4"  y1="58" x2="76" y2="61" stroke="#222" stroke-width="1"   opacity="0.65"/>\n\n  <!-- CRUZETA SUPERIOR (madeira espessa — tom quente) -->\n  <rect x="5"  y="19" width="70" height="9" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <!-- veios madeira cruzeta superior -->\n  <line x1="6"  y1="22" x2="74" y2="22" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <line x1="6"  y1="25" x2="74" y2="25" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <!-- isoladores cruzeta superior -->\n  <rect x="10" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="66" y="15" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <!-- parafusos U -->\n  <line x1="12" y1="19" x2="12" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="19" x2="40" y2="28" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="68" y1="19" x2="68" y2="28" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS SUPERIORES -->\n  <line x1="40" y1="28" x2="13" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n  <line x1="40" y1="28" x2="67" y2="46" stroke="#a07840" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>\n\n  <!-- CRUZETA INFERIOR -->\n  <rect x="15" y="44" width="50" height="8" rx="2"\n        fill="#c8a064" stroke="#7a5a28" stroke-width="1.2"/>\n  <line x1="16" y1="47" x2="64" y2="47" stroke="#b08848" stroke-width="0.5" opacity="0.5"/>\n  <rect x="19" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="38" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <rect x="57" y="40" width="4" height="7" rx="1" fill="#e8e0c8" stroke="#aaa" stroke-width="0.7"/>\n  <line x1="21" y1="44" x2="21" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="40" y1="44" x2="40" y2="52" stroke="#aaa" stroke-width="1.2"/>\n  <line x1="59" y1="44" x2="59" y2="52" stroke="#aaa" stroke-width="1.2"/>\n\n  <!-- ESCORAS DIAGONAIS INFERIORES -->\n  <line x1="40" y1="52" x2="20" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n  <line x1="40" y1="52" x2="60" y2="66" stroke="#a07840" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>\n\n  <!-- FUSTE principal (madeira — marrom escuro cônico) -->\n  <polygon points="37,12 43,12 46,198 34,198"\n           fill="#7a4e1e" stroke="#4a2e0a" stroke-width="1.2"/>\n  <!-- reflexo lateral fuste -->\n  <polygon points="37,12 39,12 42,198 34,198"\n           fill="rgba(255,200,120,0.12)"/>\n  <!-- sombra lateral fuste -->\n  <polygon points="41,12 43,12 46,198 44,198"\n           fill="rgba(0,0,0,0.15)"/>\n  <!-- veios verticais madeira -->\n  <line x1="38.5" y1="55" x2="38" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n  <line x1="41.5" y1="55" x2="42" y2="198" stroke="#5a3a0e" stroke-width="0.7" opacity="0.4"/>\n\n  <!-- GRAMPOS METÁLICOS no fuste -->\n  <rect x="35" y="72"  width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="100" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n  <rect x="35" y="130" width="10" height="4" rx="1" fill="none" stroke="#bbb" stroke-width="1.3"/>\n\n  <!-- DEGRAUS DE SUBIDA (pregos alternados) -->\n  <line x1="34" y1="148" x2="29" y2="148" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="158" x2="51" y2="158" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="34" y1="168" x2="29" y2="168" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n  <line x1="46" y1="178" x2="51" y2="178" stroke="#bbb" stroke-width="2" stroke-linecap="round"/>\n\n</svg>';
@@ -1358,35 +1352,35 @@ function exibirTodosPostes() {
   let idsFiltrados3D = null;
   let ultimoPopup3D = null;
 
-function montarGeoJSONPostes3D(lista = todosPostes) {
-  return {
-    type: "FeatureCollection",
-    features: (lista || []).map((p) => {
-      const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      const materialTipo = getMaterialTipo(p); // <- usa sua função já existente
+  function montarGeoJSONPostes3D(lista = todosPostes) {
+    return {
+      type: "FeatureCollection",
+      features: (lista || []).map((p) => {
+        const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+        const materialTipo = getMaterialTipo(p);
 
-      return {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [Number(p.lon), Number(p.lat)]
-        },
-        properties: {
-          id: String(p.id || ""),
-          qtd_empresas: qtd,
-          nome_municipio: p.nome_municipio || "",
-          nome_bairro: p.nome_bairro || "",
-          nome_logradouro: p.nome_logradouro || "",
-          coordenadas: p.coordenadas || "",
-          empresas: typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível",
-          material: (p.material || p.tipo || p.tipo_poste || "").toString(),
-          material_tipo: materialTipo,
-          is_critico: qtd > 8 ? 1 : 0
-        }
-      };
-    })
-  };
-}
+        return {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [Number(p.lon), Number(p.lat)]
+          },
+          properties: {
+            id: String(p.id || ""),
+            qtd_empresas: qtd,
+            nome_municipio: p.nome_municipio || "",
+            nome_bairro: p.nome_bairro || "",
+            nome_logradouro: p.nome_logradouro || "",
+            coordenadas: p.coordenadas || "",
+            empresas: typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível",
+            material: (p.material || p.tipo || p.tipo_poste || "").toString(),
+            material_tipo: materialTipo,
+            is_critico: qtd > 8 ? 1 : 0
+          }
+        };
+      })
+    };
+  }
 
   function getMasterGeoJSON3D() {
     if (!postes3DMasterGeoJSON) {
@@ -1412,32 +1406,32 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     }
   }
 
-   function resetarEstrutura3D() {
-  if (!map3d) return;
+  function resetarEstrutura3D() {
+    if (!map3d) return;
 
-  [
-    MAP3D_LAYER_CLUSTER_SHADOW,
-    MAP3D_LAYER_CLUSTER,
-    MAP3D_LAYER_CLUSTER_COUNT,
-    MAP3D_LAYER_POINT_GLOW,
-    MAP3D_LAYER_POINT_BODY,
-    MAP3D_LAYER_POINT_LABELS,
-    MAP3D_LAYER_SELECTED_GLOW,
-    MAP3D_LAYER_SELECTED,
-    MAP3D_LAYER_ROUTE,
-    MAP3D_LAYER_MASS,
-    MAP3D_LAYER_MASS_LABELS
-  ].forEach(removeLayerIfExists);
+    [
+      MAP3D_LAYER_CLUSTER_SHADOW,
+      MAP3D_LAYER_CLUSTER,
+      MAP3D_LAYER_CLUSTER_COUNT,
+      MAP3D_LAYER_POINT_GLOW,
+      MAP3D_LAYER_POINT_BODY,
+      MAP3D_LAYER_POINT_LABELS,
+      MAP3D_LAYER_SELECTED_GLOW,
+      MAP3D_LAYER_SELECTED,
+      MAP3D_LAYER_ROUTE,
+      MAP3D_LAYER_MASS,
+      MAP3D_LAYER_MASS_LABELS
+    ].forEach(removeLayerIfExists);
 
-  [
-    MAP3D_SOURCE_ACTIVE,
-    MAP3D_SOURCE_SELECTED,
-    MAP3D_SOURCE_ROUTE,
-    MAP3D_SOURCE_MASS
-  ].forEach(removeSourceIfExists);
+    [
+      MAP3D_SOURCE_ACTIVE,
+      MAP3D_SOURCE_SELECTED,
+      MAP3D_SOURCE_ROUTE,
+      MAP3D_SOURCE_MASS
+    ].forEach(removeSourceIfExists);
 
-  postes3DSourceLoaded = false;
-}
+    postes3DSourceLoaded = false;
+  }
 
   function adicionarPredios3D() {
     if (!map3d || !map3dLoaded) return;
@@ -1598,68 +1592,62 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
       });
     }
 
-    // =====================================================================
-    // MAP3D_LAYER_POINT_BODY — usa EXCLUSIVAMENTE os sprites SVG_3D_*
-    // (SVG com transformador, cruzetas e fios — específico do modo 3D)
-    // Os ícones Leaflet 2D (SVG_POSTE_*) NÃO aparecem aqui.
-    // =====================================================================
-  if (!map3d.getLayer(MAP3D_LAYER_POINT_BODY)) {
-  map3d.addLayer({
-    id: MAP3D_LAYER_POINT_BODY,
-    type: "symbol",
-    source: MAP3D_SOURCE_ACTIVE,
-    filter: ["!", ["has", "point_count"]],
-    minzoom: 13,
-    layout: {
-      "icon-image": [
-        "case",
-        ["==", ["get", "material_tipo"], "madeira"], "poste-madeira-3d",
-        "poste-concreto-3d"
-      ],
-      "icon-size": [
-        "interpolate", ["linear"], ["zoom"],
-        13, 0.18,
-        16, 0.28,
-        18, 0.40,
-        20, 0.55
-      ],
-      "icon-anchor": "bottom",
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-
-      "icon-pitch-alignment": "viewport",
-      "icon-rotation-alignment": "viewport",
-      "icon-keep-upright": true
-    },
-    paint: {
-      "icon-opacity": 1
+    if (!map3d.getLayer(MAP3D_LAYER_POINT_BODY)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_POINT_BODY,
+        type: "symbol",
+        source: MAP3D_SOURCE_ACTIVE,
+        filter: ["!", ["has", "point_count"]],
+        minzoom: 13,
+        layout: {
+          "icon-image": [
+            "case",
+            ["==", ["get", "material_tipo"], "madeira"], "poste-madeira-3d",
+            "poste-concreto-3d"
+          ],
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            13, 0.18,
+            16, 0.28,
+            18, 0.40,
+            20, 0.55
+          ],
+          "icon-anchor": "bottom",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-pitch-alignment": "viewport",
+          "icon-rotation-alignment": "viewport",
+          "icon-keep-upright": true
+        },
+        paint: {
+          "icon-opacity": 1
+        }
+      });
     }
-  });
-}
 
     if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
-  map3d.addLayer({
-    id: MAP3D_LAYER_POINT_LABELS,
-    type: "symbol",
-    source: MAP3D_SOURCE_ACTIVE,
-    filter: ["!", ["has", "point_count"]],
-    minzoom: 18,
-    layout: {
-      "text-field": ["get", "id"],
-      "text-size": 11,
-      "text-offset": [0, 1.25],
-      "text-anchor": "top",
-      "text-allow-overlap": false,
-      "text-pitch-alignment": "viewport",
-      "text-rotation-alignment": "viewport"
-    },
-    paint: {
-      "text-color": "#111827",
-      "text-halo-color": "#ffffff",
-      "text-halo-width": 1.6
+      map3d.addLayer({
+        id: MAP3D_LAYER_POINT_LABELS,
+        type: "symbol",
+        source: MAP3D_SOURCE_ACTIVE,
+        filter: ["!", ["has", "point_count"]],
+        minzoom: 18,
+        layout: {
+          "text-field": ["get", "id"],
+          "text-size": 11,
+          "text-offset": [0, 1.25],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+          "text-pitch-alignment": "viewport",
+          "text-rotation-alignment": "viewport"
+        },
+        paint: {
+          "text-color": "#111827",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.6
+        }
+      });
     }
-  });
-}
 
     if (!map3d.getLayer(MAP3D_LAYER_SELECTED_GLOW)) {
       map3d.addLayer({
@@ -1872,41 +1860,13 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     return +(base + bonus).toFixed(2);
   }
 
- function atualizarPostesExtrudados3D() {
-  // DESATIVADO:
-  // o usuário quer ver apenas o ícone 2D do poste no mapa 3D,
+  // =====================================================================
+  // atualizarPostesExtrudados3D — DESATIVADO intencionalmente.
+  // O usuário quer ver apenas o ícone 2D do poste no mapa 3D,
   // sem extrusão 3D em forma de coluna.
-  return;
-}
-
-    const src = map3d.getSource(MAP3D_SOURCE_POLES);
-    if (!src) return;
-
-    const zoom = map3d.getZoom();
-    if (zoom < POLE_MIN_ZOOM) {
-      src.setData({ type: "FeatureCollection", features: [] });
-      return;
-    }
-
-    const bounds = map3d.getBounds();
-    if (!bounds) return;
-
-    const lista = getListaAtiva3D()
-      .filter((p) => bounds.contains([Number(p.lon), Number(p.lat)]))
-      .slice(0, POLE_MAX_VISIBLE);
-
-    const features = lista.map((poste) => ({
-      type: "Feature",
-      geometry: { type: "Polygon", coordinates: pointToSquarePolygon(Number(poste.lon), Number(poste.lat), POLE_BASE_SIZE_METERS) },
-      properties: {
-        id: String(poste.id || ""),
-        altura: getAlturaPoste3D(poste),
-        material_tipo: getMaterialTipo(poste),
-        qtd_empresas: Array.isArray(poste.empresas) ? poste.empresas.length : 0
-      }
-    }));
-
-    src.setData({ type: "FeatureCollection", features });
+  // =====================================================================
+  function atualizarPostesExtrudados3D() {
+    return;
   }
 
   function iniciarAnimacao3D() {
@@ -2137,17 +2097,10 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
 
   // =====================================================================
   // CSS: separação física entre modo 2D (Leaflet) e modo 3D (MapLibre).
-  //
-  // Estratégia: mover o container inativo para left:-200vw (fora da
-  // viewport fisicamente). Isso garante zero sobreposição de ícones:
-  // - Mais confiável que display:none (que quebra estado interno)
-  // - Mais confiável que visibility:hidden (browser ainda compõe layers)
-  // - O Leaflet e o MapLibre mantêm seus estados internos intactos
   // =====================================================================
   (function injectModo3DStyles() {
     if (document.getElementById("modo3d-leaflet-hide")) return;
     const css = `
-      /* MODO 3D ATIVO: #map sai da tela, #map3d entra */
       body.modo-3d-ativo #map {
         position: fixed !important;
         left: -200vw !important;
@@ -2171,7 +2124,6 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
         height: 100vh !important;
         z-index: 1 !important;
       }
-      /* MODO 2D ATIVO: #map3d sai da tela */
       body:not(.modo-3d-ativo) #map3d {
         position: fixed !important;
         left: -200vw !important;
@@ -2188,7 +2140,7 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
   })();
 
   // =====================================================================
-  // ativarMapa3D — move o Leaflet para fora da tela e ativa o MapLibre.
+  // ativarMapa3D
   // =====================================================================
   window.ativarMapa3D = async function () {
     const map2dEl = document.getElementById("map");
@@ -2203,11 +2155,8 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     const center = map.getCenter();
     const zoom = map.getZoom();
 
-    // Aplica classe CSS: move #map para left:-200vw (fora da viewport)
-    // e traz #map3d para a posição visível — via CSS puro.
     document.body.classList.add("modo-3d-ativo");
 
-    // Remove o cluster do Leaflet para liberar processamento.
     if (map.hasLayer(markers)) map.removeLayer(markers);
 
     if (!map3d) {
@@ -2227,14 +2176,6 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
       map3d.on("load", async () => {
         map3dLoaded = true;
 
-        // ---------------------------------------------------------------
-        // Converte SVG string em ImageData RGBA com fundo transparente.
-        // Usado para registrar os sprites dos postes 3D no MapLibre.
-        // ATENÇÃO: usa SVG_3D_POSTE_CONCRETO / SVG_3D_POSTE_MADEIRA —
-        // estes são os SVGs detalhados (com transformador, cruzetas, fios)
-        // exclusivos do modo 3D. Os SVGs do modo 2D (SVG_POSTE_*) não
-        // são carregados aqui.
-        // ---------------------------------------------------------------
         function svgToPngImageData(svgStr, w, h) {
           return new Promise((resolve) => {
             const cleanSvg = svgStr
@@ -2262,8 +2203,6 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
           });
         }
 
-        // Registra os sprites 3D com nomes distintos (sufixo "-3d")
-        // para nunca conflitar com os ícones Leaflet do modo 2D.
         const [spriteConcreto, spriteMadeira] = await Promise.all([
           svgToPngImageData(SVG_3D_POSTE_CONCRETO, 64, 128),
           svgToPngImageData(SVG_3D_POSTE_MADEIRA,  64, 128)
@@ -2310,7 +2249,7 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
   };
 
   // =====================================================================
-  // ativarMapa2D — move o MapLibre para fora da tela e restaura Leaflet.
+  // ativarMapa2D
   // =====================================================================
   window.ativarMapa2D = function () {
     const map2dEl = document.getElementById("map");
@@ -2320,14 +2259,10 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
 
     if (map3d) sync3DToLeafletOverride();
 
-    // Remove a classe CSS: #map volta para posição normal (left:0)
-    // e #map3d vai para left:-200vw (fora da viewport).
-    // NÃO manipulamos display/style diretamente — o CSS cuida de tudo.
     document.body.classList.remove("modo-3d-ativo");
 
     modoMapaAtual = "2d";
 
-    // Restaura o cluster Leaflet com os ícones SVG 2D simples
     if (!map.hasLayer(markers)) map.addLayer(markers);
 
     setTimeout(() => {
@@ -2410,7 +2345,6 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
 
     if (!filtro.length) return alert("Nenhum poste encontrado com esses filtros.");
 
-    // Atualiza 2D
     markers.clearLayers();
     if (typeof refreshClustersSoon === "function") refreshClustersSoon();
     filtro.forEach((p) => adicionarMarker(p));
@@ -2418,10 +2352,8 @@ function montarGeoJSONPostes3D(lista = todosPostes) {
     if (typeof reabrirTooltipFixo === "function") reabrirTooltipFixo(0);
     if (typeof reabrirPopupFixo === "function") reabrirPopupFixo(0);
 
-    // Atualiza 3D
     aplicarFiltro3D(filtro);
 
-    // Zoom universal
     if (modoMapaAtual === "3d") {
       zoomToListaUniversal(filtro, true);
     } else {
@@ -3182,7 +3114,7 @@ document.getElementById("btnCenso")?.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------
-// Interações / filtros (versões 2D-only — as universais estão no IIFE 3D)
+// Interações / filtros (versões 2D-only)
 // ---------------------------------------------------------------------
 function buscarID() {
   if (typeof window.buscarID === "function" && window.buscarID !== buscarID) {
@@ -3504,7 +3436,7 @@ setInterval(() => {
 }, 600000);
 
 // ---------------------------------------------------------------------
-// Consulta massiva + traçado (versão 2D-only — a universal está no IIFE 3D)
+// Consulta massiva + traçado (versão 2D-only)
 // ---------------------------------------------------------------------
 function consultarIDsEmMassa() {
   if (typeof window.consultarIDsEmMassa === "function" && window.consultarIDsEmMassa !== consultarIDsEmMassa) {
@@ -3673,7 +3605,7 @@ function exportarExcel(ids) {
     .catch((e) => { console.error("Erro Excel:", e); alert("Falha ao gerar Excel:\n" + e.message); });
 }
 
-// Botão Excel (caso exista btnGerarExcel)
+// Botão Excel
 document.getElementById("btnGerarExcel")?.addEventListener("click", () => {
   if (postesSelecionados.length) {
     const ids = postesSelecionados.map((r) => r.poste.id);
