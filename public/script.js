@@ -1358,32 +1358,35 @@ function exibirTodosPostes() {
   let idsFiltrados3D = null;
   let ultimoPopup3D = null;
 
-  function montarGeoJSONPostes3D(lista = todosPostes) {
-    return {
-      type: "FeatureCollection",
-      features: (lista || []).map((p) => {
-        const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-        return {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [Number(p.lon), Number(p.lat)]
-          },
-          properties: {
-            id: String(p.id || ""),
-            qtd_empresas: qtd,
-            nome_municipio: p.nome_municipio || "",
-            nome_bairro: p.nome_bairro || "",
-            nome_logradouro: p.nome_logradouro || "",
-            coordenadas: p.coordenadas || "",
-            empresas: typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível",
-            material: (p.material || p.tipo || p.tipo_poste || "").toString(),
-            is_critico: qtd > 8 ? 1 : 0
-          }
-        };
-      })
-    };
-  }
+function montarGeoJSONPostes3D(lista = todosPostes) {
+  return {
+    type: "FeatureCollection",
+    features: (lista || []).map((p) => {
+      const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+      const materialTipo = getMaterialTipo(p); // <- usa sua função já existente
+
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          id: String(p.id || ""),
+          qtd_empresas: qtd,
+          nome_municipio: p.nome_municipio || "",
+          nome_bairro: p.nome_bairro || "",
+          nome_logradouro: p.nome_logradouro || "",
+          coordenadas: p.coordenadas || "",
+          empresas: typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível",
+          material: (p.material || p.tipo || p.tipo_poste || "").toString(),
+          material_tipo: materialTipo,
+          is_critico: qtd > 8 ? 1 : 0
+        }
+      };
+    })
+  };
+}
 
   function getMasterGeoJSON3D() {
     if (!postes3DMasterGeoJSON) {
@@ -1607,50 +1610,62 @@ function exibirTodosPostes() {
     // Os ícones Leaflet 2D (SVG_POSTE_*) NÃO aparecem aqui.
     // =====================================================================
     if (!map3d.getLayer(MAP3D_LAYER_POINT_BODY)) {
-      map3d.addLayer({
-        id: MAP3D_LAYER_POINT_BODY,
-        type: "symbol",
-        source: MAP3D_SOURCE_ACTIVE,
-        filter: ["!", ["has", "point_count"]],
-        minzoom: 13,
-        layout: {
-          "icon-image": [
-            "case",
-            ["==", ["get", "material"], "madeira"], "poste-madeira-3d",
-            "poste-concreto-3d"
-          ],
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.18, 16, 0.32, 18, 0.52, 20, 0.72],
-          "icon-anchor": "bottom",
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true
-        },
-        paint: {
-          "icon-opacity": 1
-        }
-      });
+  map3d.addLayer({
+    id: MAP3D_LAYER_POINT_BODY,
+    type: "symbol",
+    source: MAP3D_SOURCE_ACTIVE,
+    filter: ["!", ["has", "point_count"]],
+    minzoom: 13,
+    layout: {
+      "icon-image": [
+        "case",
+        ["==", ["get", "material_tipo"], "madeira"], "poste-madeira-3d",
+        "poste-concreto-3d"
+      ],
+      "icon-size": [
+        "interpolate", ["linear"], ["zoom"],
+        13, 0.18,
+        16, 0.32,
+        18, 0.52,
+        20, 0.72
+      ],
+      "icon-anchor": "bottom",
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+
+      "icon-pitch-alignment": "viewport",
+      "icon-rotation-alignment": "viewport",
+      "icon-keep-upright": true
+    },
+    paint: {
+      "icon-opacity": 1
     }
+  });
+}
 
     if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
-      map3d.addLayer({
-        id: MAP3D_LAYER_POINT_LABELS,
-        type: "symbol",
-        source: MAP3D_SOURCE_ACTIVE,
-        filter: ["!", ["has", "point_count"]],
-        minzoom: 18,
-        layout: {
-          "text-field": ["get", "id"],
-          "text-size": 11,
-          "text-offset": [0, 1.25],
-          "text-anchor": "top",
-          "text-allow-overlap": false
-        },
-        paint: {
-          "text-color": "#111827",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 1.6
-        }
-      });
+  map3d.addLayer({
+    id: MAP3D_LAYER_POINT_LABELS,
+    type: "symbol",
+    source: MAP3D_SOURCE_ACTIVE,
+    filter: ["!", ["has", "point_count"]],
+    minzoom: 18,
+    layout: {
+      "text-field": ["get", "id"],
+      "text-size": 11,
+      "text-offset": [0, 1.25],
+      "text-anchor": "top",
+      "text-allow-overlap": false,
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport"
+    },
+    paint: {
+      "text-color": "#111827",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 1.6
     }
+  });
+}
 
     if (!map3d.getLayer(MAP3D_LAYER_POLE)) {
       map3d.addLayer({
