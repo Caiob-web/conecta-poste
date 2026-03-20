@@ -35,6 +35,35 @@ body, html {
 }
 
 /* =========================================================
+   MODO 3D ATIVO — oculta completamente o Leaflet
+   A classe .modo-3d-ativo é adicionada ao <body> pelo script.js
+   quando o usuário entra no modo 3D, e removida ao voltar ao 2D.
+
+   Por que visibility:hidden e não display:none?
+   - display:none quebraria o estado interno do Leaflet (tamanhos,
+     bounds, eventos), dificultando o retorno ao modo 2D.
+   - visibility:hidden oculta visualmente mas preserva o layout,
+     garantindo que ao remover a classe o Leaflet volte perfeito.
+   - z-index:-1 empurra o container para baixo do MapLibre (#map3d
+     tem z-index:1), eliminando qualquer sobreposição de SVG.
+========================================================= */
+body.modo-3d-ativo #map {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+/* Oculta individualmente todos os panes do Leaflet:
+   markers (SVGs dos postes 2D), tooltips, tiles, popups, controles */
+body.modo-3d-ativo #map .leaflet-pane,
+body.modo-3d-ativo #map .leaflet-top,
+body.modo-3d-ativo #map .leaflet-bottom,
+body.modo-3d-ativo #map .leaflet-control-container {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* =========================================================
    PALETA & TOKENS
 ========================================================= */
 :root{
@@ -271,7 +300,7 @@ body, html {
 }
 
 /* =========================================================
-   BOTÕES DE TOPO
+   BOTÕES DE TOPO
 ========================================================= */
 .botao-topo{
   position: absolute;
