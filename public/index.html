@@ -74,6 +74,23 @@
         z-index: 0;
       }
 
+      /* Modo 3D ativo: oculta completamente o Leaflet e todos seus panes.
+         A classe .modo-3d-ativo é adicionada ao body pelo script.js.
+         Usar visibility:hidden ao invés de display:none para não quebrar
+         o Leaflet internamente, mas impedir qualquer renderização visível. */
+      body.modo-3d-ativo #map {
+        visibility: hidden !important;
+        pointer-events: none !important;
+        z-index: -1 !important;
+      }
+      body.modo-3d-ativo #map .leaflet-pane,
+      body.modo-3d-ativo #map .leaflet-top,
+      body.modo-3d-ativo #map .leaflet-bottom,
+      body.modo-3d-ativo #map .leaflet-control-container {
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
       /* mapa 3D — oculto por padrão; script.js controla display */
       #map3d {
         width: 100%;
