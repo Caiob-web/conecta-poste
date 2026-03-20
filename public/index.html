@@ -65,7 +65,6 @@
 
       html, body { margin:0; padding:0; height:100%; background:#0b1624; }
 
-      /* mapa principal Leaflet */
       #map {
         width: 100%;
         height: 100%;
@@ -74,9 +73,6 @@
         z-index: 0;
       }
 
-      /* Modo 3D ativo: #map vai para left:-200vw (fora da viewport).
-         Modo 2D ativo: #map3d vai para left:-200vw.
-         O script.js adiciona/remove a classe .modo-3d-ativo no body. */
       body.modo-3d-ativo #map {
         position: fixed !important;
         left: -200vw !important;
@@ -108,7 +104,6 @@
         z-index: -999 !important;
       }
 
-      /* mapa 3D — oculto por padrão; script.js controla display */
       #map3d {
         width: 100%;
         height: 100%;
@@ -163,7 +158,6 @@
       .painel-busca .actions button:active { transform: translateY(1px) scale(.98); }
       .painel-busca .actions button .fa { margin-right: 6px; }
 
-      /* Botões do modo do mapa */
       .map-mode-toggle {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -430,14 +424,87 @@
       }
 
       // =====================================================================
+      // CORREÇÃO DO SVG NO MODO 3D
+      // Força os ícones/símbolos do MapLibre a ficarem retos na viewport,
+      // sem acompanhar o pitch/rotação do mapa.
+      // =====================================================================
+      (function () {
+        const LAYER_BODY = "postes-3d-points-body";
+        const LAYER_LABELS = "postes-3d-point-labels";
+        let listenersBound = false;
+
+        function aplicarFix3D() {
+          try {
+            const map3d = (typeof window.getMapa3D === "function") ? window.getMapa3D() : null;
+            if (!map3d) return false;
+
+            if (map3d.getLayer(LAYER_BODY)) {
+              map3d.setLayoutProperty(LAYER_BODY, "icon-pitch-alignment", "viewport");
+              map3d.setLayoutProperty(LAYER_BODY, "icon-rotation-alignment", "viewport");
+              map3d.setLayoutProperty(LAYER_BODY, "icon-keep-upright", true);
+              map3d.setLayoutProperty(LAYER_BODY, "icon-anchor", "bottom");
+            }
+
+            if (map3d.getLayer(LAYER_LABELS)) {
+              map3d.setLayoutProperty(LAYER_LABELS, "text-pitch-alignment", "viewport");
+              map3d.setLayoutProperty(LAYER_LABELS, "text-rotation-alignment", "viewport");
+              map3d.setLayoutProperty(LAYER_LABELS, "text-anchor", "top");
+            }
+
+            if (!listenersBound) {
+              const reaplicar = function () {
+                try {
+                  if (map3d.getLayer(LAYER_BODY)) {
+                    map3d.setLayoutProperty(LAYER_BODY, "icon-pitch-alignment", "viewport");
+                    map3d.setLayoutProperty(LAYER_BODY, "icon-rotation-alignment", "viewport");
+                    map3d.setLayoutProperty(LAYER_BODY, "icon-keep-upright", true);
+                    map3d.setLayoutProperty(LAYER_BODY, "icon-anchor", "bottom");
+                  }
+
+                  if (map3d.getLayer(LAYER_LABELS)) {
+                    map3d.setLayoutProperty(LAYER_LABELS, "text-pitch-alignment", "viewport");
+                    map3d.setLayoutProperty(LAYER_LABELS, "text-rotation-alignment", "viewport");
+                    map3d.setLayoutProperty(LAYER_LABELS, "text-anchor", "top");
+                  }
+                } catch (_) {}
+              };
+
+              map3d.on("styledata", reaplicar);
+              map3d.on("idle", reaplicar);
+              listenersBound = true;
+            }
+
+            return true;
+          } catch (e) {
+            console.warn("Não foi possível aplicar o fix do modo 3D:", e);
+            return false;
+          }
+        }
+
+        function agendarFix3D(tentativas = 40, intervalo = 150) {
+          let n = 0;
+          const timer = setInterval(() => {
+            n++;
+            const ok = aplicarFix3D();
+            if (ok || n >= tentativas) clearInterval(timer);
+          }, intervalo);
+        }
+
+        if (typeof window.ativarMapa3D === "function") {
+          const ativarMapa3DOriginal = window.ativarMapa3D;
+
+          window.ativarMapa3D = async function () {
+            const retorno = await ativarMapa3DOriginal.apply(this, arguments);
+            agendarFix3D();
+            return retorno;
+          };
+        } else {
+          window.addEventListener("load", () => agendarFix3D());
+        }
+      })();
+
+      // =====================================================================
       // Alternância 2D / 3D
-      //
-      // IMPORTANTE: este bloco NÃO manipula display dos containers diretamente.
-      // Toda a lógica de show/hide do #map e #map3d, e de remover/restaurar
-      // os markers Leaflet, está centralizada em script.js dentro de
-      // window.ativarMapa3D() e window.ativarMapa2D().
-      // Aqui fazemos apenas a troca visual do botão ativo e chamamos
-      // as funções do script.js.
       // =====================================================================
       (function () {
         const btn2d = document.getElementById("btnModo2D");
@@ -462,7 +529,6 @@
           if (typeof window.ativarMapa2D === "function") {
             window.ativarMapa2D();
           } else {
-            // fallback mínimo se script ainda não carregou
             document.getElementById("map3d").style.display = "none";
             document.getElementById("map").style.display  = "block";
           }
