@@ -1,11 +1,27 @@
 /* =========================================================
    BASE
 ========================================================= */
-body, html {
+:root{
+  --azul:#0055a5;
+  --azul-esc:#003f7d;
+  --azul-claro:#eaf2fb;
+  --borda:#e5e7eb;
+  --texto:#0f172a;
+  --texto-2:#374151;
+  --bg:#ffffff;
+  --bg-suave:#f8fafc;
+  --sombra:0 10px 28px rgba(0,0,0,.12);
+  --radius:12px;
+  --dock-w:340px;
+}
+
+html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background: #ffffff;
+  overflow: hidden;
 }
 
 /* Wrapper dos mapas */
@@ -15,12 +31,16 @@ body, html {
   height: 100vh;
 }
 
+/* =========================================================
+   MAPAS
+========================================================= */
+
 /* Mapa 2D (Leaflet) */
 #map {
   position: absolute;
   inset: 0;
-  height: 100vh;
   width: 100vw;
+  height: 100vh;
   z-index: 0;
 }
 
@@ -28,17 +48,15 @@ body, html {
 #map3d {
   position: absolute;
   inset: 0;
-  height: 100vh;
   width: 100vw;
+  height: 100vh;
   z-index: 1;
   display: none;
 }
 
 /* =========================================================
    SEPARAÇÃO FÍSICA MODO 2D / MODO 3D
-   A classe .modo-3d-ativo é adicionada ao <body> pelo script.js.
-   Estratégia: mover o container inativo para left:-200vw.
-   Mais confiável que display:none ou visibility:hidden.
+   A classe .modo-3d-ativo é adicionada ao <body> pelo script.js
 ========================================================= */
 
 /* MODO 3D ATIVO: #map sai fisicamente da viewport */
@@ -46,6 +64,8 @@ body.modo-3d-ativo #map {
   position: fixed !important;
   left: -200vw !important;
   top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
   pointer-events: none !important;
   z-index: -999 !important;
 }
@@ -58,6 +78,7 @@ body.modo-3d-ativo #map .leaflet-control-container {
   pointer-events: none !important;
 }
 
+/* MODO 3D ATIVO: #map3d entra */
 body.modo-3d-ativo #map3d {
   display: block !important;
   position: fixed !important;
@@ -65,6 +86,7 @@ body.modo-3d-ativo #map3d {
   top: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
+  pointer-events: auto !important;
   z-index: 1 !important;
 }
 
@@ -72,42 +94,48 @@ body.modo-3d-ativo #map3d {
 body:not(.modo-3d-ativo) #map3d {
   position: fixed !important;
   left: -200vw !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
   display: block !important;
   pointer-events: none !important;
   z-index: -999 !important;
 }
 
-/* =========================================================
-   PALETA & TOKENS
-========================================================= */
-:root{
-  --azul:#0055a5;
-  --azul-esc:#003f7d;
-  --azul-claro:#eaf2fb;
-  --borda:#e5e7eb;
-  --texto:#0f172a;
-  --texto-2:#374151;
-  --bg:#ffffff;
-  --bg-suave:#f8fafc;
-  --sombra:0 10px 28px rgba(0,0,0,.12);
-  --radius:12px;
+/* MODO 2D ATIVO: garante #map visível */
+body:not(.modo-3d-ativo) #map {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  pointer-events: auto !important;
+  z-index: 0 !important;
 }
 
 /* =========================================================
    PAINEL DE BUSCA
 ========================================================= */
 .painel-busca{
-  position: absolute;
-  top: 80px;
-  right: 20px;
-  width: 340px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--dock-w);
+  height: 100vh;
+  overflow: auto;
+  box-sizing: border-box;
   background: var(--bg);
   border-left: 5px solid var(--azul);
-  border-radius: var(--radius);
-  padding: 16px 14px 14px 14px;
+  border-radius: 0;
+  padding: 16px 14px 18px 14px;
   box-shadow: var(--sombra);
-  font-family: inherit;
   z-index: 1000;
+  transform: translateX(0%);
+  transition: transform .25s ease;
+}
+
+.painel-busca.collapsed{
+  transform: translateX(100%);
 }
 
 .painel-busca h3{
@@ -317,8 +345,8 @@ body:not(.modo-3d-ativo) #map3d {
    BOTÕES DE TOPO
 ========================================================= */
 .botao-topo{
-  position: absolute;
-  right: 20px;
+  position: fixed;
+  right: calc(var(--dock-w) + 16px);
   width: 40px;
   height: 40px;
   background: #fff;
@@ -330,7 +358,7 @@ body:not(.modo-3d-ativo) #map3d {
   justify-content: center;
   cursor: pointer;
   transition: background .15s ease, transform .08s ease, box-shadow .15s ease;
-  z-index: 1001;
+  z-index: 1100;
 }
 
 .botao-topo:hover{
@@ -341,17 +369,29 @@ body:not(.modo-3d-ativo) #map3d {
   transform: translateY(1px);
 }
 
-#togglePainel { top: 20px; }
-#localizacaoUsuario { top: 68px; }
-#logoutBtn { top: 116px; }
+#togglePainel {
+  top: 20px;
+}
+
+#localizacaoUsuario {
+  top: 68px;
+}
+
+#logoutBtn {
+  top: 116px;
+}
+
+body.sidebar-collapsed .botao-topo{
+  right: 16px !important;
+}
 
 /* =========================================================
    LEGENDA
 ========================================================= */
 .legenda{
-  position: absolute;
+  position: fixed;
   bottom: 20px;
-  right: 20px;
+  right: calc(var(--dock-w) + 20px);
   background: rgba(255,255,255,.96);
   padding: 12px;
   border-radius: var(--radius);
@@ -385,14 +425,17 @@ body:not(.modo-3d-ativo) #map3d {
   object-fit:contain;
 }
 
+body.sidebar-collapsed .legenda{
+  right: 20px;
+}
+
 /* =========================================================
    HUD / CLIMA
 ========================================================= */
 #widget-clima{
-  position:absolute;
-  left:20px;
-  bottom:20px;
-  z-index:2000;
+  position: static;
+  margin-top: 12px;
+  z-index: auto;
 }
 
 #tempo{
@@ -580,38 +623,6 @@ body:not(.modo-3d-ativo) #map3d {
 }
 
 /* =========================================================
-   RESPONSIVO
-========================================================= */
-@media (max-width: 920px){
-  .painel-busca{
-    width: 90vw;
-    max-width: 440px;
-    right:12px;
-  }
-}
-
-@media (max-width: 560px){
-  .painel-busca{
-    left:12px;
-    right:12px;
-    top:76px;
-  }
-
-  .painel-busca .actions{
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .map-mode-toggle{
-    grid-template-columns: 1fr 1fr;
-  }
-
-  #widget-clima{
-    left:12px;
-    right:auto;
-  }
-}
-
-/* =========================================================
    INDICADORES (BI)
 ========================================================= */
 .bi-detalhes{
@@ -671,4 +682,55 @@ body:not(.modo-3d-ativo) #map3d {
 
 .bi-mini-table td.num{
   text-align: right;
+}
+
+/* =========================================================
+   RESPONSIVO
+========================================================= */
+@media (max-width: 920px){
+  :root{
+    --dock-w: 90vw;
+  }
+
+  .painel-busca{
+    width: var(--dock-w);
+    max-width: 440px;
+    right: 0;
+  }
+
+  .legenda{
+    right: 20px;
+  }
+
+  .botao-topo{
+    right: 16px;
+  }
+}
+
+@media (max-width: 560px){
+  :root{
+    --dock-w: 100vw;
+  }
+
+  .painel-busca{
+    width: 100vw;
+    max-width: none;
+    right: 0;
+    top: 0;
+    border-radius: 0;
+  }
+
+  .painel-busca .actions{
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .map-mode-toggle{
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .legenda{
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
 }
