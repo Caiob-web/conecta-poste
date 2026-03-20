@@ -74,7 +74,7 @@
         z-index: 0;
       }
 
-      /* mapa 3D */
+      /* mapa 3D — oculto por padrão; script.js controla display */
       #map3d {
         width: 100%;
         height: 100%;
@@ -355,7 +355,7 @@
 
     <script>
       // =====================================================================
-      // Wrappers para os botões do HTML que chamavam funções inexistentes
+      // Wrappers para os botões do HTML
       // =====================================================================
 
       function exportarExcelPadrao() {
@@ -368,11 +368,7 @@
             try { gerarCSVParaEO(ids); } catch (_) {}
             return;
           }
-
-          const ids = (document.getElementById("ids-multiplos")?.value || "")
-            .split(/[^0-9]+/)
-            .filter(Boolean);
-
+          const ids = (document.getElementById("ids-multiplos")?.value || "").split(/[^0-9]+/).filter(Boolean);
           if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
           exportarExcel(ids);
           gerarExcelCliente(ids);
@@ -390,11 +386,7 @@
             if (!ids.length) return alert("Nenhum poste selecionado válido.");
             return gerarCSVParaEO(ids);
           }
-
-          const ids = (document.getElementById("ids-multiplos")?.value || "")
-            .split(/[^0-9]+/)
-            .filter(Boolean);
-
+          const ids = (document.getElementById("ids-multiplos")?.value || "").split(/[^0-9]+/).filter(Boolean);
           if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
           return gerarCSVParaEO(ids);
         } catch (e) {
@@ -404,51 +396,42 @@
       }
 
       // =====================================================================
-      // Alternância visual 2D / 3D
-      // OBS: o HTML já está pronto. O comportamento real do mapa 3D
-      // será ligado no script.js depois.
+      // Alternância 2D / 3D
+      //
+      // IMPORTANTE: este bloco NÃO manipula display dos containers diretamente.
+      // Toda a lógica de show/hide do #map e #map3d, e de remover/restaurar
+      // os markers Leaflet, está centralizada em script.js dentro de
+      // window.ativarMapa3D() e window.ativarMapa2D().
+      // Aqui fazemos apenas a troca visual do botão ativo e chamamos
+      // as funções do script.js.
       // =====================================================================
-
       (function () {
         const btn2d = document.getElementById("btnModo2D");
         const btn3d = document.getElementById("btnModo3D");
-        const map2d = document.getElementById("map");
-        const map3d = document.getElementById("map3d");
-        const carregando = document.getElementById("carregando");
 
-        function ativarVisual(nome) {
-          if (nome === "3d") {
-            map2d.style.display = "none";
-            map3d.style.display = "block";
-            btn2d.classList.remove("active");
-            btn3d.classList.add("active");
-            if (carregando) carregando.style.display = "none";
-
-            if (typeof window.ativarMapa3D === "function") {
-              window.ativarMapa3D();
-            } else {
-              console.warn("Função ativarMapa3D ainda não existe no script.js");
-            }
-          } else {
-            map3d.style.display = "none";
-            map2d.style.display = "block";
-            btn3d.classList.remove("active");
-            btn2d.classList.add("active");
-
-            if (typeof window.ativarMapa2D === "function") {
-              window.ativarMapa2D();
-            } else if (window.map && typeof window.map.invalidateSize === "function") {
-              setTimeout(() => window.map.invalidateSize(), 150);
-            }
-          }
+        function setActiveButton(modo) {
+          btn2d.classList.toggle("active", modo === "2d");
+          btn3d.classList.toggle("active", modo === "3d");
         }
 
         btn3d?.addEventListener("click", function () {
-          ativarVisual("3d");
+          setActiveButton("3d");
+          if (typeof window.ativarMapa3D === "function") {
+            window.ativarMapa3D();
+          } else {
+            console.warn("ativarMapa3D ainda não disponível.");
+          }
         });
 
         btn2d?.addEventListener("click", function () {
-          ativarVisual("2d");
+          setActiveButton("2d");
+          if (typeof window.ativarMapa2D === "function") {
+            window.ativarMapa2D();
+          } else {
+            // fallback mínimo se script ainda não carregou
+            document.getElementById("map3d").style.display = "none";
+            document.getElementById("map").style.display  = "block";
+          }
         });
       })();
     </script>
