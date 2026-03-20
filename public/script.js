@@ -2139,25 +2139,49 @@ function exibirTodosPostes() {
   }
 
   // =====================================================================
-  // CSS: injeta regra que oculta completamente o Leaflet no modo 3D.
-  // Esconde container + todos os panes (markers, tooltips, tiles, etc.)
-  // via classe CSS no body — mais confiável que manipular display/visibility
-  // diretamente nos elementos do Leaflet.
+  // CSS: separação física entre modo 2D (Leaflet) e modo 3D (MapLibre).
+  //
+  // Estratégia: mover o container inativo para left:-200vw (fora da
+  // viewport fisicamente). Isso garante zero sobreposição de ícones:
+  // - Mais confiável que display:none (que quebra estado interno)
+  // - Mais confiável que visibility:hidden (browser ainda compõe layers)
+  // - O Leaflet e o MapLibre mantêm seus estados internos intactos
   // =====================================================================
   (function injectModo3DStyles() {
     if (document.getElementById("modo3d-leaflet-hide")) return;
     const css = `
+      /* MODO 3D ATIVO: #map sai da tela, #map3d entra */
       body.modo-3d-ativo #map {
-        visibility: hidden !important;
+        position: fixed !important;
+        left: -200vw !important;
+        top: 0 !important;
         pointer-events: none !important;
-        z-index: -1 !important;
+        z-index: -999 !important;
       }
       body.modo-3d-ativo #map .leaflet-pane,
       body.modo-3d-ativo #map .leaflet-top,
       body.modo-3d-ativo #map .leaflet-bottom,
-      body.modo-3d-ativo #map .leaflet-control {
-        display: none !important;
-        visibility: hidden !important;
+      body.modo-3d-ativo #map .leaflet-control-container {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      body.modo-3d-ativo #map3d {
+        display: block !important;
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 1 !important;
+      }
+      /* MODO 2D ATIVO: #map3d sai da tela */
+      body:not(.modo-3d-ativo) #map3d {
+        position: fixed !important;
+        left: -200vw !important;
+        top: 0 !important;
+        display: block !important;
+        pointer-events: none !important;
+        z-index: -999 !important;
       }
     `;
     const style = document.createElement("style");
@@ -2167,9 +2191,7 @@ function exibirTodosPostes() {
   })();
 
   // =====================================================================
-  // ativarMapa3D — oculta os markers Leaflet 2D para evitar duplicação.
-  // Os postes no modo 3D são renderizados EXCLUSIVAMENTE pelo MapLibre
-  // usando os sprites SVG_3D_POSTE_CONCRETO / SVG_3D_POSTE_MADEIRA.
+  // ativarMapa3D — move o Leaflet para fora da tela e ativa o MapLibre.
   // =====================================================================
   window.ativarMapa3D = async function () {
     const map2dEl = document.getElementById("map");
@@ -2184,13 +2206,11 @@ function exibirTodosPostes() {
     const center = map.getCenter();
     const zoom = map.getZoom();
 
-    // 1. Adiciona classe CSS ao body — oculta o container Leaflet inteiro
-    //    incluindo todos os panes (markers SVG, tooltips, tiles, controles).
-    //    Feito ANTES de qualquer outra operação para garantir zero vazamento.
+    // Aplica classe CSS: move #map para left:-200vw (fora da viewport)
+    // e traz #map3d para a posição visível — via CSS puro.
     document.body.classList.add("modo-3d-ativo");
-    map3dEl.style.display = "block";
 
-    // 2. Remove o cluster do Leaflet para liberar processamento.
+    // Remove o cluster do Leaflet para liberar processamento.
     if (map.hasLayer(markers)) map.removeLayer(markers);
 
     if (!map3d) {
@@ -2293,8 +2313,7 @@ function exibirTodosPostes() {
   };
 
   // =====================================================================
-  // ativarMapa2D — restaura os markers Leaflet 2D (SVG simples de poste).
-  // Os postes 3D (MapLibre) ficam ocultos junto com o container map3d.
+  // ativarMapa2D — move o MapLibre para fora da tela e restaura Leaflet.
   // =====================================================================
   window.ativarMapa2D = function () {
     const map2dEl = document.getElementById("map");
@@ -2304,12 +2323,9 @@ function exibirTodosPostes() {
 
     if (map3d) sync3DToLeafletOverride();
 
-    // Oculta o MapLibre
-    map3dEl.style.display = "none";
-
-    // Remove a classe que ocultava o Leaflet — isso restaura
-    // visibility, pointer-events e z-index do container #map
-    // e de todos os seus panes (markers, tooltips, tiles, etc.)
+    // Remove a classe CSS: #map volta para posição normal (left:0)
+    // e #map3d vai para left:-200vw (fora da viewport).
+    // NÃO manipulamos display/style diretamente — o CSS cuida de tudo.
     document.body.classList.remove("modo-3d-ativo");
 
     modoMapaAtual = "2d";
