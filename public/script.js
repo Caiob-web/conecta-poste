@@ -4554,221 +4554,532 @@ function _buildCarRoute() {
     .map(p => [Number(p.lon), Number(p.lat)]);
 }
 
+// =====================================================================
+//  🚗 ADDON — Simulação de VÁRIOS Carrinhos no Mapa 3D
+//  Colar no final do script.js
+// =====================================================================
+
 /* ====================================================================
-   API pública — iniciar / pausar / parar / velocidade / loop
+   CSS
 ==================================================================== */
-async function iniciarCarAnim() {
-  const m3d = window.getMapa3D ? window.getMapa3D() : null;
-  if (!m3d) { alert("Ative o Modo 3D primeiro para usar a simulação do carrinho."); return; }
+(function injectCarStyles() {
+  const css = `
+    #btnCarroSimulacao {
+      grid-column: 1 / -1 !important;
+      width: 100% !important;
+      margin-top: 4px;
+      background: linear-gradient(135deg,#19d68f,#0ea5e9) !important;
+      color: #07251a !important;
+      border: none !important;
+      border-radius: 10px !important;
+      padding: 10px 0 !important;
+      font-weight: 800 !important;
+      font-size: 13.5px !important;
+      cursor: pointer;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    #btnCarroSimulacao::after {
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+      transform:translateX(-100%);
+      animation: carBtnShine 2.2s ease-in-out infinite;
+    }
+    @keyframes carBtnShine {
+      0%  { transform:translateX(-100%); }
+      50% { transform:translateX(100%); }
+      100%{ transform:translateX(100%); }
+    }
+    #carSimPanel {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 2500; display: none; flex-direction: column;
+      min-width: 420px; max-width: 96vw;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      filter: drop-shadow(0 8px 32px rgba(0,0,0,.45));
+    }
+    #carSimPanel.visible {
+      display: flex;
+      animation: carPanelIn .3s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes carPanelIn {
+      from { opacity:0; transform:translateX(-50%) translateY(18px) scale(.95); }
+      to   { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+    }
+    .car-panel-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 14px 8px;
+      background:linear-gradient(135deg,#0f172a,#1e293b);
+      border-radius:16px 16px 0 0;
+      border:1px solid rgba(99,232,180,.25); border-bottom:none;
+    }
+    .car-panel-title { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:#f1f5f9; }
+    .car-icon-wrap {
+      width:28px; height:28px; background:linear-gradient(135deg,#19d68f,#0ea5e9);
+      border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:15px;
+    }
+    .car-panel-badge {
+      background:rgba(99,232,180,.15); border:1px solid rgba(99,232,180,.3);
+      color:#6ee7b7; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:700;
+    }
+    .car-panel-close {
+      background:rgba(255,255,255,.08); border:none; border-radius:8px; color:#94a3b8;
+      width:26px; height:26px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+    .car-panel-close:hover { background:rgba(255,255,255,.15); color:#f1f5f9; }
+    .car-panel-body {
+      background:rgba(15,23,42,.93); backdrop-filter:blur(14px) saturate(1.4);
+      border:1px solid rgba(99,232,180,.18); border-top:none;
+      border-radius:0 0 16px 16px; padding:12px 14px 14px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .car-list { display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
+    .car-list::-webkit-scrollbar { width:4px; }
+    .car-list::-webkit-scrollbar-thumb { background:rgba(99,232,180,.3); border-radius:4px; }
+    .car-row {
+      display:flex; align-items:center; gap:8px;
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+      border-radius:10px; padding:7px 10px;
+    }
+    .car-row-dot {
+      width:10px; height:10px; border-radius:50%; flex-shrink:0;
+      animation: carDotPulse 1.4s ease-in-out infinite;
+    }
+    .car-row-dot.paused { animation:none !important; background:#f59e0b !important; box-shadow:0 0 6px #f59e0b !important; }
+    .car-row-dot.stopped { animation:none !important; background:#475569 !important; box-shadow:none !important; }
+    @keyframes carDotPulse { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.5); } }
+    .car-row-label { font-size:12px; font-weight:700; color:#e2e8f0; flex:1; }
+    .car-row-pct { font-size:11px; color:#6ee7b7; font-weight:700; min-width:34px; text-align:right; }
+    .car-row-bar-wrap { flex:2; height:4px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; }
+    .car-row-bar { height:100%; border-radius:999px; transition:width .1s linear; }
+    .car-controls { display:flex; gap:8px; }
+    .car-btn {
+      border:none; border-radius:10px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:5px;
+      font-size:12px; font-weight:700; padding:8px 12px; white-space:nowrap;
+      transition:transform .1s;
+    }
+    .car-btn:active { transform:scale(.93); }
+    .car-btn-primary { background:linear-gradient(135deg,#19d68f,#0ea5e9); color:#0f172a; flex:1; font-size:13px; }
+    .car-btn-primary:hover { box-shadow:0 4px 14px rgba(25,214,143,.4); }
+    .car-btn-danger { background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.3); color:#fca5a5; }
+    .car-btn-danger:hover { background:rgba(239,68,68,.28); }
+    .car-btn-loop { background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3); color:#a5b4fc; }
+    .car-btn-loop.active { background:rgba(99,102,241,.32); border-color:rgba(99,102,241,.7); color:#818cf8; }
+    .car-speed-row { display:flex; align-items:center; gap:10px; }
+    .car-speed-label { font-size:11px; color:#64748b; white-space:nowrap; }
+    .car-speed-wrap { flex:1; position:relative; height:14px; display:flex; align-items:center; }
+    .car-speed-track { width:100%; height:4px; background:rgba(255,255,255,.1); border-radius:999px; }
+    .car-speed-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#19d68f,#0ea5e9); }
+    .car-speed-thumb {
+      position:absolute; top:50%; transform:translate(-50%,-50%);
+      width:14px; height:14px; background:#fff; border-radius:50%;
+      box-shadow:0 2px 6px rgba(0,0,0,.4); pointer-events:none;
+    }
+    input.car-speed-slider {
+      position:absolute; inset:0; width:100%; opacity:0; cursor:pointer;
+      -webkit-appearance:none; appearance:none;
+    }
+    .car-speed-val { font-size:11px; font-weight:700; color:#6ee7b7; min-width:52px; text-align:right; }
+    .car-add-row { display:flex; gap:8px; align-items:center; }
+    .car-qty-input {
+      width:60px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      border-radius:8px; color:#e2e8f0; font-size:13px; font-weight:700;
+      padding:6px 8px; text-align:center; outline:none;
+    }
+    .car-qty-input:focus { border-color:#19d68f; }
+    .car-hint { font-size:11px; color:#475569; text-align:center; line-height:1.6; }
+    .car-hint b { color:#94a3b8; display:block; margin-bottom:2px; }
+  `;
+  const s = document.createElement("style");
+  s.id = "car-anim-styles";
+  s.textContent = css;
+  document.head.appendChild(s);
+})();
 
-  const route = _buildCarRoute();
-  if (route.length < 2) { alert("Selecione ao menos 2 postes para definir a rota do carrinho."); return; }
+/* ====================================================================
+   Paleta de cores
+==================================================================== */
+const CAR_COLORS = [
+  { body:"#4ade80", stroke:"#16a34a", trail:"#6ee7b7", glow:"#19d68f" },
+  { body:"#f97316", stroke:"#c2410c", trail:"#fdba74", glow:"#fb923c" },
+  { body:"#60a5fa", stroke:"#1d4ed8", trail:"#93c5fd", glow:"#3b82f6" },
+  { body:"#f472b6", stroke:"#be185d", trail:"#f9a8d4", glow:"#ec4899" },
+  { body:"#facc15", stroke:"#a16207", trail:"#fde68a", glow:"#eab308" },
+  { body:"#a78bfa", stroke:"#5b21b6", trail:"#c4b5fd", glow:"#8b5cf6" },
+  { body:"#34d399", stroke:"#065f46", trail:"#6ee7b7", glow:"#10b981" },
+  { body:"#fb7185", stroke:"#be123c", trail:"#fda4af", glow:"#f43f5e" },
+];
 
-  _carRoute       = route;
-  _carAnimT       = 0;
-  _carTrailCoords = [];
-  _carAnimRunning = true;
-  _carAnimPaused  = false;
+function _buildCarSVG(color) {
+  const id = color.body.replace('#','');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 96" width="64" height="96">
+  <defs>
+    <radialGradient id="bg${id}" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="${color.body}"/>
+      <stop offset="100%" stop-color="${color.stroke}"/>
+    </radialGradient>
+    <filter id="gf${id}"><feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="32" cy="84" rx="16" ry="5" fill="rgba(0,0,0,0.28)"/>
+  <rect x="10" y="22" width="44" height="58" rx="10" fill="url(#bg${id})" stroke="${color.stroke}" stroke-width="1.5" filter="url(#gf${id})"/>
+  <rect x="15" y="26" width="34" height="24" rx="6" fill="#bfdbfe" stroke="#93c5fd" stroke-width="1" opacity="0.9"/>
+  <rect x="13" y="26" width="4" height="18" rx="2" fill="${color.stroke}"/>
+  <rect x="47" y="26" width="4" height="18" rx="2" fill="${color.stroke}"/>
+  <rect x="14" y="10" width="36" height="14" rx="7" fill="${color.body}" stroke="${color.stroke}" stroke-width="1.2"/>
+  <ellipse cx="22" cy="9" rx="4" ry="3" fill="#fef08a" stroke="#ca8a04" stroke-width="1"/>
+  <ellipse cx="42" cy="9" rx="4" ry="3" fill="#fef08a" stroke="#ca8a04" stroke-width="1"/>
+  <ellipse cx="18" cy="78" rx="5" ry="3.5" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+  <ellipse cx="46" cy="78" rx="5" ry="3.5" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+  <ellipse cx="16" cy="32" rx="7" ry="7" fill="#1f2937" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="16" cy="32" rx="3.5" ry="3.5" fill="#6b7280"/>
+  <ellipse cx="48" cy="32" rx="7" ry="7" fill="#1f2937" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="48" cy="32" rx="3.5" ry="3.5" fill="#6b7280"/>
+  <ellipse cx="16" cy="68" rx="7" ry="7" fill="#1f2937" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="16" cy="68" rx="3.5" ry="3.5" fill="#6b7280"/>
+  <ellipse cx="48" cy="68" rx="7" ry="7" fill="#1f2937" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="48" cy="68" rx="3.5" ry="3.5" fill="#6b7280"/>
+</svg>`;
+}
 
-  await _registerCarSprite();
-  _ensureCarLayers();
+/* ====================================================================
+   Gerenciador de carrinhos
+==================================================================== */
+const CarManager = {
+  cars: [], loop: false, speed: 0.00055,
+  masterRafId: null, masterRunning: false,
 
-  const fullSrc = m3d.getSource(CAR_ROUTE_SRC_ID);
-  if (fullSrc) {
-    fullSrc.setData({ type: "FeatureCollection", features: [{
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: _carRoute },
-      properties: {}
+  _hkm([lon1,lat1],[lon2,lat2]) {
+    const R=6371, r=x=>x*Math.PI/180;
+    const dLat=r(lat2-lat1),dLon=r(lon2-lon1);
+    const a=Math.sin(dLat/2)**2+Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  },
+
+  _interp(route, t) {
+    if (route.length < 2) return null;
+    const d=[0];
+    for(let i=1;i<route.length;i++) d.push(d[i-1]+this._hkm(route[i-1],route[i]));
+    const total=d[d.length-1], target=Math.min(t,0.9999)*total;
+    let seg=0;
+    for(let i=1;i<d.length;i++){if(d[i]>=target){seg=i-1;break;}}
+    seg=Math.min(seg,route.length-2);
+    const lT=(d[seg+1]-d[seg])>0?(target-d[seg])/(d[seg+1]-d[seg]):0;
+    const [x0,y0]=route[seg],[x1,y1]=route[seg+1];
+    return {
+      coord:[x0+(x1-x0)*lT, y0+(y1-y0)*lT],
+      bearing:(Math.atan2(x1-x0,y1-y0)*180/Math.PI+360)%360,
+      total, done:target
+    };
+  },
+
+  _getRoute() {
+    if(typeof postesSelecionados!=="undefined"&&postesSelecionados.length>=2)
+      return postesSelecionados.map(r=>[Number(r.poste.lon),Number(r.poste.lat)]);
+    if(typeof todosPostes==="undefined"||!todosPostes.length) return [];
+    const m3d=window.getMapa3D?.();
+    const ctr=m3d?m3d.getCenter():{lat:-23.2,lng:-45.9};
+    return [...todosPostes]
+      .sort((a,b)=>this._hkm([a.lon,a.lat],[ctr.lng,ctr.lat])-this._hkm([b.lon,b.lat],[ctr.lng,ctr.lat]))
+      .slice(0,30).map(p=>[Number(p.lon),Number(p.lat)]);
+  },
+
+  async _sprite(imgName, color) {
+    const m3d=window.getMapa3D?.();
+    if(!m3d||m3d.hasImage(imgName)) return;
+    const svg=_buildCarSVG(color);
+    const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml;charset=utf-8"}));
+    await new Promise(resolve=>{
+      const img=new Image(64,96);
+      img.onload=()=>{
+        const c=document.createElement("canvas"); c.width=128; c.height=192;
+        c.getContext("2d",{alpha:true}).drawImage(img,0,0,128,192);
+        const id=c.getContext("2d").getImageData(0,0,128,192);
+        try{m3d.addImage(imgName,{width:128,height:192,data:id.data},{pixelRatio:2});}catch(_){}
+        URL.revokeObjectURL(url); resolve();
+      };
+      img.onerror=()=>{URL.revokeObjectURL(url);resolve();};
+      img.src=url;
+    });
+  },
+
+  _layers(car) {
+    const m3d=window.getMapa3D?.(); if(!m3d) return;
+    const {id,color}=car;
+    const addSrc=(sid,data)=>{if(!m3d.getSource(sid))m3d.addSource(sid,{type:"geojson",data});};
+    const addLyr=(lyr)=>{if(!m3d.getLayer(lyr.id))m3d.addLayer(lyr);};
+    addSrc(`ct-${id}`,{type:"FeatureCollection",features:[]});
+    addLyr({id:`ctg-${id}`,type:"line",source:`ct-${id}`,
+      paint:{"line-color":color.glow,"line-width":12,"line-opacity":0.15,"line-blur":5}});
+    addLyr({id:`ctl-${id}`,type:"line",source:`ct-${id}`,
+      layout:{"line-cap":"round","line-join":"round"},
+      paint:{"line-color":color.trail,"line-width":3,"line-opacity":0.85}});
+    addSrc(`cp-${id}`,{type:"FeatureCollection",features:[]});
+    addLyr({id:`cpl-${id}`,type:"symbol",source:`cp-${id}`,
+      layout:{
+        "icon-image":`cs-${id}`,
+        "icon-size":["interpolate",["linear"],["zoom"],14,0.30,17,0.50,20,0.80],
+        "icon-rotate":["get","bearing"],
+        "icon-rotation-alignment":"map",
+        "icon-allow-overlap":true,"icon-ignore-placement":true,
+        "icon-pitch-alignment":"viewport"
+      }
+    });
+  },
+
+  _removeLayers(car) {
+    const m3d=window.getMapa3D?.(); if(!m3d) return;
+    const {id}=car;
+    [`ctg-${id}`,`ctl-${id}`,`cpl-${id}`].forEach(l=>{try{if(m3d.getLayer(l))m3d.removeLayer(l);}catch(_){}});
+    [`ct-${id}`,`cp-${id}`].forEach(s=>{try{if(m3d.getSource(s))m3d.removeSource(s);}catch(_){}});
+    try{if(m3d.hasImage(`cs-${id}`))m3d.removeImage(`cs-${id}`);}catch(_){}
+  },
+
+  _frame(car) {
+    const m3d=window.getMapa3D?.(); if(!m3d) return;
+    const r=this._interp(car.route,car.t); if(!r) return;
+    const ps=m3d.getSource(`cp-${car.id}`);
+    if(ps) ps.setData({type:"FeatureCollection",features:[{
+      type:"Feature",geometry:{type:"Point",coordinates:r.coord},
+      properties:{bearing:r.bearing}
     }]});
+    car.trail.push(r.coord);
+    if(car.trail.length>55) car.trail.shift();
+    const ts=m3d.getSource(`ct-${car.id}`);
+    if(ts&&car.trail.length>=2) ts.setData({type:"FeatureCollection",features:[{
+      type:"Feature",geometry:{type:"LineString",coordinates:[...car.trail]},properties:{}
+    }]});
+  },
+
+  _tick() {
+    if(!this.masterRunning) return;
+    let allDone=true;
+    for(const car of this.cars){
+      if(!car.running||car.paused){if(car.running)allDone=false;continue;}
+      car.t+=this.speed;
+      if(car.t>=1){
+        if(this.loop){car.t=0;car.trail=[];}
+        else{car.t=1;car.running=false;}
+      } else { allDone=false; }
+      this._frame(car);
+    }
+    this._ui();
+    if(!allDone||this.loop){
+      this.masterRafId=requestAnimationFrame(()=>this._tick());
+    } else {
+      this.masterRunning=false; this._ui();
+    }
+  },
+
+  _ui() {
+    for(const car of this.cars){
+      const pct=Math.min(Math.round((car.t||0)*100),100);
+      const bar=document.getElementById(`car-bar-${car.id}`);
+      const pctEl=document.getElementById(`car-pct-${car.id}`);
+      const dot=document.getElementById(`car-dot-${car.id}`);
+      if(bar) bar.style.width=pct+"%";
+      if(pctEl) pctEl.textContent=pct+"%";
+      if(dot){
+        dot.classList.toggle("paused",!!car.paused);
+        dot.classList.toggle("stopped",!car.running);
+        dot.style.background=car.running?car.color.glow:"#475569";
+        dot.style.boxShadow=car.running?`0 0 6px ${car.color.glow}`:"none";
+      }
+    }
+  },
+
+  _start() {
+    if(this.masterRunning) return;
+    this.masterRunning=true;
+    if(this.masterRafId) cancelAnimationFrame(this.masterRafId);
+    this.masterRafId=requestAnimationFrame(()=>this._tick());
+  },
+
+  _rebuildList() {
+    const list=document.getElementById("carList"); if(!list) return;
+    const badge=document.getElementById("carCountBadge");
+    if(badge) badge.textContent=this.cars.length+" carrinho(s)";
+    if(!this.cars.length){
+      list.innerHTML=`<div class="car-hint"><b>💡 Nenhum carrinho ativo</b>Adicione carrinhos para iniciar a simulação.</div>`;
+      return;
+    }
+    list.innerHTML=this.cars.map(car=>`
+      <div class="car-row">
+        <span class="car-row-dot" id="car-dot-${car.id}" style="background:${car.color.glow};box-shadow:0 0 6px ${car.color.glow}"></span>
+        <span class="car-row-label">🚗 Carro ${car.id+1}</span>
+        <div class="car-row-bar-wrap">
+          <div class="car-row-bar" id="car-bar-${car.id}" style="width:${Math.round(car.t*100)}%;background:${car.color.glow}"></div>
+        </div>
+        <span class="car-row-pct" id="car-pct-${car.id}">${Math.round(car.t*100)}%</span>
+      </div>`).join("");
+  },
+
+  async addCars(qty=1) {
+    const m3d=window.getMapa3D?.();
+    if(!m3d){alert("Ative o Modo 3D primeiro.");return;}
+    const route=this._getRoute();
+    if(route.length<2){alert("Selecione ao menos 2 postes para definir a rota.");return;}
+
+    // Rota fantasma
+    if(!m3d.getSource("car-full-route")){
+      m3d.addSource("car-full-route",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+    }
+    if(!m3d.getLayer("car-full-route-line")){
+      m3d.addLayer({id:"car-full-route-line",type:"line",source:"car-full-route",
+        paint:{"line-color":"#6ee7b7","line-width":2.5,"line-opacity":0.20,"line-dasharray":[3,6]}
+      });
+    }
+    m3d.getSource("car-full-route").setData({type:"FeatureCollection",features:[{
+      type:"Feature",geometry:{type:"LineString",coordinates:route},properties:{}
+    }]});
+
+    for(let i=0;i<qty;i++){
+      const idx=this.cars.length;
+      const color=CAR_COLORS[idx%CAR_COLORS.length];
+      const car={id:idx,color,route,t:(i/Math.max(qty,1))*0.12,trail:[],running:true,paused:false};
+      this.cars.push(car);
+      await this._sprite(`cs-${idx}`,color);
+      this._layers(car);
+    }
+
+    m3d.flyTo({center:route[0],zoom:16,pitch:55,bearing:-20,duration:900});
+    this._rebuildList();
+    this._start();
+  },
+
+  removeAll() {
+    this.masterRunning=false;
+    if(this.masterRafId){cancelAnimationFrame(this.masterRafId);this.masterRafId=null;}
+    for(const car of this.cars) this._removeLayers(car);
+    this.cars=[];
+    const m3d=window.getMapa3D?.();
+    if(m3d){
+      try{if(m3d.getLayer("car-full-route-line"))m3d.removeLayer("car-full-route-line");}catch(_){}
+      try{if(m3d.getSource("car-full-route"))m3d.removeSource("car-full-route");}catch(_){}
+    }
+    this._rebuildList();
+  },
+
+  pauseAll() {
+    const anyActive=this.cars.some(c=>c.running&&!c.paused);
+    this.cars.forEach(c=>{if(c.running)c.paused=anyActive;});
+    if(!anyActive) this._start();
+    this._ui();
+    const btn=document.getElementById("carBtnPlayPause");
+    if(btn) btn.innerHTML=anyActive?'<i class="fa fa-play"></i> Retomar':'<i class="fa fa-pause"></i> Pausar';
   }
-
-  m3d.flyTo({ center: _carRoute[0], zoom: 16, pitch: 55, bearing: -20, duration: 1000 });
-  _updateCarPlayBtn(true);
-
-  if (_carAnimRafId) cancelAnimationFrame(_carAnimRafId);
-  _carAnimRafId = requestAnimationFrame(_carAnimLoopFn);
-}
-
-window.toggleCarPause = function () {
-  if (!_carAnimRunning) { iniciarCarAnim(); return; }
-  _carAnimPaused = !_carAnimPaused;
-  _updateCarPlayBtn(!_carAnimPaused);
-  if (!_carAnimPaused) {
-    if (_carAnimRafId) cancelAnimationFrame(_carAnimRafId);
-    _carAnimRafId = requestAnimationFrame(_carAnimLoopFn);
-  }
 };
-
-window.pararCarAnim = function () {
-  _carAnimRunning = false;
-  _carAnimPaused  = false;
-  _carAnimT       = 0;
-  _carTrailCoords = [];
-  if (_carAnimRafId) { cancelAnimationFrame(_carAnimRafId); _carAnimRafId = null; }
-
-  const m3d = window.getMapa3D ? window.getMapa3D() : null;
-  if (!m3d) return;
-  const empty = { type: "FeatureCollection", features: [] };
-  [CAR_SOURCE_ID, CAR_TRAIL_SRC_ID, CAR_ROUTE_SRC_ID].forEach(id => {
-    const src = m3d.getSource(id);
-    if (src) src.setData(empty);
-  });
-  _updateCarPlayBtn(false);
-  _updateCarUI(0, null);
-};
-
-window.setCarSpeed = function (v) {
-  _carAnimSpeed = 0.000015 + (Number(v) / 10) * 0.0014;
-  const valEl = document.getElementById("carSpeedVal");
-  if (valEl) valEl.textContent = Math.round(_carAnimSpeed * 80000) + " km/h";
-  _atualizarSliderVisual();
-};
-
-window.toggleCarLoop = function () {
-  _carAnimLoop = !_carAnimLoop;
-  const btn = document.getElementById("carBtnLoop");
-  if (btn) btn.classList.toggle("active", _carAnimLoop);
-};
-
-function _atualizarSliderVisual() {
-  const slider = document.getElementById("carSpeedSlider");
-  const fill   = document.getElementById("carSpeedFillEl");
-  const thumb  = document.getElementById("carSpeedThumbEl");
-  if (!slider) return;
-  const pct = ((Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min))) * 100;
-  if (fill)  fill.style.width = pct + "%";
-  if (thumb) thumb.style.left = pct + "%";
-}
 
 /* ====================================================================
-   Constrói e exibe o painel flutuante
+   Painel flutuante
 ==================================================================== */
-function _buildCarPanel() {
-  if (document.getElementById("carSimPanel")) return;
-
-  const panel = document.createElement("div");
-  panel.id = "carSimPanel";
-  panel.innerHTML = `
+function buildCarPanel() {
+  if(document.getElementById("carSimPanel")) return;
+  const panel=document.createElement("div");
+  panel.id="carSimPanel";
+  panel.innerHTML=`
     <div class="car-panel-header">
       <div class="car-panel-title">
         <span class="car-icon-wrap">🚗</span>
         Simulação de Percurso
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span class="car-panel-badge">3D LIVE</span>
-        <button class="car-panel-close" id="carPanelClose" title="Fechar">✕</button>
+        <span class="car-panel-badge" id="carCountBadge">0 carrinhos</span>
+        <button class="car-panel-close" id="carPanelClose">✕</button>
       </div>
     </div>
     <div class="car-panel-body">
-      <div class="car-progress-wrap">
-        <div class="car-progress-track">
-          <div class="car-progress-fill" id="carProgressFill"></div>
-        </div>
-        <span class="car-progress-pct" id="carProgressPct">0%</span>
+      <div class="car-list" id="carList">
+        <div class="car-hint"><b>💡 Nenhum carrinho ativo</b>Adicione carrinhos para iniciar.</div>
       </div>
-      <div class="car-segment-info">
-        <span class="car-seg-dot" id="carSegDot"></span>
-        <span class="car-seg-text" id="carSegText">Aguardando início…</span>
-        <span class="car-seg-dist" id="carSegDist">— km</span>
+      <div class="car-add-row">
+        <input type="number" class="car-qty-input" id="carQtyInput" value="3" min="1" max="8"/>
+        <button class="car-btn car-btn-primary" style="flex:1" onclick="window.carAdd()">
+          <i class="fa fa-plus"></i> Adicionar carrinhos
+        </button>
       </div>
       <div class="car-controls">
-        <button class="car-btn car-btn-play" id="carBtnPlay" onclick="window.toggleCarPause()">
-          <i class="fa fa-play"></i> Iniciar
+        <button class="car-btn car-btn-primary" id="carBtnPlayPause" onclick="window.carPause()">
+          <i class="fa fa-pause"></i> Pausar
         </button>
-        <button class="car-btn car-btn-stop" title="Parar" onclick="window.pararCarAnim()">
-          <i class="fa fa-stop"></i> Parar
+        <button class="car-btn car-btn-danger" onclick="window.carStop()">
+          <i class="fa fa-stop"></i> Parar tudo
         </button>
-        <button class="car-btn car-btn-loop" id="carBtnLoop" title="Repetir" onclick="window.toggleCarLoop()">
+        <button class="car-btn car-btn-loop" id="carBtnLoop" onclick="window.carLoop()">
           <i class="fa fa-repeat"></i>
         </button>
       </div>
       <div class="car-speed-row">
         <span class="car-speed-label">Velocidade</span>
-        <div class="car-speed-slider-wrap">
-          <div class="car-speed-track" id="carSpeedTrack">
-            <div class="car-speed-fill" id="carSpeedFillEl" style="width:40%"></div>
-            <div class="car-speed-thumb" id="carSpeedThumbEl" style="left:40%"></div>
+        <div class="car-speed-wrap">
+          <div class="car-speed-track">
+            <div class="car-speed-fill" id="carSpdFill" style="width:40%"></div>
           </div>
-          <input type="range" class="car-speed-input" id="carSpeedSlider"
-                 min="1" max="10" step="0.5" value="4"
-                 oninput="window.setCarSpeed(this.value)">
+          <div class="car-speed-thumb" id="carSpdThumb" style="left:40%"></div>
+          <input type="range" class="car-speed-slider" id="carSpdSlider" min="1" max="10" step="0.5" value="4"
+                 oninput="window.carSpeed(this.value)">
         </div>
-        <span class="car-speed-val" id="carSpeedVal">— km/h</span>
-      </div>
-      <div class="car-stats">
-        <div class="car-stat">
-          <span class="car-stat-label">Percorrido</span>
-          <span class="car-stat-value highlight" id="carStatDone">— km</span>
-        </div>
-        <div class="car-stat">
-          <span class="car-stat-label">Total</span>
-          <span class="car-stat-value" id="carStatTotal">— km</span>
-        </div>
-        <div class="car-stat">
-          <span class="car-stat-label">Segmento</span>
-          <span class="car-stat-value" id="carStatSeg">—</span>
-        </div>
-        <div class="car-stat">
-          <span class="car-stat-label">Veloc. sim.</span>
-          <span class="car-stat-value" id="carStatSpeed">—</span>
-        </div>
-      </div>
-      <div class="car-no-route" id="carNoRouteHint">
-        <strong>💡 Dica de rota</strong>
-        Selecione postes (botão "Selecionar Postes") antes de iniciar, ou clique em Iniciar para usar os postes mais próximos automaticamente.
+        <span class="car-speed-val" id="carSpdVal">— km/h</span>
       </div>
     </div>`;
   document.body.appendChild(panel);
-
-  document.getElementById("carPanelClose")?.addEventListener("click", () => {
+  document.getElementById("carPanelClose")?.addEventListener("click",()=>{
     panel.classList.remove("visible");
-    window.pararCarAnim();
   });
-
-  window.setCarSpeed(4);
+  window.carSpeed(4);
 }
 
-window.abrirCarPanel = function () {
-  _buildCarPanel();
-  const panel = document.getElementById("carSimPanel");
-  if (panel) panel.classList.add("visible");
-  const hint = document.getElementById("carNoRouteHint");
-  const temSel = typeof postesSelecionados !== "undefined" && postesSelecionados.length >= 2;
-  if (hint) hint.style.display = temSel ? "none" : "block";
+/* ====================================================================
+   API pública
+==================================================================== */
+window.carAdd   = ()=>{ const q=parseInt(document.getElementById("carQtyInput")?.value||"1"); CarManager.addCars(Math.min(8,Math.max(1,q))); };
+window.carPause = ()=>CarManager.pauseAll();
+window.carStop  = ()=>{ CarManager.removeAll(); const b=document.getElementById("carBtnPlayPause"); if(b) b.innerHTML='<i class="fa fa-pause"></i> Pausar'; };
+window.carLoop  = ()=>{ CarManager.loop=!CarManager.loop; document.getElementById("carBtnLoop")?.classList.toggle("active",CarManager.loop); };
+window.carSpeed = (v)=>{
+  const n=Number(v);
+  CarManager.speed=0.000015+(n/10)*0.0014;
+  const val=document.getElementById("carSpdVal"); if(val) val.textContent=Math.round(CarManager.speed*80000)+" km/h";
+  const pct=((n-1)/9)*100;
+  const f=document.getElementById("carSpdFill"); if(f) f.style.width=pct+"%";
+  const t=document.getElementById("carSpdThumb"); if(t) t.style.left=pct+"%";
 };
+window.abrirCarPanel = ()=>{ buildCarPanel(); document.getElementById("carSimPanel")?.classList.add("visible"); };
 
 /* ====================================================================
-   Botão no painel lateral
+   Injeta botão no painel lateral com retry robusto
 ==================================================================== */
-(function adicionarBotaoCarroNoPanel() {
-  function tryAdd() {
-    if (document.getElementById("btnCarroSimulacao")) return;
-    const actions = document.querySelector(".painel-busca .actions");
-    if (!actions) return;
+(function injectBtn() {
+  function tryInject() {
+    if(document.getElementById("btnCarroSimulacao")) return true;
+    const actions=document.querySelector(".painel-busca .actions");
+    if(!actions) return false;
 
-    const btn = document.createElement("button");
-    btn.id = "btnCarroSimulacao";
-    btn.innerHTML = '<i class="fa fa-car"></i> Simular Percurso';
-    btn.addEventListener("click", () => {
-      const modoAtual = window.getModoMapaAtual ? window.getModoMapaAtual() : "2d";
-      if (modoAtual !== "3d") {
-        if (typeof window.ativarMapa3D === "function") {
-          window.ativarMapa3D().then(() => setTimeout(window.abrirCarPanel, 900));
-        } else {
-          alert("Ative o Modo 3D primeiro.");
-        }
+    const btn=document.createElement("button");
+    btn.id="btnCarroSimulacao";
+    btn.type="button";
+    btn.innerHTML='<i class="fa fa-car"></i>&nbsp;Simular Percurso';
+    btn.addEventListener("click",()=>{
+      const modo=window.getModoMapaAtual?window.getModoMapaAtual():"2d";
+      if(modo!=="3d"){
+        document.getElementById("btnModo3D")?.click();
+        setTimeout(window.abrirCarPanel,1000);
         return;
       }
       window.abrirCarPanel();
     });
     actions.appendChild(btn);
+    return true;
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", tryAdd);
-  } else {
-    tryAdd();
-    // tenta de novo após 1s caso o painel ainda não exista
-    setTimeout(tryAdd, 1000);
+  if(!tryInject()){
+    let n=0;
+    const t=setInterval(()=>{ n++; if(tryInject()||n>40) clearInterval(t); },250);
   }
 })();
