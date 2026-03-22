@@ -854,6 +854,24 @@ map.addLayer(markers);
 const analiseLayer2D = L.layerGroup();
 let analiseAtiva2D = false;
 
+function setAnaliseInfo(html, show = true) {
+  const box = document.getElementById("analiseInfo");
+  if (!box) return;
+  box.innerHTML = html || "";
+  box.style.display = show ? "block" : "none";
+}
+function limparAnaliseInfo() {
+  try { setAnaliseInfo("", false); } catch (_) {}
+}
+
+// Botão "Limpar" (Análise de Projeto): sai da análise sem recarregar a base
+window.limparAnaliseProjeto = function () {
+  try { if (typeof showOverlay === "function") showOverlay("Limpando análise…"); } catch (_) {}
+  try { resetarRapidoBase(); } catch (_) {}
+  try { limparAnaliseInfo(); } catch (_) {}
+  try { if (typeof hideOverlay === "function") hideOverlay(); } catch (_) {}
+};
+
 function entrarModoAnalise2D() {
   analiseAtiva2D = true;
   try {
@@ -881,6 +899,7 @@ function sairModoAnalise2D() {
   try { window.intermediarios = []; } catch (_) {}
   try { window.intermediariosPostes = []; } catch (_) {}
   try { window.tracadoMassivo = null; } catch (_) {}
+  try { limparAnaliseInfo(); } catch (_) {}
 }
 
 // Reset "rápido": volta para o dataset completo sem limpar/recarregar tudo
@@ -1294,6 +1313,12 @@ function criarLayerPoste(p) {
     })
     .on("click", (e) => {
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+      if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
+        try {
+          if (typeof window.__medicaoAddPoint2D === "function") window.__medicaoAddPoint2D(layer.getLatLng());
+        } catch (_) {}
+        return;
+      }
       if (handleSelecaoClick(p, layer)) return;
       lastTip = { id: key };
       tipPinned = true;
@@ -1383,6 +1408,7 @@ function exibirTodosPostes() {
   const MAP3D_SOURCE_SELECTED = "postes-geojson-selected";
   const MAP3D_SOURCE_ROUTE = "postes-geojson-route";
   const MAP3D_SOURCE_ROUTE_MASS = "postes-geojson-route-mass";
+  const MAP3D_SOURCE_ROUTE_LABELS = "postes-geojson-route-labels";
   const MAP3D_SOURCE_MASS = "postes-geojson-mass";
   const MAP3D_SOURCE_POLES = "postes-geojson-poles";
 
@@ -1399,6 +1425,7 @@ function exibirTodosPostes() {
 
   const MAP3D_LAYER_ROUTE = "postes-3d-route";
   const MAP3D_LAYER_ROUTE_MASS = "postes-3d-route-mass";
+  const MAP3D_LAYER_ROUTE_LABELS = "postes-3d-route-labels";
   const MAP3D_LAYER_MASS = "postes-3d-mass";
   const MAP3D_LAYER_MASS_ICON = "postes-3d-mass-icon";
   const MAP3D_LAYER_MASS_LABELS = "postes-3d-mass-labels";
@@ -1487,6 +1514,7 @@ function exibirTodosPostes() {
       MAP3D_LAYER_SELECTED,
       MAP3D_LAYER_ROUTE,
       MAP3D_LAYER_ROUTE_MASS,
+      MAP3D_LAYER_ROUTE_LABELS,
       MAP3D_LAYER_MASS,
       MAP3D_LAYER_MASS_ICON,
       MAP3D_LAYER_MASS_LABELS
@@ -1497,6 +1525,7 @@ function exibirTodosPostes() {
       MAP3D_SOURCE_SELECTED,
       MAP3D_SOURCE_ROUTE,
       MAP3D_SOURCE_ROUTE_MASS,
+      MAP3D_SOURCE_ROUTE_LABELS,
       MAP3D_SOURCE_MASS
     ].forEach(removeSourceIfExists);
 
@@ -1631,6 +1660,11 @@ function exibirTodosPostes() {
     });
 
         map3d.addSource(MAP3D_SOURCE_ROUTE_MASS, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] }
+    });
+
+    map3d.addSource(MAP3D_SOURCE_ROUTE_LABELS, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] }
     });
@@ -1827,6 +1861,29 @@ function exibirTodosPostes() {
     }
 
 
+    if (!map3d.getLayer(MAP3D_LAYER_ROUTE_LABELS)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_ROUTE_LABELS,
+        type: "symbol",
+        source: MAP3D_SOURCE_ROUTE_LABELS,
+        minzoom: 13,
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 11,
+          "text-offset": [0, -1.1],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "#0f172a",
+          "text-halo-width": 1.2
+        }
+      });
+    }
+
+
+
     if (!map3d.getLayer(MAP3D_LAYER_MASS)) {
       map3d.addLayer({
         id: MAP3D_LAYER_MASS,
@@ -1930,6 +1987,7 @@ function exibirTodosPostes() {
 
     srcSel.setData({ type: "FeatureCollection", features: featsSel });
     srcRouteMass.setData({ type: "FeatureCollection", features: routeFeature });
+    srcRouteLabels.setData({ type: "FeatureCollection", features: labelFeats });
   }
 
   function handleSelecao3D(poste) {
@@ -1970,6 +2028,7 @@ function exibirTodosPostes() {
 
     const analiseLayers = [
       MAP3D_LAYER_ROUTE_MASS,
+      MAP3D_LAYER_ROUTE_LABELS,
       MAP3D_LAYER_MASS,
       MAP3D_LAYER_MASS_ICON,
       MAP3D_LAYER_MASS_LABELS
@@ -1989,8 +2048,10 @@ function limparCamadasMassivas3D() {
     if (!map3d || !map3dLoaded) return;
     const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
     const srcRouteMass = map3d.getSource(MAP3D_SOURCE_ROUTE_MASS);
+    const srcRouteLabels = map3d.getSource(MAP3D_SOURCE_ROUTE_LABELS);
     if (srcMass) srcMass.setData({ type: "FeatureCollection", features: [] });
     if (srcRouteMass) srcRouteMass.setData({ type: "FeatureCollection", features: [] });
+    if (srcRouteLabels) srcRouteLabels.setData({ type: "FeatureCollection", features: [] });
   }
 
   function desenharAnaliseMassa3D(encontrados, intermediarios = []) {
@@ -1998,7 +2059,15 @@ function limparCamadasMassivas3D() {
 
     const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
     const srcRouteMass = map3d.getSource(MAP3D_SOURCE_ROUTE_MASS);
-    if (!srcMass || !srcRouteMass) return;
+    const srcRouteLabels = map3d.getSource(MAP3D_SOURCE_ROUTE_LABELS);
+    if (!srcMass || !srcRouteMass || !srcRouteLabels) return;
+
+    function fmtDistLocal(m) {
+      const n = Number(m || 0);
+      if (!isFinite(n)) return "0 m";
+      if (n >= 1000) return (n / 1000).toFixed(2).replace(".", ",") + " km";
+      return Math.round(n) + " m";
+    }
 
     const feats = [];
 
@@ -2026,6 +2095,30 @@ function limparCamadasMassivas3D() {
           properties: {}
         }]
       : [];
+
+
+    // Labels de trechos (1-2, 2-3…) + total do projeto
+    const labelFeats = [];
+    if (encontrados.length >= 2 && typeof getDistanciaMetros === "function") {
+      let total = 0;
+      for (let i = 0; i < encontrados.length - 1; i++) {
+        const a = encontrados[i], b = encontrados[i + 1];
+        const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
+        total += d;
+        const mid = [(Number(a.lon) + Number(b.lon)) / 2, (Number(a.lat) + Number(b.lat)) / 2];
+        labelFeats.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: mid },
+          properties: { label: `${i + 1}-${i + 2}: ${fmtDistLocal(d)}` }
+        });
+      }
+      const last = encontrados[encontrados.length - 1];
+      labelFeats.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [Number(last.lon), Number(last.lat)] },
+        properties: { label: `Total: ${fmtDistLocal(total)}` }
+      });
+    }
 
     srcMass.setData({ type: "FeatureCollection", features: feats });
     srcRouteMass.setData({ type: "FeatureCollection", features: routeFeature });
@@ -2147,6 +2240,16 @@ function limparCamadasMassivas3D() {
       const id = String(f.properties.id || "");
       const poste = todosPostes.find((p) => String(p.id) === id);
       if (!poste) return;
+
+      // Se estiver em modo medir, clicar no poste adiciona ponto de medição (e não abre popup)
+      if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
+        try {
+          if (typeof window.__medicaoAddPoint3D === "function") {
+            window.__medicaoAddPoint3D([Number(poste.lon), Number(poste.lat)]);
+          }
+        } catch (_) {}
+        return;
+      }
 
       if (selecaoAtiva) {
         handleSelecao3D(poste);
@@ -2369,6 +2472,20 @@ function limparCamadasMassivas3D() {
       map3d = new maplibregl.Map({
         container: "map3d",
         style: MAP3D_STYLE,
+        transformRequest: (url, resourceType) => {
+          try {
+            if (resourceType === "Glyphs" && String(url).includes("tiles.openfreemap.org")) {
+              const u = new URL(url);
+              const parts = u.pathname.split("/").filter(Boolean);
+              const range = parts.pop();
+              const fontstack = parts.pop();
+              if (fontstack && range) {
+                return { url: `https://demotiles.maplibre.org/font/${fontstack}/${range}` };
+              }
+            }
+          } catch (_) {}
+          return { url };
+        },
         center: [center.lng, center.lat],
         zoom: Math.max(zoom - 1, 1),
         pitch: 60,
@@ -2643,14 +2760,18 @@ window.consultarIDsEmMassa = function () {
 
     // Ativa modo análise no 2D sem destruir o dataset base (evita “recarregar tudo” no reset)
     try { entrarModoAnalise2D(); } catch (_) {}
+    try { limparAnaliseInfo(); } catch (_) {}
 
     // Limpa estado anterior da análise
     window.numeroMarkers = [];
     window.intermediarios = [];
     window.intermediariosPostes = [];
     window.tracadoMassivo = null;
+    window.analiseSegmentMarkers = [];
+    window.analiseDistancias = null;
 
     const normId = (v) => (typeof keyId === "function" ? keyId(v) : String(v));
+
     const encontrados = ids
       .map((id) => todosPostes.find((p) => normId(p.id) === normId(id)))
       .filter(Boolean);
@@ -2661,13 +2782,42 @@ window.consultarIDsEmMassa = function () {
       return alert("Nenhum poste encontrado.");
     }
 
+    // ---------- Distâncias do projeto (1-2, 2-3, …) ----------
+    function fmtDist(m) {
+      const n = Number(m || 0);
+      if (!isFinite(n)) return "0 m";
+      if (n >= 1000) return (n / 1000).toFixed(2).replace(".", ",") + " km";
+      return Math.round(n) + " m";
+    }
+
+    const segDist = [];
+    const cumDist = [0];
+    let totalDist = 0;
+    for (let i = 0; i < encontrados.length - 1; i++) {
+      const a = encontrados[i], b = encontrados[i + 1];
+      const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
+      segDist.push(d);
+      totalDist += d;
+      cumDist.push(totalDist);
+    }
+    window.analiseDistancias = { segDist, cumDist, totalDist, totalPostes: encontrados.length };
+
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
       const cor = qtd >= 5 ? "red" : "green";
       const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
       const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
-      mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
+      const idx = num - 1;
+      const acum = cumDist[idx] || 0;
+      const prox = (idx < segDist.length) ? segDist[idx] : null;
+      const tip = [
+        `<b>ID:</b> ${p.id}`,
+        `<b>Acumulado:</b> ${fmtDist(acum)}`,
+        prox != null ? `<b>${num}-${num + 1}:</b> ${fmtDist(prox)}` : `<b>Fim do projeto</b>`
+      ].join("<br>");
+
+      mk.bindTooltip(tip, { direction: "top", sticky: true });
 
       mk.on("mouseover", () => {
         if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
@@ -2676,6 +2826,15 @@ window.consultarIDsEmMassa = function () {
 
       mk.on("click", (e) => {
         if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+
+        // Se estiver medindo, clique no poste vira ponto de medição
+        if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
+          try {
+            if (typeof window.__medicaoAddPoint2D === "function") window.__medicaoAddPoint2D(mk.getLatLng());
+          } catch (_) {}
+          return;
+        }
+
         if (typeof handleSelecaoClick === "function" && handleSelecaoClick(p, mk)) return;
         if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
         if (typeof tipPinned !== "undefined") tipPinned = true;
@@ -2713,6 +2872,15 @@ window.consultarIDsEmMassa = function () {
               })
               .on("click", (e) => {
                 if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+
+                // Medição: clique no intermediário também vira ponto
+                if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
+                  try {
+                    if (typeof window.__medicaoAddPoint2D === "function") window.__medicaoAddPoint2D(cm.getLatLng());
+                  } catch (_) {}
+                  return;
+                }
+
                 if (typeof handleSelecaoClick === "function" && handleSelecaoClick(p, cm)) return;
                 if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
                 if (typeof tipPinned !== "undefined") tipPinned = true;
@@ -2728,12 +2896,37 @@ window.consultarIDsEmMassa = function () {
       }
     });
 
-    // Traçado (tracejado igual ao 2D)
+    // Traçado (tracejado igual ao 2D) + labels de trecho (1-2, 2-3…)
     const coords = encontrados.map((p) => [p.lat, p.lon]);
     if (coords.length >= 2) {
       const line = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" });
       try { analiseLayer2D.addLayer(line); } catch (_) { line.addTo(map); }
       window.tracadoMassivo = line;
+
+      for (let i = 0; i < encontrados.length - 1; i++) {
+        const a = encontrados[i], b = encontrados[i + 1];
+        const mid = [(a.lat + b.lat) / 2, (a.lon + b.lon) / 2];
+        const d = segDist[i] || getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
+
+        const html = `<div style="
+          background:rgba(15,27,42,.92);
+          color:#fff;
+          padding:2px 6px;
+          border-radius:999px;
+          border:1px solid rgba(25,214,143,.55);
+          font:800 11px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+          white-space:nowrap;
+          box-shadow:0 6px 16px rgba(0,0,0,.18);
+        ">${i + 1}-${i + 2}: ${fmtDist(d)}</div>`;
+
+        const segMk = L.marker([mid[0], mid[1]], {
+          interactive: false,
+          icon: L.divIcon({ className: "analise-seg-label", html, iconSize: null })
+        });
+
+        try { analiseLayer2D.addLayer(segMk); } catch (_) { segMk.addTo(map); }
+        window.analiseSegmentMarkers.push(segMk);
+      }
 
       if (modoMapaAtual !== "3d") {
         try { map.fitBounds(L.latLngBounds(coords)); } catch {}
@@ -2742,23 +2935,33 @@ window.consultarIDsEmMassa = function () {
       map.setView(coords[0], 18);
     }
 
-    // Resumo
+    // Resumo (inclui distância total)
     window.ultimoResumoPostes = {
       total: ids.length,
+      encontrados: encontrados.length,
+      dist_total_m: totalDist,
       disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
       ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
       naoEncontrados: ids.filter((id) => !todosPostes.some((p) => normId(p.id) === normId(id))),
       intermediarios: window.intermediarios.length,
     };
 
-    // 3D: desenha só os postes da análise + rota (sem refetch)
+    // Painel: contador do projeto
+    try {
+      setAnaliseInfo(
+        `🧮 <b>Projeto</b>: ${encontrados.length} postes • <b>Distância total</b>: ${fmtDist(totalDist)}<br>` +
+        `<span style="opacity:.85">Trechos (1-2, 2-3, …) rotulados no mapa.</span>`,
+        true
+      );
+    } catch (_) {}
+
+    // 3D: desenha só os postes da análise + rota (sem refetch) + labels de trecho
     try { desenharAnaliseMassa3D(encontrados, window.intermediariosPostes || []); } catch (_) {}
 
     if (modoMapaAtual === "3d") {
       try { setModoAnalise3D(true); } catch (_) {}
       try { zoomToListaUniversal(encontrados, true); } catch (_) {}
     } else {
-      // se a análise rodar no 2D, garante que o 3D não fique preso em “modo análise”
       try { setModoAnalise3D(false); } catch (_) {}
     }
 
@@ -2767,6 +2970,7 @@ window.consultarIDsEmMassa = function () {
     atualizar3DSeAtivo();
     if (typeof hideOverlay === "function") hideOverlay();
   };
+
 ;
 
   // Rebind dos botões do DOM após carregamento
@@ -4861,11 +5065,13 @@ function _buildCarRoute() {
 
 
 /* ====================================================================
-   Ferramenta de MEDIÇÃO (2D + 3D) — Shift+Clique para adicionar pontos
-   - Mostra distância total em metros/km
-   - Funciona tanto no modo 2D (Leaflet) quanto no 3D (MapLibre)
+   Ferramenta de MEDIÇÃO (2D + 3D)
+   - Clique 1x para marcar o 1º ponto, clique no 2º ponto para medir
+   - Se clicar em vários pontos, soma e mostra distância total
+   - Mostra também a distância de cada trecho (1-2, 2-3, …)
+   - ESC desliga o modo medir
 ==================================================================== */
-(function initFerramentaMedicao() {
+(function initFerramentaMedicaoV2() {
   let medicaoAtiva = false;
 
   // ---------- Helpers ----------
@@ -4874,13 +5080,6 @@ function _buildCarRoute() {
     if (!isFinite(n)) return "0 m";
     if (n >= 1000) return (n / 1000).toFixed(2).replace(".", ",") + " km";
     return Math.round(n) + " m";
-  }
-  function somaDistLatLng(latlngs) {
-    let total = 0;
-    for (let i = 1; i < latlngs.length; i++) {
-      total += latlngs[i - 1].distanceTo(latlngs[i]);
-    }
-    return total;
   }
   function setBtnActive(id, on) {
     const el = document.getElementById(id);
@@ -4896,34 +5095,29 @@ function _buildCarRoute() {
   // ---------- 2D ----------
   const grupoMedida2D = L.layerGroup().addTo(map);
   let pontos2D = [];
-  let linha2D = null;
-  let ultimoTooltip2D = null;
 
   function render2D() {
     grupoMedida2D.clearLayers();
-    ultimoTooltip2D = null;
 
     if (!pontos2D.length) {
-      if (linha2D) { try { map.removeLayer(linha2D); } catch(_) {} }
-      linha2D = null;
       setInfo("", false);
       return;
     }
 
     // Linha
-    if (linha2D) {
-      linha2D.setLatLngs(pontos2D);
-    } else {
-      linha2D = L.polyline(pontos2D, {
-        color: "#2563eb",
-        weight: 3,
-        opacity: 0.95,
-        dashArray: "6,6"
-      }).addTo(map);
-    }
+    L.polyline(pontos2D, {
+      color: "#2563eb",
+      weight: 3,
+      opacity: 0.95,
+      dashArray: "6,6"
+    }).addTo(grupoMedida2D);
 
-    // Pontos
+    // Pontos + segmentos
+    let total = 0;
+    let ultimoTrecho = 0;
+
     pontos2D.forEach((p, idx) => {
+      // ponto
       const mk = L.circleMarker(p, {
         radius: 5,
         weight: 2,
@@ -4932,9 +5126,34 @@ function _buildCarRoute() {
         fillOpacity: 1
       }).addTo(grupoMedida2D);
 
-      // rótulo só no último ponto
+      // trechos (label no meio do trecho)
+      if (idx >= 1) {
+        const a = pontos2D[idx - 1];
+        const b = pontos2D[idx];
+        const d = a.distanceTo(b);
+        total += d;
+        ultimoTrecho = d;
+
+        const mid = L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2);
+        const html = `
+          <div style="
+            background:rgba(15,27,42,.92);
+            color:#fff;
+            padding:2px 6px;
+            border-radius:999px;
+            border:1px solid rgba(25,214,143,.55);
+            font:800 11px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+            white-space:nowrap;
+            box-shadow:0 6px 16px rgba(0,0,0,.18);
+          ">${idx}-${idx + 1}: ${fmtDist(d)}</div>`;
+        L.marker(mid, {
+          interactive: false,
+          icon: L.divIcon({ className: "measure-seg-label", html, iconSize: null })
+        }).addTo(grupoMedida2D);
+      }
+
+      // label total no último ponto
       if (idx === pontos2D.length - 1) {
-        const total = somaDistLatLng(pontos2D);
         const tip = L.tooltip({
           permanent: true,
           direction: "top",
@@ -4942,23 +5161,33 @@ function _buildCarRoute() {
           className: "measure-tooltip"
         }).setContent(`📏 ${fmtDist(total)} (${pontos2D.length} pts)`);
         mk.bindTooltip(tip).openTooltip();
-        ultimoTooltip2D = mk;
-        setInfo(`📏 <b>${fmtDist(total)}</b> • ${pontos2D.length} ponto(s) <span style="opacity:.75">(Shift+Clique para marcar)</span>`, true);
       }
     });
+
+    if (pontos2D.length === 1) {
+      setInfo(`📏 <b>Selecione o 2º ponto</b> • 1 ponto marcado`, true);
+    } else {
+      setInfo(`📏 Total: <b>${fmtDist(total)}</b> • Último trecho: <b>${fmtDist(ultimoTrecho)}</b> • ${pontos2D.length} pontos`, true);
+    }
   }
 
+  function addPoint2D(latlng) {
+    if (!medicaoAtiva) return;
+    pontos2D.push(latlng);
+    render2D();
+  }
+
+  // Clique no mapa
   map.on("click", (e) => {
     if (!medicaoAtiva) return;
     if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "2d") return;
-
-    // Evita conflito com clique normal: usa Shift+Clique
-    const ev = e.originalEvent;
-    if (!ev || !ev.shiftKey) return;
-
-    pontos2D.push(e.latlng);
-    render2D();
+    addPoint2D(e.latlng);
   });
+
+  // API p/ clique em marcadores (quando o usuário clicar no poste)
+  window.__medicaoAddPoint2D = function (latlng) {
+    try { addPoint2D(latlng); } catch (_) {}
+  };
 
   // ---------- 3D (MapLibre) ----------
   const MEASURE3D_SOURCE = "medir-geojson";
@@ -4967,7 +5196,6 @@ function _buildCarRoute() {
   const MEASURE3D_LABELS = "medir-labels";
 
   let pontos3D = [];
-  let measure3DReady = false;
 
   function haversineM(a, b) {
     const R = 6371000;
@@ -4979,14 +5207,10 @@ function _buildCarRoute() {
     const s = Math.sin(dlat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(s));
   }
-  function somaDistLngLat(coords) {
-    let total = 0;
-    for (let i = 1; i < coords.length; i++) total += haversineM(coords[i - 1], coords[i]);
-    return total;
-  }
 
   function ensureMeasure3D() {
     if (!map3d) return;
+
     const run = () => {
       try {
         if (!map3d.getSource(MEASURE3D_SOURCE)) {
@@ -5031,11 +5255,12 @@ function _buildCarRoute() {
             id: MEASURE3D_LABELS,
             type: "symbol",
             source: MEASURE3D_SOURCE,
-            filter: ["==", ["get", "kind"], "pt"],
+            filter: ["==", ["get", "kind"], "lbl"],
+            minzoom: 13,
             layout: {
               "text-field": ["get", "label"],
-              "text-size": 12,
-              "text-offset": [0, -1.6],
+              "text-size": 11,
+              "text-offset": [0, -1.2],
               "text-allow-overlap": true,
               "text-ignore-placement": true
             },
@@ -5047,24 +5272,16 @@ function _buildCarRoute() {
           });
         }
 
-        // Click handler (Shift+Clique)
         if (!ensureMeasure3D._bound) {
           ensureMeasure3D._bound = true;
           map3d.on("click", (ev) => {
             if (!medicaoAtiva) return;
             if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") return;
-            const oe = ev.originalEvent;
-            if (!oe || !oe.shiftKey) return;
-
             const lngLat = ev.lngLat;
             if (!lngLat) return;
-
-            pontos3D.push([Number(lngLat.lng), Number(lngLat.lat)]);
-            render3D();
+            addPoint3D([Number(lngLat.lng), Number(lngLat.lat)]);
           });
         }
-
-        measure3DReady = true;
       } catch (e) {
         console.warn("Medir 3D não inicializou:", e);
       }
@@ -5077,9 +5294,11 @@ function _buildCarRoute() {
   function render3D() {
     if (!map3d || !map3dLoaded) return;
     ensureMeasure3D();
-    if (!map3d.getSource(MEASURE3D_SOURCE)) return;
+    const src = map3d.getSource(MEASURE3D_SOURCE);
+    if (!src) return;
 
     const features = [];
+
     if (pontos3D.length >= 2) {
       features.push({
         type: "Feature",
@@ -5087,27 +5306,61 @@ function _buildCarRoute() {
         geometry: { type: "LineString", coordinates: pontos3D }
       });
     }
-    pontos3D.forEach((c, idx) => {
-      const total = somaDistLngLat(pontos3D);
-      const label = idx === pontos3D.length - 1 ? `📏 ${fmtDist(total)}` : "";
+
+    pontos3D.forEach((c) => {
       features.push({
         type: "Feature",
-        properties: { kind: "pt", label },
+        properties: { kind: "pt" },
         geometry: { type: "Point", coordinates: c }
       });
     });
 
-    try {
-      map3d.getSource(MEASURE3D_SOURCE).setData({ type: "FeatureCollection", features });
-    } catch (_) {}
+    let total = 0;
+    let ultimoTrecho = 0;
 
-    const total = somaDistLngLat(pontos3D);
-    if (pontos3D.length) {
-      setInfo(`📏 <b>${fmtDist(total)}</b> • ${pontos3D.length} ponto(s) <span style="opacity:.75">(Shift+Clique para marcar)</span>`, true);
+    for (let i = 1; i < pontos3D.length; i++) {
+      const a = pontos3D[i - 1];
+      const b = pontos3D[i];
+      const d = haversineM(a, b);
+      total += d;
+      ultimoTrecho = d;
+
+      const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      features.push({
+        type: "Feature",
+        properties: { kind: "lbl", label: `${i}-${i + 1}: ${fmtDist(d)}` },
+        geometry: { type: "Point", coordinates: mid }
+      });
+    }
+
+    if (pontos3D.length >= 2) {
+      const last = pontos3D[pontos3D.length - 1];
+      features.push({
+        type: "Feature",
+        properties: { kind: "lbl", label: `📏 Total: ${fmtDist(total)}` },
+        geometry: { type: "Point", coordinates: last }
+      });
+      setInfo(`📏 Total: <b>${fmtDist(total)}</b> • Último trecho: <b>${fmtDist(ultimoTrecho)}</b> • ${pontos3D.length} pontos`, true);
+    } else if (pontos3D.length === 1) {
+      setInfo(`📏 <b>Selecione o 2º ponto</b> • 1 ponto marcado`, true);
     } else {
       setInfo("", false);
     }
+
+    try {
+      src.setData({ type: "FeatureCollection", features });
+    } catch (_) {}
   }
+
+  function addPoint3D(coord) {
+    if (!medicaoAtiva) return;
+    pontos3D.push(coord);
+    render3D();
+  }
+
+  window.__medicaoAddPoint3D = function (coord) {
+    try { addPoint3D(coord); } catch (_) {}
+  };
 
   // ---------- API pública ----------
   window.toggleMedicao = function () {
@@ -5115,11 +5368,10 @@ function _buildCarRoute() {
     setBtnActive("btnMedir", medicaoAtiva);
 
     if (medicaoAtiva) {
-      // Inicializa 3D se estiver no 3D
       if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() === "3d") {
         ensureMeasure3D();
       }
-      setInfo("📏 <b>Modo medir ativo</b> • use <b>Shift+Clique</b> para marcar pontos", true);
+      setInfo("📏 <b>Modo medir ativo</b> • clique no mapa (ou no poste) para marcar pontos • <b>ESC</b> para sair", true);
     } else {
       setInfo("", false);
     }
@@ -5130,8 +5382,6 @@ function _buildCarRoute() {
     pontos2D = [];
     pontos3D = [];
     try { grupoMedida2D.clearLayers(); } catch (_) {}
-    try { if (linha2D) map.removeLayer(linha2D); } catch (_) {}
-    linha2D = null;
 
     if (map3d && map3dLoaded) {
       ensureMeasure3D();
@@ -5144,7 +5394,6 @@ function _buildCarRoute() {
     setInfo("", false);
   };
 
-  // Sai com ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && medicaoAtiva) {
       medicaoAtiva = false;
@@ -5153,176 +5402,12 @@ function _buildCarRoute() {
     }
   });
 
-  // Se alternar para 3D enquanto modo medir está ligado, garante layers
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && medicaoAtiva) {
       if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() === "3d") ensureMeasure3D();
     }
   });
 
-  // Expondo estado
   window.isMedicaoAtiva = () => medicaoAtiva;
 })();
 
-
-/* ====================================================================
-   “Street Walk” 3D (estilo Street View, mas em 3D)
-   - Não é imagem real do Google Street View (isso exige API/licença)
-   - Aqui é um modo 1ª pessoa no MapLibre: andar pela rua com WASD
-   Controles:
-     WASD / setas: mover
-     Q / E: girar
-     Shift: turbo
-     ESC: sair do modo
-==================================================================== */
-(function initStreetWalk3D() {
-  let walkAtivo = false;
-  let keys = Object.create(null);
-  let raf = null;
-  let lastT = 0;
-
-  const BASE_SPEED = 3.2; // m/s
-  const TURN_SPEED = 70;  // graus por segundo
-
-  function setBtnActive(id, on) {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle("active", !!on);
-  }
-  function setWalkInfo(show) {
-    const box = document.getElementById("walkInfo");
-    if (!box) return;
-    box.style.display = show ? "block" : "none";
-  }
-
-  function toRad(d) { return d * Math.PI / 180; }
-  function toDeg(r) { return r * 180 / Math.PI; }
-
-  function moveLngLat(lng, lat, bearingDeg, distM) {
-    const R = 6378137;
-    const δ = distM / R;
-    const θ = toRad(bearingDeg);
-
-    const φ1 = toRad(lat);
-    const λ1 = toRad(lng);
-
-    const sinφ1 = Math.sin(φ1), cosφ1 = Math.cos(φ1);
-    const sinδ = Math.sin(δ), cosδ = Math.cos(δ);
-
-    const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
-    const φ2 = Math.asin(sinφ2);
-
-    const y = Math.sin(θ) * sinδ * cosφ1;
-    const x = cosδ - sinφ1 * sinφ2;
-    const λ2 = λ1 + Math.atan2(y, x);
-
-    return [toDeg(λ2), toDeg(φ2)];
-  }
-
-  function tick(t) {
-    if (!walkAtivo || !map3d) return;
-    if (!lastT) lastT = t;
-    const dt = Math.min(0.05, (t - lastT) / 1000); // cap 50ms
-    lastT = t;
-
-    const turbo = keys["Shift"] ? 2.2 : 1.0;
-    const speed = BASE_SPEED * turbo;
-
-    let bearing = map3d.getBearing();
-    let center = map3d.getCenter();
-    let lng = center.lng, lat = center.lat;
-
-    // Girar
-    if (keys["q"] || keys["Q"]) bearing -= TURN_SPEED * dt;
-    if (keys["e"] || keys["E"]) bearing += TURN_SPEED * dt;
-
-    // Mover frente/trás
-    if (keys["w"] || keys["W"] || keys["ArrowUp"]) {
-      [lng, lat] = moveLngLat(lng, lat, bearing, speed * dt);
-    }
-    if (keys["s"] || keys["S"] || keys["ArrowDown"]) {
-      [lng, lat] = moveLngLat(lng, lat, bearing, -speed * dt);
-    }
-
-    // Strafe (lado)
-    if (keys["a"] || keys["A"] || keys["ArrowLeft"]) {
-      [lng, lat] = moveLngLat(lng, lat, bearing - 90, speed * dt);
-    }
-    if (keys["d"] || keys["D"] || keys["ArrowRight"]) {
-      [lng, lat] = moveLngLat(lng, lat, bearing + 90, speed * dt);
-    }
-
-    try {
-      map3d.jumpTo({ center: [lng, lat], bearing });
-    } catch (_) {}
-
-    raf = requestAnimationFrame(tick);
-  }
-
-  function enable() {
-    if (!map3d) return;
-    walkAtivo = true;
-    setBtnActive("btnStreetWalk", true);
-    setWalkInfo(true);
-
-    try {
-      // ângulo frontal "Street"
-      const z = Math.max(map3d.getZoom(), 17.5);
-      map3d.easeTo({ pitch: 82, zoom: z, duration: 550 });
-    } catch (_) {}
-
-    lastT = 0;
-    if (!raf) raf = requestAnimationFrame(tick);
-  }
-
-  function disable() {
-    walkAtivo = false;
-    setBtnActive("btnStreetWalk", false);
-    setWalkInfo(false);
-    if (raf) { try { cancelAnimationFrame(raf); } catch(_) {} }
-    raf = null;
-    lastT = 0;
-    keys = Object.create(null);
-  }
-
-  // API pública
-  window.toggleStreetWalk3D = function () {
-    if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") {
-      alert("Ative o modo 3D para usar o Street Walk 🙂");
-      return false;
-    }
-    if (!map3d || !map3dLoaded) {
-      alert("Mapa 3D ainda carregando… tente de novo em alguns segundos 🙂");
-      return false;
-    }
-    if (walkAtivo) disable(); else enable();
-    return walkAtivo;
-  };
-
-  // Teclas
-  document.addEventListener("keydown", (e) => {
-    if (!walkAtivo) return;
-
-    keys[e.key] = true;
-
-    // evita scroll com setas
-    if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) {
-      e.preventDefault();
-    }
-
-    if (e.key === "Escape") disable();
-  }, { passive: false });
-
-  document.addEventListener("keyup", (e) => {
-    keys[e.key] = false;
-  });
-
-  // Se sair do 3D, desliga
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && walkAtivo) {
-      if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") disable();
-    }
-  });
-
-  // Expor estado
-  window.isStreetWalkAtivo = () => walkAtivo;
-})();
