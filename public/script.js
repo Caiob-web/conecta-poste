@@ -847,6 +847,55 @@ markers.on("clusterclick", (e) => {
 
 map.addLayer(markers);
 
+// =======================
+// Modo Análise (2D) sem recarregar base
+// Mantém os postes já carregados em memória e só alterna camadas
+// =======================
+const analiseLayer2D = L.layerGroup();
+let analiseAtiva2D = false;
+
+function entrarModoAnalise2D() {
+  analiseAtiva2D = true;
+  try {
+    // Esconde a base (sem limpar) — volta instantâneo no reset
+    if (map.hasLayer(markers)) map.removeLayer(markers);
+  } catch (_) {}
+  try {
+    if (!map.hasLayer(analiseLayer2D)) analiseLayer2D.addTo(map);
+    analiseLayer2D.clearLayers();
+  } catch (_) {}
+}
+
+function sairModoAnalise2D() {
+  analiseAtiva2D = false;
+
+  // limpa tudo que for da análise (números, intermediários, traçado)
+  try { analiseLayer2D.clearLayers(); } catch (_) {}
+  try { if (map.hasLayer(analiseLayer2D)) map.removeLayer(analiseLayer2D); } catch (_) {}
+
+  // volta a base sem reprocessar todo o cluster
+  try { if (!map.hasLayer(markers)) map.addLayer(markers); } catch (_) {}
+
+  // housekeeping
+  try { window.numeroMarkers = []; } catch (_) {}
+  try { window.intermediarios = []; } catch (_) {}
+  try { window.intermediariosPostes = []; } catch (_) {}
+  try { window.tracadoMassivo = null; } catch (_) {}
+}
+
+// Reset "rápido": volta para o dataset completo sem limpar/recarregar tudo
+function resetarRapidoBase() {
+  try { sairModoAnalise2D(); } catch (_) {}
+
+  // 3D: sai do modo análise e volta pro dataset completo (sem refetch)
+  try { if (typeof setModoAnalise3D === "function") setModoAnalise3D(false); } catch (_) {}
+  try { if (typeof limparCamadasMassivas3D === "function") limparCamadasMassivas3D(); } catch (_) {}
+  try { if (typeof restaurarDatasetCompleto3D === "function") restaurarDatasetCompleto3D(); } catch (_) {}
+
+  try { atualizar3DSeAtivo(); } catch (_) {}
+  try { if (typeof hideOverlay === "function") hideOverlay(); } catch (_) {}
+}
+
 // -------------------- Carregamento GRADATIVO GLOBAL ------------------
 const idToMarker = new Map();
 let todosCarregados = false;
@@ -2543,32 +2592,48 @@ function limparCamadasMassivas3D() {
   // =====================================================================
   // resetarMapa — funciona em 2D e 3D
   // =====================================================================
-  window.resetarMapa = function () {
+  
+window.resetarMapa = function () {
     if (typeof limparSelecaoESair === "function") limparSelecaoESair({ manterMarcadores: true });
     if (typeof popupPinned !== "undefined") popupPinned = false;
     if (typeof lastPopup !== "undefined") lastPopup = null;
     if (typeof tipPinned !== "undefined") tipPinned = false;
     if (typeof lastTip !== "undefined") lastTip = null;
-    if (typeof showOverlay === "function") showOverlay("Carregando todos os postes…");
-    if (typeof modoAtual !== "undefined") modoAtual = "todos";
 
-    try { setModoAnalise3D(false); } catch (_) {}
-    try { limparCamadasMassivas3D(); } catch (_) {}
+    if (typeof showOverlay === "function") showOverlay("Resetando…");
 
-    restaurarDatasetCompleto3D();
+    // Se a base já foi carregada uma vez, não “recarrega tudo”:
+    // só volta as camadas normais (2D e 3D) usando cache em memória.
+    const baseJaMontada = (typeof markers !== "undefined" && typeof markers.getLayers === "function" && markers.getLayers().length > 0);
+
+    try {
+      if (baseJaMontada) {
+        resetarRapidoBase();
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback (primeiro carregamento / base ainda não montada)
+    try { sairModoAnalise2D(); } catch (_) {}
+    try { if (typeof setModoAnalise3D === "function") setModoAnalise3D(false); } catch (_) {}
+    try { if (typeof limparCamadasMassivas3D === "function") limparCamadasMassivas3D(); } catch (_) {}
+    try { if (typeof restaurarDatasetCompleto3D === "function") restaurarDatasetCompleto3D(); } catch (_) {}
 
     if (typeof hardReset === "function") {
       hardReset();
-    } else {
+    } else if (typeof carregarTodosPostesGradualmente === "function") {
       carregarTodosPostesGradualmente();
     }
+
     atualizar3DSeAtivo();
   };
+;
 
   // =====================================================================
   // consultarIDsEmMassa — funciona em 2D e 3D
   // =====================================================================
-  window.consultarIDsEmMassa = function () {
+  
+window.consultarIDsEmMassa = function () {
     const ids = (document.getElementById("ids-multiplos")?.value || "")
       .split(/[^0-9]+/).filter(Boolean);
 
@@ -2576,82 +2641,124 @@ function limparCamadasMassivas3D() {
 
     if (typeof showOverlay === "function") showOverlay("Processando IDs e gerando análise…");
 
-    markers.clearLayers();
-    if (typeof refreshClustersSoon === "function") refreshClustersSoon();
+    // Ativa modo análise no 2D sem destruir o dataset base (evita “recarregar tudo” no reset)
+    try { entrarModoAnalise2D(); } catch (_) {}
 
-    if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
-    window.intermediarios?.forEach((m) => map.removeLayer(m));
+    // Limpa estado anterior da análise
     window.numeroMarkers = [];
+    window.intermediarios = [];
+    window.intermediariosPostes = [];
+    window.tracadoMassivo = null;
 
+    const normId = (v) => (typeof keyId === "function" ? keyId(v) : String(v));
     const encontrados = ids
-      .map((id) => todosPostes.find((p) => String(p.id) === String(id)))
+      .map((id) => todosPostes.find((p) => normId(p.id) === normId(id)))
       .filter(Boolean);
 
     if (!encontrados.length) {
+      try { resetarRapidoBase(); } catch (_) {}
       if (typeof hideOverlay === "function") hideOverlay();
       return alert("Nenhum poste encontrado.");
     }
 
-    encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
+    const addNumero = (p, num) => {
+      const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
+      const cor = qtd >= 5 ? "red" : "green";
+      const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
+      const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
-    window.intermediarios = [];
-    window.intermediariosPostes = [];
+      mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
+
+      mk.on("mouseover", () => {
+        if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
+        if (typeof tipPinned !== "undefined") tipPinned = false;
+      });
+
+      mk.on("click", (e) => {
+        if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+        if (typeof handleSelecaoClick === "function" && handleSelecaoClick(p, mk)) return;
+        if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
+        if (typeof tipPinned !== "undefined") tipPinned = true;
+        try { mk.openTooltip?.(); } catch {}
+        if (typeof abrirPopup === "function") abrirPopup(p);
+      });
+
+      mk.posteData = p;
+      try { analiseLayer2D.addLayer(mk); } catch (_) { mk.addTo(map); }
+      window.numeroMarkers.push(mk);
+    };
+
+    encontrados.forEach((p, i) => addNumero(p, i + 1));
+
+    // Intermediários (como “pontos de referência” entre IDs, quando a distância é grande)
     encontrados.slice(0, -1).forEach((a, i) => {
       const b = encontrados[i + 1];
       const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
       if (d > 50) {
         todosPostes
-          .filter((p) => !ids.includes(String(p.id)))
+          .filter((p) => !ids.includes(normId(p.id)))
           .filter((p) =>
             getDistanciaMetros(a.lat, a.lon, p.lat, p.lon) +
             getDistanciaMetros(b.lat, b.lon, p.lat, p.lon) <= d + 20
           )
           .forEach((p) => {
             const empresasStr = typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível";
-            const m = L.circleMarker([p.lat, p.lon], {
+            const cm = L.circleMarker([p.lat, p.lon], {
               radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
             })
               .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
+              .on("mouseover", () => {
+                if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
+                if (typeof tipPinned !== "undefined") tipPinned = false;
+              })
               .on("click", (e) => {
                 if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
-                if (typeof handleSelecaoClick === "function" && handleSelecaoClick(p, m)) return;
+                if (typeof handleSelecaoClick === "function" && handleSelecaoClick(p, cm)) return;
+                if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
+                if (typeof tipPinned !== "undefined") tipPinned = true;
+                try { cm.openTooltip?.(); } catch {}
                 if (typeof abrirPopup === "function") abrirPopup(p);
-              })
-              .addTo(map);
+              });
 
-            m.posteData = p;
-            window.intermediarios.push(m);
+            cm.posteData = p;
+            try { analiseLayer2D.addLayer(cm); } catch (_) { cm.addTo(map); }
+            window.intermediarios.push(cm);
             window.intermediariosPostes.push(p);
           });
       }
     });
 
-    map.addLayer(markers);
-    if (typeof refreshClustersSoon === "function") refreshClustersSoon();
-
+    // Traçado (tracejado igual ao 2D)
     const coords = encontrados.map((p) => [p.lat, p.lon]);
     if (coords.length >= 2) {
-      window.tracadoMassivo = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" }).addTo(map);
-      if (modoMapaAtual !== "3d") map.fitBounds(L.latLngBounds(coords));
+      const line = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" });
+      try { analiseLayer2D.addLayer(line); } catch (_) { line.addTo(map); }
+      window.tracadoMassivo = line;
+
+      if (modoMapaAtual !== "3d") {
+        try { map.fitBounds(L.latLngBounds(coords)); } catch {}
+      }
     } else if (coords.length === 1 && modoMapaAtual !== "3d") {
       map.setView(coords[0], 18);
     }
 
+    // Resumo
     window.ultimoResumoPostes = {
       total: ids.length,
       disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
       ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
-      naoEncontrados: ids.filter((id) => !todosPostes.some((p) => String(p.id) === String(id))),
+      naoEncontrados: ids.filter((id) => !todosPostes.some((p) => normId(p.id) === normId(id))),
       intermediarios: window.intermediarios.length,
     };
 
-    desenharAnaliseMassa3D(encontrados, window.intermediariosPostes || []);
+    // 3D: desenha só os postes da análise + rota (sem refetch)
+    try { desenharAnaliseMassa3D(encontrados, window.intermediariosPostes || []); } catch (_) {}
 
     if (modoMapaAtual === "3d") {
-      setModoAnalise3D(true);
-      zoomToListaUniversal(encontrados, true);
+      try { setModoAnalise3D(true); } catch (_) {}
+      try { zoomToListaUniversal(encontrados, true); } catch (_) {}
     } else {
-      // se o usuário rodar a análise no 2D, garantimos que o 3D não fique “preso” no modo análise
+      // se a análise rodar no 2D, garante que o 3D não fique preso em “modo análise”
       try { setModoAnalise3D(false); } catch (_) {}
     }
 
@@ -2660,6 +2767,7 @@ function limparCamadasMassivas3D() {
     atualizar3DSeAtivo();
     if (typeof hideOverlay === "function") hideOverlay();
   };
+;
 
   // Rebind dos botões do DOM após carregamento
   document.addEventListener("DOMContentLoaded", () => {
@@ -3373,17 +3481,31 @@ function filtrarLocal() {
   gerarCSVParaBase44(filtro.map((p) => p.id));
 }
 
+
 function resetarMapa() {
+  // Se o override 3D existir, ele controla o reset (com cache em memória)
   if (typeof window.resetarMapa === "function" && window.resetarMapa !== resetarMapa) {
     return window.resetarMapa();
   }
+
   limparSelecaoESair({ manterMarcadores: true });
   popupPinned = false; lastPopup = null;
   tipPinned = false; lastTip = null;
+
+  // Se já existe base montada, faz reset rápido (sem recarregar)
+  const baseJaMontada = (typeof markers !== "undefined" && typeof markers.getLayers === "function" && markers.getLayers().length > 0);
+  if (baseJaMontada) {
+    showOverlay("Resetando…");
+    try { resetarRapidoBase(); } catch (_) {}
+    return;
+  }
+
+  // Fallback: ainda não montou base (primeiro carregamento)
   showOverlay("Carregando todos os postes…");
   modoAtual = "todos";
   hardReset();
 }
+
 
 // ---------------------------------------------------------------------
 // Street View
