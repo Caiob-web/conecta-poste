@@ -1304,7 +1304,8 @@ function criarLayerPoste(p) {
 
   const layer = L.marker([p.lat, p.lon], {
     icon,
-    pane: "postes"
+    pane: "postes",
+    bubblingMouseEvents: false
   })
     .bindTooltip(tooltipHtml, tooltipOpts)
     .on("mouseover", () => {
@@ -1315,6 +1316,7 @@ function criarLayerPoste(p) {
       if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
       if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
         try {
+          if (typeof window.__medicaoIgnoreNextMapClick2D === "function") window.__medicaoIgnoreNextMapClick2D();
           if (typeof window.__medicaoAddPoint2D === "function") window.__medicaoAddPoint2D(layer.getLatLng());
         } catch (_) {}
         return;
@@ -2246,6 +2248,7 @@ function limparCamadasMassivas3D() {
       // Se estiver em modo medir, clicar no poste adiciona ponto de medição (e não abre popup)
       if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
         try {
+          if (typeof window.__medicaoIgnoreNextMapClick3D === "function") window.__medicaoIgnoreNextMapClick3D();
           if (typeof window.__medicaoAddPoint3D === "function") {
             window.__medicaoAddPoint3D([Number(poste.lon), Number(poste.lat)]);
           }
@@ -5076,6 +5079,13 @@ function _buildCarRoute() {
 (function initFerramentaMedicaoV2() {
   let medicaoAtiva = false;
 
+  // Evita "ponto duplo" quando o clique vem de marcador/layer (o evento também dispara no mapa)
+  let ignoreNextMapClick2D = false;
+  let ignoreNextMapClick3D = false;
+
+  window.__medicaoIgnoreNextMapClick2D = function(){ ignoreNextMapClick2D = true; };
+  window.__medicaoIgnoreNextMapClick3D = function(){ ignoreNextMapClick3D = true; };
+
   // ---------- Helpers ----------
   function fmtDist(m) {
     const n = Number(m || 0);
@@ -5175,6 +5185,9 @@ function _buildCarRoute() {
 
   function addPoint2D(latlng) {
     if (!medicaoAtiva) return;
+    if (!latlng) return;
+    const last = pontos2D[pontos2D.length - 1];
+    if (last && typeof last.distanceTo === "function" && last.distanceTo(latlng) < 0.5) return; // evita duplo-clique no mesmo ponto
     pontos2D.push(latlng);
     render2D();
   }
@@ -5182,6 +5195,7 @@ function _buildCarRoute() {
   // Clique no mapa
   map.on("click", (e) => {
     if (!medicaoAtiva) return;
+    if (ignoreNextMapClick2D) { ignoreNextMapClick2D = false; return; }
     if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "2d") return;
     addPoint2D(e.latlng);
   });
@@ -5278,6 +5292,7 @@ function _buildCarRoute() {
           ensureMeasure3D._bound = true;
           map3d.on("click", (ev) => {
             if (!medicaoAtiva) return;
+            if (ignoreNextMapClick3D) { ignoreNextMapClick3D = false; return; }
             if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") return;
             const lngLat = ev.lngLat;
             if (!lngLat) return;
@@ -5356,6 +5371,9 @@ function _buildCarRoute() {
 
   function addPoint3D(coord) {
     if (!medicaoAtiva) return;
+    if (!coord || coord.length < 2) return;
+    const last = pontos3D[pontos3D.length - 1];
+    if (last && haversineM(last, coord) < 0.5) return; // evita ponto duplo
     pontos3D.push(coord);
     render3D();
   }
@@ -5376,6 +5394,8 @@ function _buildCarRoute() {
       setInfo("📏 <b>Modo medir ativo</b> • clique no mapa (ou no poste) para marcar pontos • <b>ESC</b> para sair", true);
     } else {
       setInfo("", false);
+      ignoreNextMapClick2D = false;
+      ignoreNextMapClick3D = false;
     }
     return medicaoAtiva;
   };
@@ -5383,6 +5403,8 @@ function _buildCarRoute() {
   window.limparMedicao = function () {
     pontos2D = [];
     pontos3D = [];
+    ignoreNextMapClick2D = false;
+    ignoreNextMapClick3D = false;
     try { grupoMedida2D.clearLayers(); } catch (_) {}
 
     if (map3d && map3dLoaded) {
@@ -5399,6 +5421,8 @@ function _buildCarRoute() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && medicaoAtiva) {
       medicaoAtiva = false;
+      ignoreNextMapClick2D = false;
+      ignoreNextMapClick3D = false;
       setBtnActive("btnMedir", false);
       setInfo("", false);
     }
