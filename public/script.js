@@ -4857,3 +4857,472 @@ function _buildCarRoute() {
     .slice(0, 30)
     .map(p => [Number(p.lon), Number(p.lat)]);
 }
+
+
+
+/* ====================================================================
+   Ferramenta de MEDIÇÃO (2D + 3D) — Shift+Clique para adicionar pontos
+   - Mostra distância total em metros/km
+   - Funciona tanto no modo 2D (Leaflet) quanto no 3D (MapLibre)
+==================================================================== */
+(function initFerramentaMedicao() {
+  let medicaoAtiva = false;
+
+  // ---------- Helpers ----------
+  function fmtDist(m) {
+    const n = Number(m || 0);
+    if (!isFinite(n)) return "0 m";
+    if (n >= 1000) return (n / 1000).toFixed(2).replace(".", ",") + " km";
+    return Math.round(n) + " m";
+  }
+  function somaDistLatLng(latlngs) {
+    let total = 0;
+    for (let i = 1; i < latlngs.length; i++) {
+      total += latlngs[i - 1].distanceTo(latlngs[i]);
+    }
+    return total;
+  }
+  function setBtnActive(id, on) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("active", !!on);
+  }
+  function setInfo(html, show = true) {
+    const box = document.getElementById("medidaInfo");
+    if (!box) return;
+    box.innerHTML = html || "";
+    box.style.display = show ? "block" : "none";
+  }
+
+  // ---------- 2D ----------
+  const grupoMedida2D = L.layerGroup().addTo(map);
+  let pontos2D = [];
+  let linha2D = null;
+  let ultimoTooltip2D = null;
+
+  function render2D() {
+    grupoMedida2D.clearLayers();
+    ultimoTooltip2D = null;
+
+    if (!pontos2D.length) {
+      if (linha2D) { try { map.removeLayer(linha2D); } catch(_) {} }
+      linha2D = null;
+      setInfo("", false);
+      return;
+    }
+
+    // Linha
+    if (linha2D) {
+      linha2D.setLatLngs(pontos2D);
+    } else {
+      linha2D = L.polyline(pontos2D, {
+        color: "#2563eb",
+        weight: 3,
+        opacity: 0.95,
+        dashArray: "6,6"
+      }).addTo(map);
+    }
+
+    // Pontos
+    pontos2D.forEach((p, idx) => {
+      const mk = L.circleMarker(p, {
+        radius: 5,
+        weight: 2,
+        color: "#ffffff",
+        fillColor: "#2563eb",
+        fillOpacity: 1
+      }).addTo(grupoMedida2D);
+
+      // rótulo só no último ponto
+      if (idx === pontos2D.length - 1) {
+        const total = somaDistLatLng(pontos2D);
+        const tip = L.tooltip({
+          permanent: true,
+          direction: "top",
+          offset: [0, -10],
+          className: "measure-tooltip"
+        }).setContent(`📏 ${fmtDist(total)} (${pontos2D.length} pts)`);
+        mk.bindTooltip(tip).openTooltip();
+        ultimoTooltip2D = mk;
+        setInfo(`📏 <b>${fmtDist(total)}</b> • ${pontos2D.length} ponto(s) <span style="opacity:.75">(Shift+Clique para marcar)</span>`, true);
+      }
+    });
+  }
+
+  map.on("click", (e) => {
+    if (!medicaoAtiva) return;
+    if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "2d") return;
+
+    // Evita conflito com clique normal: usa Shift+Clique
+    const ev = e.originalEvent;
+    if (!ev || !ev.shiftKey) return;
+
+    pontos2D.push(e.latlng);
+    render2D();
+  });
+
+  // ---------- 3D (MapLibre) ----------
+  const MEASURE3D_SOURCE = "medir-geojson";
+  const MEASURE3D_LINE = "medir-linha";
+  const MEASURE3D_POINTS = "medir-pontos";
+  const MEASURE3D_LABELS = "medir-labels";
+
+  let pontos3D = [];
+  let measure3DReady = false;
+
+  function haversineM(a, b) {
+    const R = 6371000;
+    const toRad = (x) => (x * Math.PI) / 180;
+    const lat1 = toRad(a[1]), lon1 = toRad(a[0]);
+    const lat2 = toRad(b[1]), lon2 = toRad(b[0]);
+    const dlat = lat2 - lat1;
+    const dlon = lon2 - lon1;
+    const s = Math.sin(dlat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+  function somaDistLngLat(coords) {
+    let total = 0;
+    for (let i = 1; i < coords.length; i++) total += haversineM(coords[i - 1], coords[i]);
+    return total;
+  }
+
+  function ensureMeasure3D() {
+    if (!map3d) return;
+    const run = () => {
+      try {
+        if (!map3d.getSource(MEASURE3D_SOURCE)) {
+          map3d.addSource(MEASURE3D_SOURCE, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] }
+          });
+        }
+
+        if (!map3d.getLayer(MEASURE3D_LINE)) {
+          map3d.addLayer({
+            id: MEASURE3D_LINE,
+            type: "line",
+            source: MEASURE3D_SOURCE,
+            filter: ["==", ["get", "kind"], "line"],
+            paint: {
+              "line-color": "#2563eb",
+              "line-width": 4,
+              "line-opacity": 0.95,
+              "line-dasharray": [2, 2]
+            }
+          });
+        }
+
+        if (!map3d.getLayer(MEASURE3D_POINTS)) {
+          map3d.addLayer({
+            id: MEASURE3D_POINTS,
+            type: "circle",
+            source: MEASURE3D_SOURCE,
+            filter: ["==", ["get", "kind"], "pt"],
+            paint: {
+              "circle-radius": 6,
+              "circle-color": "#2563eb",
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 2
+            }
+          });
+        }
+
+        if (!map3d.getLayer(MEASURE3D_LABELS)) {
+          map3d.addLayer({
+            id: MEASURE3D_LABELS,
+            type: "symbol",
+            source: MEASURE3D_SOURCE,
+            filter: ["==", ["get", "kind"], "pt"],
+            layout: {
+              "text-field": ["get", "label"],
+              "text-size": 12,
+              "text-offset": [0, -1.6],
+              "text-allow-overlap": true,
+              "text-ignore-placement": true
+            },
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "#0f172a",
+              "text-halo-width": 1.2
+            }
+          });
+        }
+
+        // Click handler (Shift+Clique)
+        if (!ensureMeasure3D._bound) {
+          ensureMeasure3D._bound = true;
+          map3d.on("click", (ev) => {
+            if (!medicaoAtiva) return;
+            if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") return;
+            const oe = ev.originalEvent;
+            if (!oe || !oe.shiftKey) return;
+
+            const lngLat = ev.lngLat;
+            if (!lngLat) return;
+
+            pontos3D.push([Number(lngLat.lng), Number(lngLat.lat)]);
+            render3D();
+          });
+        }
+
+        measure3DReady = true;
+      } catch (e) {
+        console.warn("Medir 3D não inicializou:", e);
+      }
+    };
+
+    if (map3dLoaded) run();
+    else try { map3d.once("load", run); } catch (_) {}
+  }
+
+  function render3D() {
+    if (!map3d || !map3dLoaded) return;
+    ensureMeasure3D();
+    if (!map3d.getSource(MEASURE3D_SOURCE)) return;
+
+    const features = [];
+    if (pontos3D.length >= 2) {
+      features.push({
+        type: "Feature",
+        properties: { kind: "line" },
+        geometry: { type: "LineString", coordinates: pontos3D }
+      });
+    }
+    pontos3D.forEach((c, idx) => {
+      const total = somaDistLngLat(pontos3D);
+      const label = idx === pontos3D.length - 1 ? `📏 ${fmtDist(total)}` : "";
+      features.push({
+        type: "Feature",
+        properties: { kind: "pt", label },
+        geometry: { type: "Point", coordinates: c }
+      });
+    });
+
+    try {
+      map3d.getSource(MEASURE3D_SOURCE).setData({ type: "FeatureCollection", features });
+    } catch (_) {}
+
+    const total = somaDistLngLat(pontos3D);
+    if (pontos3D.length) {
+      setInfo(`📏 <b>${fmtDist(total)}</b> • ${pontos3D.length} ponto(s) <span style="opacity:.75">(Shift+Clique para marcar)</span>`, true);
+    } else {
+      setInfo("", false);
+    }
+  }
+
+  // ---------- API pública ----------
+  window.toggleMedicao = function () {
+    medicaoAtiva = !medicaoAtiva;
+    setBtnActive("btnMedir", medicaoAtiva);
+
+    if (medicaoAtiva) {
+      // Inicializa 3D se estiver no 3D
+      if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() === "3d") {
+        ensureMeasure3D();
+      }
+      setInfo("📏 <b>Modo medir ativo</b> • use <b>Shift+Clique</b> para marcar pontos", true);
+    } else {
+      setInfo("", false);
+    }
+    return medicaoAtiva;
+  };
+
+  window.limparMedicao = function () {
+    pontos2D = [];
+    pontos3D = [];
+    try { grupoMedida2D.clearLayers(); } catch (_) {}
+    try { if (linha2D) map.removeLayer(linha2D); } catch (_) {}
+    linha2D = null;
+
+    if (map3d && map3dLoaded) {
+      ensureMeasure3D();
+      try {
+        const src = map3d.getSource(MEASURE3D_SOURCE);
+        if (src) src.setData({ type: "FeatureCollection", features: [] });
+      } catch (_) {}
+    }
+
+    setInfo("", false);
+  };
+
+  // Sai com ESC
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && medicaoAtiva) {
+      medicaoAtiva = false;
+      setBtnActive("btnMedir", false);
+      setInfo("", false);
+    }
+  });
+
+  // Se alternar para 3D enquanto modo medir está ligado, garante layers
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && medicaoAtiva) {
+      if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() === "3d") ensureMeasure3D();
+    }
+  });
+
+  // Expondo estado
+  window.isMedicaoAtiva = () => medicaoAtiva;
+})();
+
+
+/* ====================================================================
+   “Street Walk” 3D (estilo Street View, mas em 3D)
+   - Não é imagem real do Google Street View (isso exige API/licença)
+   - Aqui é um modo 1ª pessoa no MapLibre: andar pela rua com WASD
+   Controles:
+     WASD / setas: mover
+     Q / E: girar
+     Shift: turbo
+     ESC: sair do modo
+==================================================================== */
+(function initStreetWalk3D() {
+  let walkAtivo = false;
+  let keys = Object.create(null);
+  let raf = null;
+  let lastT = 0;
+
+  const BASE_SPEED = 3.2; // m/s
+  const TURN_SPEED = 70;  // graus por segundo
+
+  function setBtnActive(id, on) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("active", !!on);
+  }
+  function setWalkInfo(show) {
+    const box = document.getElementById("walkInfo");
+    if (!box) return;
+    box.style.display = show ? "block" : "none";
+  }
+
+  function toRad(d) { return d * Math.PI / 180; }
+  function toDeg(r) { return r * 180 / Math.PI; }
+
+  function moveLngLat(lng, lat, bearingDeg, distM) {
+    const R = 6378137;
+    const δ = distM / R;
+    const θ = toRad(bearingDeg);
+
+    const φ1 = toRad(lat);
+    const λ1 = toRad(lng);
+
+    const sinφ1 = Math.sin(φ1), cosφ1 = Math.cos(φ1);
+    const sinδ = Math.sin(δ), cosδ = Math.cos(δ);
+
+    const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+    const φ2 = Math.asin(sinφ2);
+
+    const y = Math.sin(θ) * sinδ * cosφ1;
+    const x = cosδ - sinφ1 * sinφ2;
+    const λ2 = λ1 + Math.atan2(y, x);
+
+    return [toDeg(λ2), toDeg(φ2)];
+  }
+
+  function tick(t) {
+    if (!walkAtivo || !map3d) return;
+    if (!lastT) lastT = t;
+    const dt = Math.min(0.05, (t - lastT) / 1000); // cap 50ms
+    lastT = t;
+
+    const turbo = keys["Shift"] ? 2.2 : 1.0;
+    const speed = BASE_SPEED * turbo;
+
+    let bearing = map3d.getBearing();
+    let center = map3d.getCenter();
+    let lng = center.lng, lat = center.lat;
+
+    // Girar
+    if (keys["q"] || keys["Q"]) bearing -= TURN_SPEED * dt;
+    if (keys["e"] || keys["E"]) bearing += TURN_SPEED * dt;
+
+    // Mover frente/trás
+    if (keys["w"] || keys["W"] || keys["ArrowUp"]) {
+      [lng, lat] = moveLngLat(lng, lat, bearing, speed * dt);
+    }
+    if (keys["s"] || keys["S"] || keys["ArrowDown"]) {
+      [lng, lat] = moveLngLat(lng, lat, bearing, -speed * dt);
+    }
+
+    // Strafe (lado)
+    if (keys["a"] || keys["A"] || keys["ArrowLeft"]) {
+      [lng, lat] = moveLngLat(lng, lat, bearing - 90, speed * dt);
+    }
+    if (keys["d"] || keys["D"] || keys["ArrowRight"]) {
+      [lng, lat] = moveLngLat(lng, lat, bearing + 90, speed * dt);
+    }
+
+    try {
+      map3d.jumpTo({ center: [lng, lat], bearing });
+    } catch (_) {}
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  function enable() {
+    if (!map3d) return;
+    walkAtivo = true;
+    setBtnActive("btnStreetWalk", true);
+    setWalkInfo(true);
+
+    try {
+      // ângulo frontal "Street"
+      const z = Math.max(map3d.getZoom(), 17.5);
+      map3d.easeTo({ pitch: 82, zoom: z, duration: 550 });
+    } catch (_) {}
+
+    lastT = 0;
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+
+  function disable() {
+    walkAtivo = false;
+    setBtnActive("btnStreetWalk", false);
+    setWalkInfo(false);
+    if (raf) { try { cancelAnimationFrame(raf); } catch(_) {} }
+    raf = null;
+    lastT = 0;
+    keys = Object.create(null);
+  }
+
+  // API pública
+  window.toggleStreetWalk3D = function () {
+    if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") {
+      alert("Ative o modo 3D para usar o Street Walk 🙂");
+      return false;
+    }
+    if (!map3d || !map3dLoaded) {
+      alert("Mapa 3D ainda carregando… tente de novo em alguns segundos 🙂");
+      return false;
+    }
+    if (walkAtivo) disable(); else enable();
+    return walkAtivo;
+  };
+
+  // Teclas
+  document.addEventListener("keydown", (e) => {
+    if (!walkAtivo) return;
+
+    keys[e.key] = true;
+
+    // evita scroll com setas
+    if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) {
+      e.preventDefault();
+    }
+
+    if (e.key === "Escape") disable();
+  }, { passive: false });
+
+  document.addEventListener("keyup", (e) => {
+    keys[e.key] = false;
+  });
+
+  // Se sair do 3D, desliga
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && walkAtivo) {
+      if (typeof window.getModoMapaAtual === "function" && window.getModoMapaAtual() !== "3d") disable();
+    }
+  });
+
+  // Expor estado
+  window.isStreetWalkAtivo = () => walkAtivo;
+})();
