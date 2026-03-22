@@ -1351,6 +1351,7 @@ function exibirTodosPostes() {
   let filtro3DAtivo = false;
   let idsFiltrados3D = null;
   let ultimoPopup3D = null;
+  let modoAnalise3DAtivo = false;
 
   function montarGeoJSONPostes3D(lista = todosPostes) {
     return {
@@ -1783,12 +1784,42 @@ function exibirTodosPostes() {
     return true;
   }
 
-  function limparCamadasMassivas3D() {
+  \1
+
+  function setModoAnalise3D(ativo) {
+    modoAnalise3DAtivo = !!ativo;
+
     if (!map3d || !map3dLoaded) return;
-    const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
-    const srcRoute = map3d.getSource(MAP3D_SOURCE_ROUTE);
-    if (srcMass) srcMass.setData({ type: "FeatureCollection", features: [] });
-    if (srcRoute && !postesSelecionados.length) srcRoute.setData({ type: "FeatureCollection", features: [] });
+
+    const normalLayers = [
+      MAP3D_LAYER_CLUSTER_SHADOW,
+      MAP3D_LAYER_CLUSTER,
+      MAP3D_LAYER_CLUSTER_COUNT,
+      MAP3D_LAYER_POINT_GLOW,
+      MAP3D_LAYER_POINT_BODY,
+      MAP3D_LAYER_POINT_LABELS,
+      MAP3D_LAYER_SELECTED_GLOW,
+      MAP3D_LAYER_SELECTED
+    ];
+
+    const massLayers = [
+      MAP3D_LAYER_MASS,
+      MAP3D_LAYER_MASS_LABELS
+    ];
+
+    const setVis = (layerId, vis) => {
+      try {
+        if (map3d.getLayer(layerId)) map3d.setLayoutProperty(layerId, "visibility", vis);
+      } catch (_) {}
+    };
+
+    normalLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "none" : "visible"));
+    massLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "visible" : "none"));
+
+    // A rota fica disponível para seleção (quando houver), mas ao sair da análise limpamos massa/rota
+    if (!modoAnalise3DAtivo) {
+      limparCamadasMassivas3D();
+    }
   }
 
   function desenharAnaliseMassa3D(encontrados, intermediarios = []) {
@@ -1958,6 +1989,7 @@ function exibirTodosPostes() {
     map3d.on("click", MAP3D_LAYER_POINT_LABELS, clickPoste);
     map3d.on("click", MAP3D_LAYER_SELECTED, clickPoste);
     map3d.on("click", MAP3D_LAYER_MASS, clickPoste);
+    map3d.on("click", MAP3D_LAYER_MASS_LABELS, clickPoste);
 
     [
       MAP3D_LAYER_CLUSTER,
@@ -1965,7 +1997,8 @@ function exibirTodosPostes() {
       MAP3D_LAYER_POINT_BODY,
       MAP3D_LAYER_POINT_LABELS,
       MAP3D_LAYER_SELECTED,
-      MAP3D_LAYER_MASS
+      MAP3D_LAYER_MASS,
+      MAP3D_LAYER_MASS_LABELS
     ].forEach((layerId) => {
       map3d.on("mouseenter", layerId, () => {
         map3d.getCanvas().style.cursor = "pointer";
@@ -2223,6 +2256,7 @@ function exibirTodosPostes() {
         bindAtualizacaoPostes3D();
         iniciarAnimacao3D();
         atualizarPostesExtrudados3D();
+        setModoAnalise3D(modoAnalise3DAtivo);
       });
     } else {
       syncLeafletTo3DOverride();
@@ -2239,6 +2273,7 @@ function exibirTodosPostes() {
     await esperarLoad();
     syncLeafletTo3DOverride();
     atualizarSelecao3DVisual();
+    setModoAnalise3D(modoAnalise3DAtivo);
 
     setTimeout(() => {
       try {
@@ -2298,6 +2333,7 @@ function exibirTodosPostes() {
   window.atualizar3DSeAtivo = atualizar3DSeAtivo;
   window.atualizarSelecao3DVisual = atualizarSelecao3DVisual;
   window.limparCamadasMassivas3D = limparCamadasMassivas3D;
+  window.setModoAnalise3D = setModoAnalise3D;
   window.desenharAnaliseMassa3D = desenharAnaliseMassa3D;
   window.focarPosteUniversal = focarPosteUniversal;
   window.focarCoordenadaUniversal = focarCoordenadaUniversal;
@@ -2353,6 +2389,7 @@ function exibirTodosPostes() {
     if (typeof reabrirPopupFixo === "function") reabrirPopupFixo(0);
 
     aplicarFiltro3D(filtro);
+    setModoAnalise3D(false);
 
     if (modoMapaAtual === "3d") {
       zoomToListaUniversal(filtro, true);
@@ -2380,6 +2417,7 @@ function exibirTodosPostes() {
     if (typeof modoAtual !== "undefined") modoAtual = "todos";
 
     restaurarDatasetCompleto3D();
+    setModoAnalise3D(false);
 
     if (typeof hardReset === "function") {
       hardReset();
@@ -2406,6 +2444,7 @@ function exibirTodosPostes() {
     if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
     window.intermediarios?.forEach((m) => map.removeLayer(m));
     window.numeroMarkers = [];
+    window.intermediariosPostes = [];
 
     const encontrados = ids
       .map((id) => todosPostes.find((p) => String(p.id) === String(id)))
@@ -2419,6 +2458,7 @@ function exibirTodosPostes() {
     encontrados.forEach((p, i) => adicionarNumerado(p, i + 1));
 
     window.intermediarios = [];
+    window.intermediariosPostes = [];
     encontrados.slice(0, -1).forEach((a, i) => {
       const b = encontrados[i + 1];
       const d = getDistanciaMetros(a.lat, a.lon, b.lat, b.lon);
@@ -2444,6 +2484,7 @@ function exibirTodosPostes() {
 
             m.posteData = p;
             window.intermediarios.push(m);
+            window.intermediariosPostes.push(p);
           });
       }
     });
@@ -2467,7 +2508,10 @@ function exibirTodosPostes() {
       intermediarios: window.intermediarios.length,
     };
 
-    desenharAnaliseMassa3D(encontrados, window.intermediarios || []);
+    const interPosts = window.intermediariosPostes || [];
+    desenharAnaliseMassa3D(encontrados, interPosts);
+    aplicarFiltro3D([...(encontrados || []), ...interPosts]);
+    setModoAnalise3D(true);
 
     if (modoMapaAtual === "3d") {
       zoomToListaUniversal(encontrados, true);
@@ -4541,7 +4585,7 @@ function _buildCarRoute() {
   if (typeof postesSelecionados !== "undefined" && postesSelecionados.length >= 2) {
     return postesSelecionados.map(r => [Number(r.poste.lon), Number(r.poste.lat)]);
   }
-  if (typeof todosPostes === "undefined" || !todosPostes.length) return [];
+  if (typeof todosPostes === "undefined" || !todosPostes.lengtha) return [];
 
   const m3d = window.getMapa3D ? window.getMapa3D() : null;
   const ctr = m3d ? m3d.getCenter() : { lat: -23.2, lng: -45.9 };
@@ -4553,4 +4597,3 @@ function _buildCarRoute() {
     .slice(0, 30)
     .map(p => [Number(p.lon), Number(p.lat)]);
 }
-
