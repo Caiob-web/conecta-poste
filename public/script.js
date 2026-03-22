@@ -1821,6 +1821,30 @@ function exibirTodosPostes() {
     }
   }
 
+  function limparCamadasMassivas3D() {
+    if (!map3d || !map3dLoaded) return;
+
+    try {
+      const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
+      if (srcMass && typeof srcMass.setData === "function") {
+        srcMass.setData({ type: "FeatureCollection", features: [] });
+      }
+    } catch (_) {}
+
+    try {
+      const srcRoute = map3d.getSource(MAP3D_SOURCE_ROUTE);
+      if (srcRoute && typeof srcRoute.setData === "function") {
+        srcRoute.setData({ type: "FeatureCollection", features: [] });
+      }
+    } catch (_) {}
+
+    // garante que, fora da análise, as camadas de massa ficam ocultas
+    try {
+      if (map3d.getLayer(MAP3D_LAYER_MASS)) map3d.setLayoutProperty(MAP3D_LAYER_MASS, "visibility", "none");
+      if (map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) map3d.setLayoutProperty(MAP3D_LAYER_MASS_LABELS, "visibility", "none");
+    } catch (_) {}
+  }
+
   function desenharAnaliseMassa3D(encontrados, intermediarios = []) {
     if (!map3d || !map3dLoaded) return;
 
