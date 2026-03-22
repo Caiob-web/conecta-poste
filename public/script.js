@@ -1784,7 +1784,6 @@ function exibirTodosPostes() {
     return true;
   }
 
-  \1
 
   function setModoAnalise3D(ativo) {
     modoAnalise3DAtivo = !!ativo;
@@ -4585,7 +4584,7 @@ function _buildCarRoute() {
   if (typeof postesSelecionados !== "undefined" && postesSelecionados.length >= 2) {
     return postesSelecionados.map(r => [Number(r.poste.lon), Number(r.poste.lat)]);
   }
-  if (typeof todosPostes === "undefined" || !todosPostes.lengtha) return [];
+  if (typeof todosPostes === "undefined" || !todosPostes.length) return [];
 
   const m3d = window.getMapa3D ? window.getMapa3D() : null;
   const ctr = m3d ? m3d.getCenter() : { lat: -23.2, lng: -45.9 };
