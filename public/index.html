@@ -44,7 +44,7 @@
       })();
     </script>
 
-    <link rel="icon" href="https://cdn.glitch.global/f333e829-c383-4385-9e81-43a47d865216/ChatGPT%20Image%2019%20de%20jun.%20de%202025%2C%2021_12_44.png?v=1750378383582" type="image/png" sizes="64x64"/>
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64"/>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
@@ -322,7 +322,7 @@
         <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
 
         <button onclick="consultarIDsEmMassa()" id="btnAnaliseProjeto"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
-        <button id="btnLimparAnalise"><i class="fa fa-eraser"></i>Limpar</button>
+        <button id="btnLimparAnalise" type="button" onclick="limparAnaliseProjeto()"><i class="fa fa-eraser"></i>Limpar</button>
 
         <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
         <button onclick="gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
@@ -379,7 +379,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=7"></script>
 
     <script>
       // =====================================================================
@@ -422,6 +422,41 @@
           alert("Falha ao gerar CSV EO.");
         }
       }
+
+      // =====================================================================
+      // Limpar Análise de Projeto (sem recarregar tudo)
+      // - Sai do modo análise 2D/3D e restaura a base usando cache em memória
+      // =====================================================================
+      function limparAnaliseProjeto() {
+        try { if (typeof sairModoAnalise2D === "function") sairModoAnalise2D(); } catch (_) {}
+        try { if (typeof setModoAnalise3D === "function") setModoAnalise3D(false); } catch (_) {}
+        try { if (typeof limparCamadasMassivas3D === "function") limparCamadasMassivas3D(); } catch (_) {}
+
+        // Preferência: restaura base sem refazer cluster
+        try {
+          if (typeof resetarRapidoBase === "function") {
+            resetarRapidoBase();
+            return;
+          }
+        } catch (_) {}
+
+        // Fallback seguro
+        try { if (typeof resetarMapa === "function") resetarMapa(); } catch (_) {}
+      }
+
+      // Garantia (caso remova o onclick do botão no futuro)
+      (function () {
+        const b = document.getElementById("btnLimparAnalise");
+        if (!b) return;
+        b.addEventListener("click", function (e) {
+          e.preventDefault();
+          limparAnaliseProjeto();
+        });
+      })();
+
+
+      // =====================================================================
+      // CORREÇÃO DO SVG NO MODO 3D
 
       // =====================================================================
       // CORREÇÃO DO SVG NO MODO 3D
