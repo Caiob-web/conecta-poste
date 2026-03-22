@@ -1720,8 +1720,7 @@ function exibirTodosPostes() {
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
           "text-size": 12,
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"]
-        },
+                  },
         paint: { "text-color": "#ffffff" }
       });
     }
@@ -1962,19 +1961,24 @@ function exibirTodosPostes() {
   }
 
   function atualizarSelecao3DVisual() {
-    if (!map3d || !map3dLoaded) return;
+  if (!map3d || !map3dLoaded) return;
 
-    const srcSel = map3d.getSource(MAP3D_SOURCE_SELECTED);
-    const srcRoute = map3d.getSource(MAP3D_SOURCE_ROUTE);
-    if (!srcSel || !srcRoute) return;
+  const srcSel = map3d.getSource(MAP3D_SOURCE_SELECTED);
+  const srcRoute = map3d.getSource(MAP3D_SOURCE_ROUTE);
 
+  // Pontos selecionados
+  if (srcSel) {
     const featsSel = postesSelecionados.map(({ poste }) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [Number(poste.lon), Number(poste.lat)] },
       properties: { id: String(poste.id || "") }
     }));
+    srcSel.setData({ type: "FeatureCollection", features: featsSel });
+  }
 
-    const routeFeature = postesSelecionados.length >= 2
+  // Linha da seleção (linha azul tracejada)
+  if (srcRoute) {
+    const featsRoute = postesSelecionados.length >= 2
       ? [{
           type: "Feature",
           geometry: {
@@ -1984,13 +1988,11 @@ function exibirTodosPostes() {
           properties: {}
         }]
       : [];
-
-    srcSel.setData({ type: "FeatureCollection", features: featsSel });
-    srcRouteMass.setData({ type: "FeatureCollection", features: routeFeature });
-    srcRouteLabels.setData({ type: "FeatureCollection", features: labelFeats });
+    srcRoute.setData({ type: "FeatureCollection", features: featsRoute });
   }
+}
 
-  function handleSelecao3D(poste) {
+function handleSelecao3D(poste) {
     const idAtual = String(poste.id);
     const idx = postesSelecionados.findIndex((r) => String(r.poste.id) === idAtual);
 
