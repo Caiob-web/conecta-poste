@@ -855,6 +855,13 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 16));
 function scheduleIdle(fn) { document.hidden ? setTimeout(fn, 0) : idle(fn); }
 function refreshClustersSoon() { requestAnimationFrame(() => markers.refreshClusters()); }
 
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !todosCarregados && typeof window.__resumeCarregamentoPostes === "function") {
+    try { window.__resumeCarregamentoPostes(); } catch (_) {}
+  }
+});
+
+
 /* ====================================================================
    Overlay de carregamento (spinner geral)
 ==================================================================== */
@@ -1262,6 +1269,7 @@ function adicionarMarker(p) {
 // carregarTodosPostesGradualmente + hardReset
 // =====================================================================
 function carregarTodosPostesGradualmente() {
+  todosCarregados = false;
   markers.clearLayers();
   refreshClustersSoon();
 
@@ -1277,12 +1285,18 @@ function carregarTodosPostesGradualmente() {
       scheduleIdle(addChunk);
     } else {
       todosCarregados = true;
+      window.__resumeCarregamentoPostes = null;
       hideOverlay();
       reabrirTooltipFixo(0);
       reabrirPopupFixo(0);
       atualizar3DSeAtivo();
     }
   }
+
+  // Se o Chrome “pausar” o carregamento quando você sair da aba,
+  // a gente re-agenda quando voltar.
+  window.__resumeCarregamentoPostes = () => scheduleIdle(addChunk);
+
   scheduleIdle(addChunk);
 }
 
@@ -1319,6 +1333,7 @@ function exibirTodosPostes() {
   const MAP3D_SOURCE_ACTIVE = "postes-geojson-active";
   const MAP3D_SOURCE_SELECTED = "postes-geojson-selected";
   const MAP3D_SOURCE_ROUTE = "postes-geojson-route";
+  const MAP3D_SOURCE_ROUTE_MASS = "postes-geojson-route-mass";
   const MAP3D_SOURCE_MASS = "postes-geojson-mass";
   const MAP3D_SOURCE_POLES = "postes-geojson-poles";
 
@@ -1334,7 +1349,9 @@ function exibirTodosPostes() {
   const MAP3D_LAYER_SELECTED = "postes-3d-selected";
 
   const MAP3D_LAYER_ROUTE = "postes-3d-route";
+  const MAP3D_LAYER_ROUTE_MASS = "postes-3d-route-mass";
   const MAP3D_LAYER_MASS = "postes-3d-mass";
+  const MAP3D_LAYER_MASS_ICON = "postes-3d-mass-icon";
   const MAP3D_LAYER_MASS_LABELS = "postes-3d-mass-labels";
 
   const MAP3D_LAYER_POLE = "postes-3d-pole";
@@ -1420,7 +1437,9 @@ function exibirTodosPostes() {
       MAP3D_LAYER_SELECTED_GLOW,
       MAP3D_LAYER_SELECTED,
       MAP3D_LAYER_ROUTE,
+      MAP3D_LAYER_ROUTE_MASS,
       MAP3D_LAYER_MASS,
+      MAP3D_LAYER_MASS_ICON,
       MAP3D_LAYER_MASS_LABELS
     ].forEach(removeLayerIfExists);
 
@@ -1428,6 +1447,7 @@ function exibirTodosPostes() {
       MAP3D_SOURCE_ACTIVE,
       MAP3D_SOURCE_SELECTED,
       MAP3D_SOURCE_ROUTE,
+      MAP3D_SOURCE_ROUTE_MASS,
       MAP3D_SOURCE_MASS
     ].forEach(removeSourceIfExists);
 
@@ -1460,7 +1480,7 @@ function exibirTodosPostes() {
         source: "openfreemap",
         "source-layer": "building",
         type: "fill-extrusion",
-        minzoom: 15,
+        minzoom: 14,
         filter: ["!=", ["get", "hide_3d"], true],
         paint: {
           "fill-extrusion-color": [
@@ -1475,8 +1495,9 @@ function exibirTodosPostes() {
             "interpolate",
             ["linear"],
             ["zoom"],
-            15, 0,
-            16, ["coalesce", ["get", "render_height"], ["get", "height"], 8]
+            14, 0,
+            15, ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 8], 0.75],
+            16, ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 8], 1.15]
           ],
           "fill-extrusion-base": [
             "coalesce",
@@ -1486,6 +1507,51 @@ function exibirTodosPostes() {
           ],
           "fill-extrusion-opacity": 0.88
         }
+      },
+      labelLayerId
+    );
+  }
+
+
+  function adicionarVegetacao3D() {
+    if (!map3d || !map3dLoaded) return;
+    if (map3d.getLayer("3d-trees")) return;
+
+    const layers = map3d.getStyle().layers || [];
+    let labelLayerId;
+    for (let i = 0; i < layers.length; i++) {
+      if (layers[i].type === "symbol" && layers[i].layout && layers[i].layout["text-field"]) {
+        labelLayerId = layers[i].id;
+        break;
+      }
+    }
+
+    // Usa o mesmo source de tiles do OpenFreeMap
+    if (!map3d.getSource("openfreemap")) {
+      map3d.addSource("openfreemap", { type: "vector", url: "https://tiles.openfreemap.org/planet" });
+    }
+
+    // “Mata/vegetação” (OpenMapTiles: landcover.class costuma trazer wood/scrub)
+    map3d.addLayer(
+      {
+        id: "3d-trees",
+        source: "openfreemap",
+        "source-layer": "landcover",
+        type: "symbol",
+        minzoom: 14,
+        filter: ["any",
+          ["==", ["get", "class"], "wood"],
+          ["==", ["get", "class"], "scrub"]
+        ],
+        layout: {
+          "icon-image": "tree-3d",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.10, 16, 0.16, 18, 0.22],
+          "icon-allow-overlap": false,
+          "icon-ignore-placement": false,
+          "icon-pitch-alignment": "viewport",
+          "icon-rotation-alignment": "viewport"
+        },
+        paint: { "icon-opacity": 0.85 }
       },
       labelLayerId
     );
@@ -1511,6 +1577,11 @@ function exibirTodosPostes() {
     });
 
     map3d.addSource(MAP3D_SOURCE_ROUTE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] }
+    });
+
+        map3d.addSource(MAP3D_SOURCE_ROUTE_MASS, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] }
     });
@@ -1692,6 +1763,21 @@ function exibirTodosPostes() {
       });
     }
 
+    if (!map3d.getLayer(MAP3D_LAYER_ROUTE_MASS)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_ROUTE_MASS,
+        type: "line",
+        source: MAP3D_SOURCE_ROUTE_MASS,
+        paint: {
+          "line-color": "#2563eb",
+          "line-width": 4,
+          "line-opacity": 0.95,
+          "line-dasharray": [2, 2]
+        }
+      });
+    }
+
+
     if (!map3d.getLayer(MAP3D_LAYER_MASS)) {
       map3d.addLayer({
         id: MAP3D_LAYER_MASS,
@@ -1705,6 +1791,38 @@ function exibirTodosPostes() {
         }
       });
     }
+
+    if (!map3d.getLayer(MAP3D_LAYER_MASS_ICON)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_MASS_ICON,
+        type: "symbol",
+        source: MAP3D_SOURCE_MASS,
+        layout: {
+          "icon-image": [
+            "case",
+            ["==", ["get", "material_tipo"], "madeira"], "poste-madeira-3d",
+            "poste-concreto-3d"
+          ],
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            13, 0.18,
+            16, 0.28,
+            18, 0.40,
+            20, 0.55
+          ],
+          "icon-anchor": "bottom",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-pitch-alignment": "viewport",
+          "icon-rotation-alignment": "viewport",
+          "icon-keep-upright": true
+        },
+        paint: {
+          "icon-opacity": 1
+        }
+      });
+    }
+
 
     if (!map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) {
       map3d.addLayer({
@@ -1762,7 +1880,7 @@ function exibirTodosPostes() {
       : [];
 
     srcSel.setData({ type: "FeatureCollection", features: featsSel });
-    srcRoute.setData({ type: "FeatureCollection", features: routeFeature });
+    srcRouteMass.setData({ type: "FeatureCollection", features: routeFeature });
   }
 
   function handleSelecao3D(poste) {
@@ -1784,11 +1902,10 @@ function exibirTodosPostes() {
     return true;
   }
 
-
+  
   function setModoAnalise3D(ativo) {
-    modoAnalise3DAtivo = !!ativo;
-
     if (!map3d || !map3dLoaded) return;
+    modoAnalise3DAtivo = !!ativo;
 
     const normalLayers = [
       MAP3D_LAYER_CLUSTER_SHADOW,
@@ -1798,11 +1915,14 @@ function exibirTodosPostes() {
       MAP3D_LAYER_POINT_BODY,
       MAP3D_LAYER_POINT_LABELS,
       MAP3D_LAYER_SELECTED_GLOW,
-      MAP3D_LAYER_SELECTED
+      MAP3D_LAYER_SELECTED,
+      MAP3D_LAYER_ROUTE
     ];
 
-    const massLayers = [
+    const analiseLayers = [
+      MAP3D_LAYER_ROUTE_MASS,
       MAP3D_LAYER_MASS,
+      MAP3D_LAYER_MASS_ICON,
       MAP3D_LAYER_MASS_LABELS
     ];
 
@@ -1813,44 +1933,23 @@ function exibirTodosPostes() {
     };
 
     normalLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "none" : "visible"));
-    massLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "visible" : "none"));
-
-    // A rota fica disponível para seleção (quando houver), mas ao sair da análise limpamos massa/rota
-    if (!modoAnalise3DAtivo) {
-      limparCamadasMassivas3D();
-    }
+    analiseLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "visible" : "none"));
   }
 
-  function limparCamadasMassivas3D() {
+function limparCamadasMassivas3D() {
     if (!map3d || !map3dLoaded) return;
-
-    try {
-      const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
-      if (srcMass && typeof srcMass.setData === "function") {
-        srcMass.setData({ type: "FeatureCollection", features: [] });
-      }
-    } catch (_) {}
-
-    try {
-      const srcRoute = map3d.getSource(MAP3D_SOURCE_ROUTE);
-      if (srcRoute && typeof srcRoute.setData === "function") {
-        srcRoute.setData({ type: "FeatureCollection", features: [] });
-      }
-    } catch (_) {}
-
-    // garante que, fora da análise, as camadas de massa ficam ocultas
-    try {
-      if (map3d.getLayer(MAP3D_LAYER_MASS)) map3d.setLayoutProperty(MAP3D_LAYER_MASS, "visibility", "none");
-      if (map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) map3d.setLayoutProperty(MAP3D_LAYER_MASS_LABELS, "visibility", "none");
-    } catch (_) {}
+    const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
+    const srcRouteMass = map3d.getSource(MAP3D_SOURCE_ROUTE_MASS);
+    if (srcMass) srcMass.setData({ type: "FeatureCollection", features: [] });
+    if (srcRouteMass) srcRouteMass.setData({ type: "FeatureCollection", features: [] });
   }
 
   function desenharAnaliseMassa3D(encontrados, intermediarios = []) {
     if (!map3d || !map3dLoaded) return;
 
     const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
-    const srcRoute = map3d.getSource(MAP3D_SOURCE_ROUTE);
-    if (!srcMass || !srcRoute) return;
+    const srcRouteMass = map3d.getSource(MAP3D_SOURCE_ROUTE_MASS);
+    if (!srcMass || !srcRouteMass) return;
 
     const feats = [];
 
@@ -1859,7 +1958,7 @@ function exibirTodosPostes() {
       feats.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
-        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 5 ? "#ef4444" : "#22c55e" }
+        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 5 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p) }
       });
     });
 
@@ -1867,7 +1966,7 @@ function exibirTodosPostes() {
       feats.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
-        properties: { id: String(p.id || ""), numero: "", cor: "#f59e0b" }
+        properties: { id: String(p.id || ""), numero: "", cor: "#f59e0b", material_tipo: getMaterialTipo(p) }
       });
     });
 
@@ -1880,7 +1979,7 @@ function exibirTodosPostes() {
       : [];
 
     srcMass.setData({ type: "FeatureCollection", features: feats });
-    srcRoute.setData({ type: "FeatureCollection", features: routeFeature });
+    srcRouteMass.setData({ type: "FeatureCollection", features: routeFeature });
   }
 
   function metersToLng(meters, lat) {
@@ -2012,6 +2111,7 @@ function exibirTodosPostes() {
     map3d.on("click", MAP3D_LAYER_POINT_LABELS, clickPoste);
     map3d.on("click", MAP3D_LAYER_SELECTED, clickPoste);
     map3d.on("click", MAP3D_LAYER_MASS, clickPoste);
+    map3d.on("click", MAP3D_LAYER_MASS_ICON, clickPoste);
     map3d.on("click", MAP3D_LAYER_MASS_LABELS, clickPoste);
 
     [
@@ -2021,6 +2121,7 @@ function exibirTodosPostes() {
       MAP3D_LAYER_POINT_LABELS,
       MAP3D_LAYER_SELECTED,
       MAP3D_LAYER_MASS,
+      MAP3D_LAYER_MASS_ICON,
       MAP3D_LAYER_MASS_LABELS
     ].forEach((layerId) => {
       map3d.on("mouseenter", layerId, () => {
@@ -2271,15 +2372,26 @@ function exibirTodosPostes() {
           map3d.addImage("poste-madeira-3d", spriteMadeira, { pixelRatio: 2 });
         }
 
+                const SVG_TREE_3D = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="26" cy="22" r="12" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/>
+  <circle cx="38" cy="24" r="14" fill="#388e3c" stroke="#1b5e20" stroke-width="2"/>
+  <circle cx="32" cy="34" r="14" fill="#43a047" stroke="#1b5e20" stroke-width="2"/>
+  <rect x="28" y="34" width="8" height="22" rx="2" fill="#6d4c41" stroke="#4e342e" stroke-width="2"/>
+</svg>`;
+        const treeSprite = await svgToPngImageData(SVG_TREE_3D, 64, 64);
+        if (treeSprite && !map3d.hasImage("tree-3d")) {
+          map3d.addImage("tree-3d", treeSprite, { pixelRatio: 2 });
+        }
+
         resetarEstrutura3D();
         adicionarPredios3D();
+        adicionarVegetacao3D();
         await garantirSources3D();
         garantirCamadasPostes3D();
         bindEventosPostes3D();
         bindAtualizacaoPostes3D();
         iniciarAnimacao3D();
         atualizarPostesExtrudados3D();
-        setModoAnalise3D(modoAnalise3DAtivo);
       });
     } else {
       syncLeafletTo3DOverride();
@@ -2296,7 +2408,6 @@ function exibirTodosPostes() {
     await esperarLoad();
     syncLeafletTo3DOverride();
     atualizarSelecao3DVisual();
-    setModoAnalise3D(modoAnalise3DAtivo);
 
     setTimeout(() => {
       try {
@@ -2336,6 +2447,9 @@ function exibirTodosPostes() {
       return;
     }
 
+    try { setModoAnalise3D(false); } catch (_) {}
+    try { limparCamadasMassivas3D(); } catch (_) {}
+
     restaurarDatasetCompleto3D();
   }
 
@@ -2355,8 +2469,8 @@ function exibirTodosPostes() {
   window.reconstruirFonte3D = reconstruirFonte3D;
   window.atualizar3DSeAtivo = atualizar3DSeAtivo;
   window.atualizarSelecao3DVisual = atualizarSelecao3DVisual;
-  window.limparCamadasMassivas3D = limparCamadasMassivas3D;
   window.setModoAnalise3D = setModoAnalise3D;
+  window.limparCamadasMassivas3D = limparCamadasMassivas3D;
   window.desenharAnaliseMassa3D = desenharAnaliseMassa3D;
   window.focarPosteUniversal = focarPosteUniversal;
   window.focarCoordenadaUniversal = focarCoordenadaUniversal;
@@ -2412,7 +2526,6 @@ function exibirTodosPostes() {
     if (typeof reabrirPopupFixo === "function") reabrirPopupFixo(0);
 
     aplicarFiltro3D(filtro);
-    setModoAnalise3D(false);
 
     if (modoMapaAtual === "3d") {
       zoomToListaUniversal(filtro, true);
@@ -2439,8 +2552,10 @@ function exibirTodosPostes() {
     if (typeof showOverlay === "function") showOverlay("Carregando todos os postes…");
     if (typeof modoAtual !== "undefined") modoAtual = "todos";
 
+    try { setModoAnalise3D(false); } catch (_) {}
+    try { limparCamadasMassivas3D(); } catch (_) {}
+
     restaurarDatasetCompleto3D();
-    setModoAnalise3D(false);
 
     if (typeof hardReset === "function") {
       hardReset();
@@ -2467,7 +2582,6 @@ function exibirTodosPostes() {
     if (window.tracadoMassivo) map.removeLayer(window.tracadoMassivo);
     window.intermediarios?.forEach((m) => map.removeLayer(m));
     window.numeroMarkers = [];
-    window.intermediariosPostes = [];
 
     const encontrados = ids
       .map((id) => todosPostes.find((p) => String(p.id) === String(id)))
@@ -2531,13 +2645,14 @@ function exibirTodosPostes() {
       intermediarios: window.intermediarios.length,
     };
 
-    const interPosts = window.intermediariosPostes || [];
-    desenharAnaliseMassa3D(encontrados, interPosts);
-    aplicarFiltro3D([...(encontrados || []), ...interPosts]);
-    setModoAnalise3D(true);
+    desenharAnaliseMassa3D(encontrados, window.intermediariosPostes || []);
 
     if (modoMapaAtual === "3d") {
+      setModoAnalise3D(true);
       zoomToListaUniversal(encontrados, true);
+    } else {
+      // se o usuário rodar a análise no 2D, garantimos que o 3D não fique “preso” no modo análise
+      try { setModoAnalise3D(false); } catch (_) {}
     }
 
     if (typeof reabrirTooltipFixo === "function") reabrirTooltipFixo(0);
