@@ -817,6 +817,15 @@ function setBase(mode) {
   }
 }
 
+// -------------------- Perfil de performance (auto) ---------------------------
+const __DEVICE_MEM_GB = Number(navigator.deviceMemory || 8);
+const __CORES = Number(navigator.hardwareConcurrency || 4);
+const __PERF_LITE = (
+  (__DEVICE_MEM_GB && isFinite(__DEVICE_MEM_GB) ? __DEVICE_MEM_GB <= 8 : false) ||
+  (__CORES && isFinite(__CORES) ? __CORES <= 4 : false)
+);
+try { window.__PERF_LITE = __PERF_LITE; } catch (_) {}
+
 // -------------------- Cluster (só números) ---------------------------
 const markers = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
@@ -825,8 +834,9 @@ const markers = L.markerClusterGroup({
   maxClusterRadius: 60,
   disableClusteringAtZoom: 17,
   chunkedLoading: true,
-  chunkDelay: 5,
-  chunkInterval: 50,
+  chunkDelay: __PERF_LITE ? 18 : 5,
+  chunkInterval: __PERF_LITE ? 180 : 50,
+  animateAddingMarkers: false,
   iconCreateFunction: (cluster) =>
     new L.DivIcon({ html: String(cluster.getChildCount()), className: "cluster-num-only", iconSize: null })
 });
@@ -1407,14 +1417,27 @@ function carregarTodosPostesGradualmente() {
   markers.clearLayers();
   refreshClustersSoon();
 
-  const lote = document.hidden ? 3500 : 1200;
+  // Ajuste automático para máquinas com menos RAM/CPU (ex.: notebooks 8GB)
+  const loteAtivo = __PERF_LITE ? 350 : 1200;
+  const loteHidden = __PERF_LITE ? 1200 : 3500;
+
   let i = 0;
 
   function addChunk() {
-    const slice = todosPostes.slice(i, i + lote);
-    const layers = slice.map(criarLayerPoste);
+    const lote = document.hidden ? loteHidden : loteAtivo;
+    const end = Math.min(i + lote, todosPostes.length);
+
+    const layers = new Array(end - i);
+    let k = 0;
+    for (let j = i; j < end; j++) {
+      layers[k++] = criarLayerPoste(todosPostes[j]);
+    }
+
     if (layers.length) { markers.addLayers(layers); refreshClustersSoon(); }
-    i += lote;
+
+    // ajuda o GC em máquinas com pouca RAM
+    i = end;
+
     if (i < todosPostes.length) {
       scheduleIdle(addChunk);
     } else {
@@ -2937,12 +2960,18 @@ window.consultarIDsEmMassa = function () {
     window.tracadoMassivo = null;
     window.analiseSegmentMarkers = [];
     window.analiseDistancias = null;
+    window.analiseEncontrados = null;
+    window.analisePolygonRing = null;
 
     const normId = (v) => (typeof keyId === "function" ? keyId(v) : String(v));
 
     const encontrados = ids
       .map((id) => todosPostes.find((p) => normId(p.id) === normId(id)))
       .filter(Boolean);
+
+    // guarda a sequência encontrada para PDF/relatórios (polígono/traçado)
+    try { window.analiseEncontrados = encontrados.slice(); } catch (_) {}
+
 
     if (!encontrados.length) {
       try { resetarRapidoBase(); } catch (_) {}
@@ -4275,6 +4304,104 @@ function gerarPDFComMapa() {
     try { doc.save("relatorio_projeto.pdf"); } catch (e) { alert("Falha ao baixar o PDF."); }
   };
 
+  const desenharEsquemaProjetoNoPDF = (docRef, x, y, w, h) => {
+    const ptsObj = Array.isArray(window.analiseEncontrados) ? window.analiseEncontrados : [];
+    const pts = ptsObj
+      .map(p => [Number(p.lon), Number(p.lat)])
+      .filter(p => isFinite(p[0]) && isFinite(p[1]));
+
+    if (pts.length < 2) return;
+
+    // Polígono (hull ou bbox)
+    let ring = null;
+    if (pts.length >= 3) {
+      const hull = __convexHullLngLat(pts);
+      ring = hull && hull.length ? hull.concat([hull[0]]) : null;
+    } else {
+      ring = __bboxPolygonLngLat(pts, 45);
+    }
+
+    const all = (ring && ring.length >= 4) ? ring : pts;
+
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const [lng, lat] of all) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+    if (!isFinite(minLng) || !isFinite(minLat) || minLng === maxLng || minLat === maxLat) return;
+
+    // padding
+    const padX = (maxLng - minLng) * 0.08;
+    const padY = (maxLat - minLat) * 0.08;
+    minLng -= padX; maxLng += padX; minLat -= padY; maxLat += padY;
+
+    const proj = (lng, lat) => {
+      const px = x + ((lng - minLng) / (maxLng - minLng)) * w;
+      const py = y + ((maxLat - lat) / (maxLat - minLat)) * h;
+      return [px, py];
+    };
+
+    // moldura
+    try { docRef.setDrawColor(210, 210, 210); } catch (_) {}
+    try { docRef.rect(x, y, w, h); } catch (_) {}
+
+    // desenha polígono
+    if (ring && ring.length >= 4) {
+      try { docRef.setDrawColor(34, 197, 94); } catch (_) {}
+      try { docRef.setLineWidth(0.6); } catch (_) {}
+      try { docRef.setLineDashPattern([4, 3], 0); } catch (_) {}
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [x1, y1] = proj(ring[i][0], ring[i][1]);
+        const [x2, y2] = proj(ring[i + 1][0], ring[i + 1][1]);
+        try { docRef.line(x1, y1, x2, y2); } catch (_) {}
+      }
+      try { docRef.setLineDashPattern([], 0); } catch (_) {}
+    }
+
+    // traçado (ordem do projeto)
+    const route = ptsObj
+      .map(p => [Number(p.lon), Number(p.lat)])
+      .filter(p => isFinite(p[0]) && isFinite(p[1]));
+
+    if (route.length >= 2) {
+      try { docRef.setDrawColor(37, 99, 235); } catch (_) {}
+      try { docRef.setLineWidth(0.7); } catch (_) {}
+      try { docRef.setLineDashPattern([3, 3], 0); } catch (_) {}
+      for (let i = 0; i < route.length - 1; i++) {
+        const [x1, y1] = proj(route[i][0], route[i][1]);
+        const [x2, y2] = proj(route[i + 1][0], route[i + 1][1]);
+        try { docRef.line(x1, y1, x2, y2); } catch (_) {}
+      }
+      try { docRef.setLineDashPattern([], 0); } catch (_) {}
+    }
+
+    // pontos (início/fim em destaque)
+    const drawPoint = (lng, lat, r, fill) => {
+      const [px, py] = proj(lng, lat);
+      try { docRef.setDrawColor(20, 20, 20); } catch (_) {}
+      try { docRef.setFillColor(...fill); } catch (_) {}
+      try { docRef.circle(px, py, r, "FD"); } catch (_) {}
+    };
+
+    // todos os pontos pequenos
+    for (const [lng, lat] of route) drawPoint(lng, lat, 1.1, [249, 115, 22]);
+
+    // início/fim maiores
+    if (route.length) {
+      drawPoint(route[0][0], route[0][1], 2.0, [34, 197, 94]);
+      drawPoint(route[route.length - 1][0], route[route.length - 1][1], 2.0, [239, 68, 68]);
+    }
+
+    // legenda
+    try {
+      docRef.setFontSize(9);
+      docRef.text("Esquema vetorial do projeto (polígono + traçado)", x + 2, y + h - 2);
+    } catch (_) {}
+  };
+
+
   const tentarCaptura3D = () => {
     try {
       if (modoMapaAtual !== "3d" || !map3d || !map3dLoaded) return null;
@@ -4332,10 +4459,12 @@ function gerarPDFComMapa() {
       return;
     }
 
-    // Fallback: PDF textual (sem imagem), mas garante download
-    addResumo(20);
-    doc.setFontSize(10);
-    doc.text("Obs.: não foi possível capturar a imagem do mapa (restrição do navegador/CORS).", 10, 60);
+    // Fallback: sem imagem do basemap — desenha esquema vetorial do projeto (polígono + traçado)
+    try { desenharEsquemaProjetoNoPDF(doc, 10, 12, 277, 130); } catch (_) {}
+
+    addResumo(150);
+    doc.setFontSize(9);
+    doc.text("Obs.: o basemap não pôde ser capturado (CORS). Foi gerado um esquema vetorial do projeto.", 10, 195);
     finalizar();
   })();
 }
@@ -4408,6 +4537,8 @@ function desenharPoligonoAnalise2D(encontrados) {
       ring = __bboxPolygonLngLat(ptsLngLat, 45);
     }
     if (!ring || ring.length < 4) return null;
+
+    try { window.analisePolygonRing = ring; } catch (_) {}
 
     const latlngs = ring.map(([lng, lat]) => [lat, lng]);
     if (analisePolygon2D) {
