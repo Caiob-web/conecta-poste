@@ -537,16 +537,19 @@ const MAP3D_POINTS_ID = "postes-3d-points";
 const MAP3D_POINT_LABELS_ID = "postes-3d-point-labels";
 
 // Base layers
-const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
-const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, crossOrigin: true });
+const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, crossOrigin: true });
 
 const labelsPane = map.createPane("labels");
 labelsPane.style.zIndex = 640;
 labelsPane.style.pointerEvents = "none";
 const cartoLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", {
-  pane: "labels", maxZoom: 19, subdomains: "abcd"
+  pane: "labels", maxZoom: 19, subdomains: "abcd", crossOrigin: true
 });
 const satComRotulos = L.layerGroup([esriSat, cartoLabels]);
+const cartoPositronAll = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  maxZoom: 19, subdomains: "abcd", crossOrigin: true
+});
 
 const postesPane = map.createPane("postes");
 postesPane.style.zIndex = 630;
@@ -853,6 +856,10 @@ map.addLayer(markers);
 // =======================
 const analiseLayer2D = L.layerGroup();
 let analiseAtiva2D = false;
+const analiseSegmentLayer2D = L.layerGroup();
+let analiseDistanciasVisiveis = false; // toggle dos trechos (1-2, 2-3...)
+let analisePolygon2D = null; // polígono de destaque da área da análise
+
 
 function setAnaliseInfo(html, show = true) {
   const box = document.getElementById("analiseInfo");
@@ -872,6 +879,48 @@ window.limparAnaliseProjeto = function () {
   try { if (typeof hideOverlay === "function") hideOverlay(); } catch (_) {}
 };
 
+// Toggle: mostrar/ocultar os rótulos de trechos (1-2, 2-3...) na Análise de Projeto
+window.toggleDistanciasAnalise = function () {
+  analiseDistanciasVisiveis = !analiseDistanciasVisiveis;
+  try {
+    if (analiseDistanciasVisiveis) {
+      if (!analiseLayer2D.hasLayer(analiseSegmentLayer2D)) analiseLayer2D.addLayer(analiseSegmentLayer2D);
+    } else {
+      if (analiseLayer2D.hasLayer(analiseSegmentLayer2D)) analiseLayer2D.removeLayer(analiseSegmentLayer2D);
+    }
+  } catch (_) {}
+
+  // 3D: só controla a layer de labels
+  try {
+    if (typeof setVisTrechosAnalise3D === "function") setVisTrechosAnalise3D(analiseDistanciasVisiveis);
+  } catch (_) {}
+
+  try {
+    const btn = document.getElementById("btnToggleDistAnalise");
+    if (btn) {
+      btn.classList.toggle("active", analiseDistanciasVisiveis);
+      btn.innerHTML = (analiseDistanciasVisiveis ? '<i class="fa fa-eye-slash"></i>Ocultar trechos' : '<i class="fa fa-eye"></i>Mostrar trechos');
+    }
+  } catch (_) {}
+};
+
+function __atualizarEstadoBtnTrechosAnalise() {
+  try {
+    const btn = document.getElementById("btnToggleDistAnalise");
+    if (!btn) return;
+    const temAnalise = !!(window.analiseDistancias && window.analiseDistancias.totalPostes);
+    btn.disabled = !temAnalise;
+    btn.style.opacity = temAnalise ? "1" : "0.55";
+    btn.style.cursor = temAnalise ? "pointer" : "not-allowed";
+    btn.classList.toggle("active", temAnalise && analiseDistanciasVisiveis);
+    if (temAnalise) {
+      btn.innerHTML = (analiseDistanciasVisiveis ? '<i class="fa fa-eye-slash"></i>Ocultar trechos' : '<i class="fa fa-eye"></i>Mostrar trechos');
+    } else {
+      btn.innerHTML = '<i class="fa fa-route"></i>Trechos';
+    }
+  } catch (_) {}
+}
+
 function entrarModoAnalise2D() {
   analiseAtiva2D = true;
   try {
@@ -881,6 +930,10 @@ function entrarModoAnalise2D() {
   try {
     if (!map.hasLayer(analiseLayer2D)) analiseLayer2D.addTo(map);
     analiseLayer2D.clearLayers();
+    try { analiseSegmentLayer2D.clearLayers(); } catch (_) {}
+    // os trechos (1-2, 2-3...) começam ocultos — o usuário liga pelo botão
+    analiseDistanciasVisiveis = false;
+    try { analisePolygon2D = null; } catch (_) {}
   } catch (_) {}
 }
 
@@ -889,6 +942,9 @@ function sairModoAnalise2D() {
 
   // limpa tudo que for da análise (números, intermediários, traçado)
   try { analiseLayer2D.clearLayers(); } catch (_) {}
+  try { analiseSegmentLayer2D.clearLayers(); } catch (_) {}
+  try { analisePolygon2D = null; } catch (_) {}
+  analiseDistanciasVisiveis = false;
   try { if (map.hasLayer(analiseLayer2D)) map.removeLayer(analiseLayer2D); } catch (_) {}
 
   // volta a base sem reprocessar todo o cluster
@@ -900,6 +956,7 @@ function sairModoAnalise2D() {
   try { window.intermediariosPostes = []; } catch (_) {}
   try { window.tracadoMassivo = null; } catch (_) {}
   try { limparAnaliseInfo(); } catch (_) {}
+  try { __atualizarEstadoBtnTrechosAnalise(); } catch (_) {}
 }
 
 // Reset "rápido": volta para o dataset completo sem limpar/recarregar tudo
@@ -912,6 +969,7 @@ function resetarRapidoBase() {
   try { if (typeof restaurarDatasetCompleto3D === "function") restaurarDatasetCompleto3D(); } catch (_) {}
 
   try { atualizar3DSeAtivo(); } catch (_) {}
+  try { __atualizarEstadoBtnTrechosAnalise(); } catch (_) {}
   try { if (typeof hideOverlay === "function") hideOverlay(); } catch (_) {}
 }
 
@@ -1411,6 +1469,7 @@ function exibirTodosPostes() {
   const MAP3D_SOURCE_ROUTE = "postes-geojson-route";
   const MAP3D_SOURCE_ROUTE_MASS = "postes-geojson-route-mass";
   const MAP3D_SOURCE_ROUTE_LABELS = "postes-geojson-route-labels";
+  const MAP3D_SOURCE_ANALISE_POLY = "postes-geojson-analise-poly";
   const MAP3D_SOURCE_MASS = "postes-geojson-mass";
   const MAP3D_SOURCE_POLES = "postes-geojson-poles";
 
@@ -1428,6 +1487,8 @@ function exibirTodosPostes() {
   const MAP3D_LAYER_ROUTE = "postes-3d-route";
   const MAP3D_LAYER_ROUTE_MASS = "postes-3d-route-mass";
   const MAP3D_LAYER_ROUTE_LABELS = "postes-3d-route-labels";
+  const MAP3D_LAYER_ANALISE_POLY_FILL = "postes-3d-analise-poly-fill";
+  const MAP3D_LAYER_ANALISE_POLY_LINE = "postes-3d-analise-poly-line";
   const MAP3D_LAYER_MASS = "postes-3d-mass";
   const MAP3D_LAYER_MASS_ICON = "postes-3d-mass-icon";
   const MAP3D_LAYER_MASS_LABELS = "postes-3d-mass-labels";
@@ -1671,6 +1732,11 @@ function exibirTodosPostes() {
       data: { type: "FeatureCollection", features: [] }
     });
 
+    map3d.addSource(MAP3D_SOURCE_ANALISE_POLY, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] }
+    });
+
     map3d.addSource(MAP3D_SOURCE_MASS, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] }
@@ -1847,6 +1913,35 @@ function exibirTodosPostes() {
       });
     }
 
+
+    // Polígono de destaque da análise (área do projeto)
+    if (!map3d.getLayer(MAP3D_LAYER_ANALISE_POLY_FILL)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_ANALISE_POLY_FILL,
+        type: "fill",
+        source: MAP3D_SOURCE_ANALISE_POLY,
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": "#22c55e",
+          "fill-opacity": 0.12
+        }
+      });
+    }
+    if (!map3d.getLayer(MAP3D_LAYER_ANALISE_POLY_LINE)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_ANALISE_POLY_LINE,
+        type: "line",
+        source: MAP3D_SOURCE_ANALISE_POLY,
+        layout: { visibility: "none" },
+        paint: {
+          "line-color": "#16a34a",
+          "line-width": 2,
+          "line-opacity": 0.85,
+          "line-dasharray": [2, 2]
+        }
+      });
+    }
+
     if (!map3d.getLayer(MAP3D_LAYER_ROUTE_MASS)) {
       map3d.addLayer({
         id: MAP3D_LAYER_ROUTE_MASS,
@@ -1870,7 +1965,7 @@ function exibirTodosPostes() {
         minzoom: 13,
         layout: {
           "text-field": ["get", "label"],
-          "text-size": 11,
+          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 11, 15, 12, 17, 14, 19, 16],
           "text-offset": [0, -1.1],
           "text-allow-overlap": true,
           "text-ignore-placement": true
@@ -1878,7 +1973,7 @@ function exibirTodosPostes() {
         paint: {
           "text-color": "#ffffff",
           "text-halo-color": "#0f172a",
-          "text-halo-width": 1.2
+          "text-halo-width": 2.2
         }
       });
     }
@@ -1938,14 +2033,14 @@ function exibirTodosPostes() {
         source: MAP3D_SOURCE_MASS,
         layout: {
           "text-field": ["coalesce", ["get", "numero"], ""],
-          "text-size": 11,
+          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 13, 15, 15, 17, 18, 19, 22],
           "text-anchor": "center",
           "text-allow-overlap": true
         },
         paint: {
           "text-color": "#ffffff",
           "text-halo-color": "#111827",
-          "text-halo-width": 1
+          "text-halo-width": 2.6
         }
       });
     }
@@ -2031,6 +2126,8 @@ function handleSelecao3D(poste) {
     ];
 
     const analiseLayers = [
+      MAP3D_LAYER_ANALISE_POLY_FILL,
+      MAP3D_LAYER_ANALISE_POLY_LINE,
       MAP3D_LAYER_ROUTE_MASS,
       MAP3D_LAYER_ROUTE_LABELS,
       MAP3D_LAYER_MASS,
@@ -2046,16 +2143,30 @@ function handleSelecao3D(poste) {
 
     normalLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "none" : "visible"));
     analiseLayers.forEach((id) => setVis(id, modoAnalise3DAtivo ? "visible" : "none"));
+
+    // respeita o toggle de rótulos de trechos
+    try { if (map3d.getLayer(MAP3D_LAYER_ROUTE_LABELS)) map3d.setLayoutProperty(MAP3D_LAYER_ROUTE_LABELS, "visibility", (modoAnalise3DAtivo && analiseDistanciasVisiveis) ? "visible" : "none"); } catch (_) {}
   }
+
+  // Permite o botão do painel controlar os rótulos (1-2, 2-3...) no 3D
+  window.setVisTrechosAnalise3D = function (vis) {
+    try {
+      if (!map3d || !map3dLoaded) return;
+      const v = (vis && modoAnalise3DAtivo) ? "visible" : "none";
+      if (map3d.getLayer(MAP3D_LAYER_ROUTE_LABELS)) map3d.setLayoutProperty(MAP3D_LAYER_ROUTE_LABELS, "visibility", v);
+    } catch (_) {}
+  };
 
 function limparCamadasMassivas3D() {
     if (!map3d || !map3dLoaded) return;
     const srcMass = map3d.getSource(MAP3D_SOURCE_MASS);
     const srcRouteMass = map3d.getSource(MAP3D_SOURCE_ROUTE_MASS);
     const srcRouteLabels = map3d.getSource(MAP3D_SOURCE_ROUTE_LABELS);
+    const srcPoly = map3d.getSource(MAP3D_SOURCE_ANALISE_POLY);
     if (srcMass) srcMass.setData({ type: "FeatureCollection", features: [] });
     if (srcRouteMass) srcRouteMass.setData({ type: "FeatureCollection", features: [] });
     if (srcRouteLabels) srcRouteLabels.setData({ type: "FeatureCollection", features: [] });
+    if (srcPoly) srcPoly.setData({ type: "FeatureCollection", features: [] });
   }
 
   function desenharAnaliseMassa3D(encontrados, intermediarios = []) {
@@ -2126,7 +2237,59 @@ function limparCamadasMassivas3D() {
 
     srcMass.setData({ type: "FeatureCollection", features: feats });
     srcRouteMass.setData({ type: "FeatureCollection", features: routeFeature });
+    srcRouteLabels.setData({ type: "FeatureCollection", features: (analiseDistanciasVisiveis ? labelFeats : []) });
+
+    // Polígono da análise no 3D
+    try {
+      if (typeof setPoligonoAnalise3D === "function") setPoligonoAnalise3D(encontrados);
+    } catch (_) {}
   }
+
+
+  function setPoligonoAnalise3D(encontrados) {
+    try {
+      if (!map3d || !map3dLoaded) return;
+      const srcPoly = map3d.getSource(MAP3D_SOURCE_ANALISE_POLY);
+      if (!srcPoly) return;
+
+      const ptsLngLat = (encontrados || [])
+        .map(p => [Number(p.lon), Number(p.lat)])
+        .filter(p => isFinite(p[0]) && isFinite(p[1]));
+      if (!ptsLngLat.length) {
+        srcPoly.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+
+      let ring = null;
+      if (ptsLngLat.length >= 3) {
+        const hull = (typeof __convexHullLngLat === "function") ? __convexHullLngLat(ptsLngLat) : ptsLngLat;
+        ring = hull.concat([hull[0]]);
+      } else {
+        ring = (typeof __bboxPolygonLngLat === "function") ? __bboxPolygonLngLat(ptsLngLat, 45) : null;
+      }
+      if (!ring || ring.length < 4) {
+        srcPoly.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+
+      const poly = {
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [ring] },
+        properties: {}
+      };
+
+      srcPoly.setData({ type: "FeatureCollection", features: [poly] });
+
+      // se estiver em análise, garante visibilidade
+      try {
+        if (modoAnalise3DAtivo) {
+          if (map3d.getLayer(MAP3D_LAYER_ANALISE_POLY_FILL)) map3d.setLayoutProperty(MAP3D_LAYER_ANALISE_POLY_FILL, "visibility", "visible");
+          if (map3d.getLayer(MAP3D_LAYER_ANALISE_POLY_LINE)) map3d.setLayoutProperty(MAP3D_LAYER_ANALISE_POLY_LINE, "visibility", "visible");
+        }
+      } catch (_) {}
+    } catch (_) {}
+  }
+
 
   function metersToLng(meters, lat) {
     return meters / (111320 * Math.cos((lat * Math.PI) / 180));
@@ -2806,6 +2969,7 @@ window.consultarIDsEmMassa = function () {
       cumDist.push(totalDist);
     }
     window.analiseDistancias = { segDist, cumDist, totalDist, totalPostes: encontrados.length };
+    try { __atualizarEstadoBtnTrechosAnalise(); } catch (_) {}
 
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
@@ -2903,6 +3067,8 @@ window.consultarIDsEmMassa = function () {
 
     // Traçado (tracejado igual ao 2D) + labels de trecho (1-2, 2-3…)
     const coords = encontrados.map((p) => [p.lat, p.lon]);
+    // Polígono de destaque da área do projeto
+    try { desenharPoligonoAnalise2D(encontrados); } catch (_) {}
     if (coords.length >= 2) {
       const line = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" });
       try { analiseLayer2D.addLayer(line); } catch (_) { line.addTo(map); }
@@ -2929,7 +3095,7 @@ window.consultarIDsEmMassa = function () {
           icon: L.divIcon({ className: "analise-seg-label", html, iconSize: null })
         });
 
-        try { analiseLayer2D.addLayer(segMk); } catch (_) { segMk.addTo(map); }
+        try { analiseSegmentLayer2D.addLayer(segMk); } catch (_) { segMk.addTo(map); }
         window.analiseSegmentMarkers.push(segMk);
       }
 
@@ -4060,26 +4226,118 @@ function adicionarNumerado(p, num) {
 }
 
 function gerarPDFComMapa() {
-  if (!window.tracadoMassivo) return alert("Gere primeiro um traçado.");
-  leafletImage(map, (err, canvas) => {
-    if (err) return alert("Erro ao capturar imagem.");
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 270, 120);
-    const resumo = window.ultimoResumoPostes || { disponiveis: 0, ocupados: 0, naoEncontrados: [], intermediarios: 0 };
-    let y = 140; doc.setFontSize(12);
-    doc.text("Resumo da Verificação:", 10, y);
-    doc.text("✔️ Disponíveis: " + resumo.disponiveis, 10, y + 10);
-    doc.text("❌ Indisponíveis: " + resumo.ocupados, 10, y + 20);
-    if (resumo.naoEncontrados.length) {
-      const textoIds = resumo.naoEncontrados.join(", ");
-      doc.text(["⚠️ Não encontrados (" + resumo.naoEncontrados.length + "):", textoIds], 10, y + 30);
-    } else {
-      doc.text("⚠️ Não encontrados: 0", 10, y + 30);
+  const { jsPDF } = (window.jspdf || {});
+  if (!jsPDF) return alert("Biblioteca de PDF (jsPDF) não carregou.");
+
+  const resumo = window.ultimoResumoPostes || {};
+  const dist = window.analiseDistancias || {};
+  const titulo = "Relatório — Análise de Projeto";
+  const agora = new Date();
+  const dataHora = agora.toLocaleString("pt-BR");
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  const fmtDist = (m) => {
+    const n = Number(m || 0);
+    if (!isFinite(n)) return "0 m";
+    if (n >= 1000) return (n / 1000).toFixed(2).replace(".", ",") + " km";
+    return Math.round(n) + " m";
+  };
+
+  const addResumo = (yStart) => {
+    let y = yStart;
+    doc.setFontSize(12);
+    doc.text(titulo, 10, y); y += 7;
+    doc.setFontSize(10);
+    doc.text("Gerado em: " + dataHora, 10, y); y += 8;
+
+    const totalPostes = resumo.encontrados || dist.totalPostes || resumo.total || 0;
+    const distTotal = resumo.dist_total_m || dist.totalDist || resumo.dist_total || 0;
+
+    doc.setFontSize(12);
+    doc.text(`Postes no projeto: ${totalPostes}`, 10, y); y += 6;
+    doc.text(`Distância total: ${fmtDist(distTotal)}`, 10, y); y += 8;
+
+    doc.setFontSize(10);
+    if (typeof resumo.disponiveis !== "undefined") { doc.text("✔️ Até 4 empresas: " + (resumo.disponiveis || 0), 10, y); y += 6; }
+    if (typeof resumo.ocupados !== "undefined") { doc.text("❌ 5+ empresas: " + (resumo.ocupados || 0), 10, y); y += 6; }
+    if (typeof resumo.intermediarios !== "undefined") { doc.text("🟡 Intermediários: " + (resumo.intermediarios || 0), 10, y); y += 6; }
+
+    const nao = Array.isArray(resumo.naoEncontrados) ? resumo.naoEncontrados : [];
+    if (nao.length) {
+      const txt = ("⚠️ Não encontrados (" + nao.length + "): " + nao.join(", "));
+      doc.text(doc.splitTextToSize(txt, 270), 10, y);
+      y += 10;
     }
-    doc.text("🟡 Intermediários: " + resumo.intermediarios, 10, y + 50);
-    doc.save("tracado_postes.pdf");
+  };
+
+  const finalizar = () => {
+    try { doc.save("relatorio_projeto.pdf"); } catch (e) { alert("Falha ao baixar o PDF."); }
+  };
+
+  const tentarCaptura3D = () => {
+    try {
+      if (modoMapaAtual !== "3d" || !map3d || !map3dLoaded) return null;
+      const c = map3d.getCanvas();
+      return c && c.toDataURL ? c.toDataURL("image/png") : null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const capturarLeafletDataURL = () => new Promise((resolve) => {
+    try {
+      // tenta trocar momentaneamente para um basemap com CORS (Carto) para permitir canvas
+      const hadCarto = map.hasLayer(cartoPositronAll);
+      const hadOSM = map.hasLayer(osm);
+
+      try {
+        if (!hadCarto) map.addLayer(cartoPositronAll);
+        if (hadOSM) map.removeLayer(osm);
+      } catch (_) {}
+
+      setTimeout(() => {
+        leafletImage(map, (err, canvas) => {
+          // restaura basemap original
+          try {
+            if (!hadCarto && map.hasLayer(cartoPositronAll)) map.removeLayer(cartoPositronAll);
+            if (hadOSM && !map.hasLayer(osm)) map.addLayer(osm);
+          } catch (_) {}
+
+          if (err || !canvas) return resolve(null);
+          try {
+            resolve(canvas.toDataURL("image/png"));
+          } catch (_) {
+            resolve(null);
+          }
+        });
+      }, 180);
+    } catch (_) {
+      resolve(null);
+    }
   });
+
+  (async () => {
+    // Tenta captura do 3D primeiro (se estiver no 3D)
+    let imgData = tentarCaptura3D();
+
+    // Se não conseguiu, tenta o 2D via leaflet-image
+    if (!imgData) imgData = await capturarLeafletDataURL();
+
+    if (imgData) {
+      // área para imagem
+      doc.addImage(imgData, "PNG", 10, 12, 277, 130, undefined, "FAST");
+      addResumo(150);
+      finalizar();
+      return;
+    }
+
+    // Fallback: PDF textual (sem imagem), mas garante download
+    addResumo(20);
+    doc.setFontSize(10);
+    doc.text("Obs.: não foi possível capturar a imagem do mapa (restrição do navegador/CORS).", 10, 60);
+    finalizar();
+  })();
 }
 
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
@@ -4087,6 +4345,88 @@ function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+
+// ===============================
+// POLÍGONO DA ANÁLISE (Convex Hull simples) — 2D/3D
+// ===============================
+function __convexHullLngLat(points) {
+  // points: Array<[lng, lat]>
+  const pts = (points || [])
+    .map(p => [Number(p[0]), Number(p[1])])
+    .filter(p => isFinite(p[0]) && isFinite(p[1]));
+  if (pts.length < 3) return pts;
+
+  // monotonic chain
+  pts.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  upper.pop();
+  lower.pop();
+  const hull = lower.concat(upper);
+  return hull.length ? hull : pts;
+}
+
+function __bboxPolygonLngLat(points, paddingMeters = 35) {
+  const pts = (points || []).map(p => [Number(p[0]), Number(p[1])]).filter(p => isFinite(p[0]) && isFinite(p[1]));
+  if (!pts.length) return null;
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const [lng, lat] of pts) {
+    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+  }
+  // padding aproximado em graus
+  const padLat = paddingMeters / 110540;
+  const midLat = (minLat + maxLat) / 2;
+  const padLng = paddingMeters / (111320 * Math.cos((midLat * Math.PI) / 180));
+  minLng -= padLng; maxLng += padLng; minLat -= padLat; maxLat += padLat;
+  return [[minLng, minLat],[maxLng, minLat],[maxLng, maxLat],[minLng, maxLat],[minLng, minLat]];
+}
+
+function desenharPoligonoAnalise2D(encontrados) {
+  try {
+    if (!Array.isArray(encontrados) || !encontrados.length) return null;
+    const ptsLngLat = encontrados.map(p => [Number(p.lon), Number(p.lat)]).filter(p => isFinite(p[0]) && isFinite(p[1]));
+
+    let ring = null;
+    if (ptsLngLat.length >= 3) {
+      const hull = __convexHullLngLat(ptsLngLat);
+      ring = hull.concat([hull[0]]);
+    } else {
+      ring = __bboxPolygonLngLat(ptsLngLat, 45);
+    }
+    if (!ring || ring.length < 4) return null;
+
+    const latlngs = ring.map(([lng, lat]) => [lat, lng]);
+    if (analisePolygon2D) {
+      try { analiseLayer2D.removeLayer(analisePolygon2D); } catch (_) {}
+      analisePolygon2D = null;
+    }
+    analisePolygon2D = L.polygon(latlngs, {
+      color: "#16a34a",
+      weight: 2,
+      opacity: 0.9,
+      fillColor: "#22c55e",
+      fillOpacity: 0.12,
+      dashArray: "6,6"
+    });
+    try { analiseLayer2D.addLayer(analisePolygon2D); } catch (_) { analisePolygon2D.addTo(map); }
+    return analisePolygon2D;
+  } catch (_) {
+    return null;
+  }
 }
 
 // Exporta Excel genérico (backend)
@@ -5437,3 +5777,11 @@ function _buildCarRoute() {
   window.isMedicaoAtiva = () => medicaoAtiva;
 })();
 
+
+
+// Inicializa o estado do botão de trechos quando a página carregar
+try {
+  document.addEventListener("DOMContentLoaded", () => {
+    try { __atualizarEstadoBtnTrechosAnalise(); } catch (_) {}
+  });
+} catch (_) {}
