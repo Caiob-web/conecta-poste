@@ -1785,6 +1785,26 @@ function exibirTodosPostes() {
         }
       });
     }
+     if (!map3d.getLayer("postes-3d-mass-critical-star")) {
+  map3d.addLayer({
+    id: "postes-3d-mass-critical-star",
+    type: "symbol",
+    source: MAP3D_SOURCE_MASS,
+    filter: [">=", ["get", "qtd_empresas"], 9],
+    minzoom: 13,
+    layout: {
+      "text-field": "⭐",
+      "text-size": ["interpolate", ["linear"], ["zoom"], 13, 10, 16, 14, 18, 18, 20, 22],
+      "text-offset": [0, -2.8],
+      "text-anchor": "center",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport"
+    },
+    paint: { "text-opacity": 1 }
+  });
+}
 
     if (!map3d.getLayer(MAP3D_LAYER_CLUSTER)) {
       map3d.addLayer({
@@ -2171,7 +2191,8 @@ function handleSelecao3D(poste) {
       MAP3D_LAYER_POINT_LABELS,
       MAP3D_LAYER_SELECTED_GLOW,
       MAP3D_LAYER_SELECTED,
-      MAP3D_LAYER_ROUTE
+      MAP3D_LAYER_ROUTE,
+      "postes-3d-critical-star"
     ];
 
     const analiseLayers = [
@@ -2181,7 +2202,8 @@ function handleSelecao3D(poste) {
       MAP3D_LAYER_ROUTE_LABELS,
       MAP3D_LAYER_MASS,
       MAP3D_LAYER_MASS_ICON,
-      MAP3D_LAYER_MASS_LABELS
+      MAP3D_LAYER_MASS_LABELS,
+      "postes-3d-mass-critical-star"
     ];
 
     const setVis = (layerId, vis) => {
@@ -2240,7 +2262,7 @@ function limparCamadasMassivas3D() {
       feats.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
-        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 8 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p) }
+        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 8 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p), qtd_empresas: qtd }
       });
     });
 
