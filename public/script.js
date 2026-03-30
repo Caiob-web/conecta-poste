@@ -648,7 +648,7 @@ function dotStyle(qtdEmpresas) {
     radius: 4,
     color: "#111827",
     weight: 0.5,
-    fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
+    fillColor: (qtdEmpresas >= 8 ? "#d64545" : "#24a148"),
     fillOpacity: 0.9
   };
 }
@@ -1826,8 +1826,8 @@ function exibirTodosPostes() {
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4, 17, 7, 20, 10],
           "circle-color": ["case",
-            [">=", ["get", "qtd_empresas"], 9], "rgba(185,28,28,0.55)",
-            [">=", ["get", "qtd_empresas"], 5], "rgba(239,68,68,0.40)",
+           [">=", ["get", "qtd_empresas"], 9], "rgba(185,28,28,0.55)",
+           [">=", ["get", "qtd_empresas"], 8], "rgba(239,68,68,0.40)",
             "rgba(34,197,94,0.30)"
           ],
           "circle-blur": 0.8,
@@ -1890,6 +1890,32 @@ function exibirTodosPostes() {
           "text-color": "#111827",
           "text-halo-color": "#ffffff",
           "text-halo-width": 1.6
+        }
+      });
+    }
+     // ★ Estrela de alerta para postes críticos (>8 empresas) no 3D
+    if (!map3d.getLayer("postes-3d-critical-star")) {
+      map3d.addLayer({
+        id: "postes-3d-critical-star",
+        type: "symbol",
+        source: MAP3D_SOURCE_ACTIVE,
+        filter: ["all",
+          ["!", ["has", "point_count"]],
+          [">=", ["get", "qtd_empresas"], 9]
+        ],
+        minzoom: 13,
+        layout: {
+          "text-field": "⭐",
+          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 10, 16, 14, 18, 18, 20, 22],
+          "text-offset": [0, -2.8],
+          "text-anchor": "center",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-pitch-alignment": "viewport",
+          "text-rotation-alignment": "viewport"
+        },
+        paint: {
+          "text-opacity": 1
         }
       });
     }
@@ -2214,7 +2240,7 @@ function limparCamadasMassivas3D() {
       feats.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
-        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 5 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p) }
+        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 8 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p) }
       });
     });
 
@@ -3002,7 +3028,7 @@ window.consultarIDsEmMassa = function () {
 
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      const cor = qtd >= 5 ? "red" : "green";
+      const cor = qtd >= 8 ? "red" : "green";
       const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
       const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
@@ -3140,8 +3166,8 @@ window.consultarIDsEmMassa = function () {
       total: ids.length,
       encontrados: encontrados.length,
       dist_total_m: totalDist,
-      disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
-      ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
+      disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 7).length,
+      ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 8).length,
       naoEncontrados: ids.filter((id) => !todosPostes.some((p) => normId(p.id) === normId(id))),
       intermediarios: window.intermediarios.length,
     };
@@ -4222,8 +4248,8 @@ function consultarIDsEmMassa() {
 
   window.ultimoResumoPostes = {
     total: ids.length,
-    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
-    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
+    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 7).length,
+    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 8).length,
     naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
     intermediarios: window.intermediarios.length,
   };
@@ -4236,7 +4262,7 @@ function consultarIDsEmMassa() {
 
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 5 ? "red" : "green";
+  const cor = qtd >= 8 ? "red" : "green";
   const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
