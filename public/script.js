@@ -685,16 +685,6 @@ function entrarModoSelecao() {
     selecaoPolyline = null;
   }
 
-let btnRk = document.getElementById("btnRanking8Mais");
-if (btnRk) {
-  btnRk.addEventListener("click", abrirRanking8Mais);
-} else {
-  btnRk = document.createElement("button");
-  btnRk.id = "btnRanking8Mais";
-  btnRk.innerHTML = '<i class="fa fa-trophy"></i> Ranking 8+';
-  btnRk.addEventListener("click", abrirRanking8Mais);
-  actions.appendChild(btnRk);
-}
 
   atualizarEstadoBotaoSelecao();
   alert("Modo SELECIONAR POSTES ativado. Clique nos postes para selecioná-los (máx. 300).");
@@ -1907,8 +1897,8 @@ function exibirTodosPostes() {
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4, 17, 7, 20, 10],
           "circle-color": ["case",
-            [">=", ["get", "qtd_empresas"], 9], "rgba(185,28,28,0.55)",
-            [">=", ["get", "qtd_empresas"], 5], "rgba(245,158,11,0.45)",
+            [">", ["to-number", ["coalesce", ["get","qtd_empresas"], 0]], 8], "rgba(185,28,28,0.55)",
+            [">=", ["to-number", ["coalesce", ["get","qtd_empresas"], 0]], 5], "rgba(245,158,11,0.45)",
             "rgba(34,197,94,0.30)"
           ],
           "circle-blur": 0.8,
@@ -1960,14 +1950,14 @@ function exibirTodosPostes() {
         source: MAP3D_SOURCE_ACTIVE,
         filter: ["all",
           ["!", ["has", "point_count"]],
-          [">", ["get", "qtd_empresas"], 8]
+          [">", ["to-number", ["coalesce", ["get","qtd_empresas"], 0]], 8]
         ],
         minzoom: 13,
         layout: {
           "icon-image": "crit-star",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.22, 16, 0.28, 18, 0.34, 20, 0.44],
-          "icon-offset": [0, -3.0],
-          "icon-anchor": "center",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.34, 16, 0.44, 18, 0.54, 20, 0.70],
+          "icon-offset": [0, -6.0],
+          "icon-anchor": "bottom",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-pitch-alignment": "viewport",
@@ -2163,13 +2153,13 @@ if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
         id: "postes-3d-mass-critical-star",
         type: "symbol",
         source: MAP3D_SOURCE_MASS,
-        filter: [">", ["get", "qtd_empresas"], 8],
+        filter: [">", ["to-number", ["coalesce", ["get","qtd_empresas"], 0]], 8],
         minzoom: 13,
         layout: {
           "icon-image": "crit-star",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.22, 16, 0.28, 18, 0.34, 20, 0.44],
-          "icon-offset": [0, -3.0],
-          "icon-anchor": "center",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.34, 16, 0.44, 18, 0.54, 20, 0.70],
+          "icon-offset": [0, -6.0],
+          "icon-anchor": "bottom",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-pitch-alignment": "viewport",
@@ -2177,6 +2167,15 @@ if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
         },
         paint: { "icon-opacity": 1 }
       });
+
+    // garante estrela acima dos ícones/labels
+    try {
+      if (map3d.getLayer("postes-3d-mass-critical-star") && map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) {
+        map3d.moveLayer("postes-3d-mass-critical-star", MAP3D_LAYER_MASS_LABELS);
+      } else if (map3d.getLayer("postes-3d-mass-critical-star")) {
+        map3d.moveLayer("postes-3d-mass-critical-star");
+      }
+    } catch (_) {}
     }
 
 if (!map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) {
@@ -3333,15 +3332,15 @@ const avisoReprovHtml = criticos9Mais.length
           margin: 8px 0 10px;
           padding: 10px 12px;
           border-radius: 12px;
-          border: 1px solid rgba(239,68,68,.50);
-          background: rgba(239,68,68,.12);
-          color: #fecaca;
-          font: 800 12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+          border: 1px solid rgba(239,68,68,.65);
+          background: rgba(254,226,226,0.95);
+          color: #7f1d1d;
+          font: 900 12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial;
           box-shadow: 0 8px 22px rgba(0,0,0,.18);
         ">
-          🚫 <b style="color:#fff">REPROVAR PROJETO</b>: encontrado(s) <b style="color:#fff">${criticos9Mais.length}</b>
-          poste(s) com <b style="color:#fff">9+ empresas</b> (acima do limite de 8).<br>
-          <small style="opacity:.95;font-weight:700">IDs: ${preview}${resto}</small>
+          🚫 <b style="color:#7f1d1d">REPROVAR PROJETO</b>: encontrado(s) <b style="color:#7f1d1d">${criticos9Mais.length}</b>
+          poste(s) com <b style="color:#7f1d1d">9+ empresas</b> (acima do limite de 8).<br>
+          <small style="opacity:1;font-weight:800;color:#991b1b">IDs: ${preview}${resto}</small>
         </div>
       `.trim();
     })()
@@ -5165,6 +5164,9 @@ function abrirRanking8Mais() {
   try { atualizarRanking8Mais(); } catch (_) {}
 }
 
+window.abrirRanking8Mais = abrirRanking8Mais;
+window.fecharRanking8Mais = fecharRanking8Mais;
+
 function fecharRanking8Mais() {
   const modal = document.getElementById("modalRanking8Mais");
   if (modal) modal.style.display = "none";
@@ -5306,6 +5308,19 @@ function exportarRanking8MaisCSV() {
     btnI.innerHTML = '<i class="fa fa-chart-column"></i> Indicadores';
     btnI.addEventListener("click", abrirIndicadores);
     actions.appendChild(btnI);
+  }
+
+  // 🏆 Ranking 8+ (modal)
+  let btnRk = document.getElementById("btnRanking8Mais");
+  if (btnRk) {
+    // evita duplicar listeners se o botão já existir no HTML
+    btnRk.onclick = () => { try { abrirRanking8Mais(); } catch (e) { console.error("Ranking 8+ erro:", e); } };
+  } else {
+    btnRk = document.createElement("button");
+    btnRk.id = "btnRanking8Mais";
+    btnRk.innerHTML = \'<i class="fa fa-trophy"></i> Ranking 8+\';
+    btnRk.addEventListener("click", () => { try { abrirRanking8Mais(); } catch (e) { console.error("Ranking 8+ erro:", e); } });
+    actions.appendChild(btnRk);
   }
 
   atualizarEstadoBotaoSelecao();
