@@ -684,6 +684,18 @@ function entrarModoSelecao() {
     map.removeLayer(selecaoPolyline);
     selecaoPolyline = null;
   }
+
+let btnRk = document.getElementById("btnRanking8Mais");
+if (btnRk) {
+  btnRk.addEventListener("click", abrirRanking8Mais);
+} else {
+  btnRk = document.createElement("button");
+  btnRk.id = "btnRanking8Mais";
+  btnRk.innerHTML = '<i class="fa fa-trophy"></i> Ranking 8+';
+  btnRk.addEventListener("click", abrirRanking8Mais);
+  actions.appendChild(btnRk);
+}
+
   atualizarEstadoBotaoSelecao();
   alert("Modo SELECIONAR POSTES ativado. Clique nos postes para selecioná-los (máx. 300).");
 }
@@ -870,6 +882,71 @@ const analiseSegmentLayer2D = L.layerGroup();
 let analiseDistanciasVisiveis = false; // toggle dos trechos (1-2, 2-3...)
 let analisePolygon2D = null; // polígono de destaque da área da análise
 
+/* ====================================================================
+   Badge de TOTAL DE POSTES no mapa durante Análise (aparece em zoom alto)
+==================================================================== */
+let __analiseTotalCtrl = null;
+
+(function injectAnaliseTotalBadgeStyles() {
+  if (document.getElementById("analise-total-badge-styles")) return;
+  const css = `
+    .analise-total-badge{
+      background: rgba(15,27,42,.92);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(25,214,143,.55);
+      font: 900 12px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      letter-spacing: .2px;
+      user-select:none;
+      pointer-events:none;
+      display:none;
+      margin-top: 10px;
+      margin-left: 10px;
+    }
+    .analise-total-badge b{ color:#6ee7b7; }
+  `;
+  const style = document.createElement("style");
+  style.id = "analise-total-badge-styles";
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+function ensureAnaliseTotalBadge() {
+  if (__analiseTotalCtrl) return;
+  __analiseTotalCtrl = L.control({ position: "topleft" });
+  __analiseTotalCtrl.onAdd = function () {
+    const div = L.DomUtil.create("div", "analise-total-badge");
+    div.id = "analiseTotalBadge";
+    return div;
+  };
+  try { __analiseTotalCtrl.addTo(map); } catch (_) {}
+}
+
+function updateAnaliseTotalBadge() {
+  try { ensureAnaliseTotalBadge(); } catch (_) {}
+  const div = document.getElementById("analiseTotalBadge");
+  if (!div) return;
+
+  const total = (window.analiseDistancias && window.analiseDistancias.totalPostes)
+    ? Number(window.analiseDistancias.totalPostes)
+    : (Array.isArray(window.analiseEncontrados) ? window.analiseEncontrados.length : 0);
+
+  const zoom = (typeof map !== "undefined" && map && typeof map.getZoom === "function") ? map.getZoom() : 0;
+
+  // Mostra somente durante análise e em zoom alto
+  const show = !!(typeof analiseAtiva2D !== "undefined" && analiseAtiva2D && total > 0 && zoom >= 16);
+
+  div.style.display = show ? "inline-flex" : "none";
+  if (show) div.innerHTML = `📌 Total: <b>${total}</b> postes`;
+}
+
+// atualiza quando der zoom (ou quando entrarmos/sairmos da análise)
+try {
+  map.on("zoomend", () => { try { updateAnaliseTotalBadge(); } catch (_) {} });
+} catch (_) {}
+
 
 function setAnaliseInfo(html, show = true) {
   const box = document.getElementById("analiseInfo");
@@ -945,6 +1022,7 @@ function entrarModoAnalise2D() {
     analiseDistanciasVisiveis = false;
     try { analisePolygon2D = null; } catch (_) {}
   } catch (_) {}
+  try { updateAnaliseTotalBadge(); } catch (_) {}
 }
 
 function sairModoAnalise2D() {
@@ -967,6 +1045,7 @@ function sairModoAnalise2D() {
   try { window.tracadoMassivo = null; } catch (_) {}
   try { limparAnaliseInfo(); } catch (_) {}
   try { __atualizarEstadoBtnTrechosAnalise(); } catch (_) {}
+  try { updateAnaliseTotalBadge(); } catch (_) {}
 }
 
 // Reset "rápido": volta para o dataset completo sem limpar/recarregar tudo
@@ -980,6 +1059,7 @@ function resetarRapidoBase() {
 
   try { atualizar3DSeAtivo(); } catch (_) {}
   try { __atualizarEstadoBtnTrechosAnalise(); } catch (_) {}
+  try { updateAnaliseTotalBadge(); } catch (_) {}
   try { if (typeof hideOverlay === "function") hideOverlay(); } catch (_) {}
 }
 
@@ -3072,7 +3152,7 @@ window.consultarIDsEmMassa = function () {
 
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      const cor = qtd >= 5 ? "red" : "green";
+      const cor = qtd >= 8 ? "red" : "green";
       const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
       const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
@@ -3216,14 +3296,45 @@ window.consultarIDsEmMassa = function () {
       intermediarios: window.intermediarios.length,
     };
 
+
+// 🚫 Regra: REPROVAR se existir poste com 9+ empresas (acima de 8)
+const criticos9Mais = encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) > 8);
+window.__analiseCriticos9mais = criticos9Mais.map((p) => String(p.id));
+const avisoReprovHtml = criticos9Mais.length
+  ? (() => {
+      const ids = window.__analiseCriticos9mais || [];
+      const preview = ids.slice(0, 20).join(", ");
+      const resto = ids.length > 20 ? ` … (+${ids.length - 20})` : "";
+      return `
+        <div style="
+          margin: 8px 0 10px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(239,68,68,.50);
+          background: rgba(239,68,68,.12);
+          color: #fecaca;
+          font: 800 12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+          box-shadow: 0 8px 22px rgba(0,0,0,.18);
+        ">
+          🚫 <b style="color:#fff">REPROVAR PROJETO</b>: encontrado(s) <b style="color:#fff">${criticos9Mais.length}</b>
+          poste(s) com <b style="color:#fff">9+ empresas</b> (acima do limite de 8).<br>
+          <small style="opacity:.95;font-weight:700">IDs: ${preview}${resto}</small>
+        </div>
+      `.trim();
+    })()
+  : "";
+
     // Painel: contador do projeto
     try {
       setAnaliseInfo(
+        (avisoReprovHtml || "") +
         `🧮 <b>Projeto</b>: ${encontrados.length} postes • <b>Distância total</b>: ${fmtDist(totalDist)}<br>` +
         `<span style="opacity:.85">Trechos (1-2, 2-3, …) rotulados no mapa.</span>`,
         true
       );
     } catch (_) {}
+
+    try { updateAnaliseTotalBadge(); } catch (_) {}
 
     // 3D: desenha só os postes da análise + rota (sem refetch) + labels de trecho
     try { desenharAnaliseMassa3D(encontrados, window.intermediariosPostes || []); } catch (_) {}
@@ -4306,7 +4417,7 @@ function consultarIDsEmMassa() {
 
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 5 ? "red" : "green";
+  const cor = qtd >= 8 ? "red" : "green";
   const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
@@ -4743,6 +4854,188 @@ function getMunicipioMetaByName(nome) {
   );
 }
 
+/* ====================================================================
+   Ranking — Postes com MAIOR compartilhamento (8+ empresas)
+==================================================================== */
+let __rankingModalReady = false;
+let __rankingLastRows = [];
+let __rankingLastMeta = null;
+
+function ensureRankingModal() {
+  if (__rankingModalReady) return;
+  __rankingModalReady = true;
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "bi-backdrop";
+  backdrop.id = "modalRanking8Mais";
+  backdrop.innerHTML = `
+    <div class="bi-card">
+      <div class="bi-head">
+        <h3>🏆 Ranking — Postes com 8+ empresas</h3>
+        <button id="fecharRanking8Mais" class="bi-close">Fechar</button>
+      </div>
+
+      <div class="bi-body" style="grid-template-columns: 1fr 320px;">
+        <div>
+          <div style="font:700 13px system-ui;margin:4px 0 10px;color:#111827;">
+            Ordenado por quantidade de empresas (do maior para o menor).
+          </div>
+          <div style="overflow:auto;border:1px solid #eee;border-radius:8px;">
+            <table id="tabelaRanking8Mais" class="bi-table">
+              <thead>
+                <tr>
+                  <th style="text-align:left;">ID do Poste</th>
+                  <th style="text-align:left;">Município</th>
+                  <th style="text-align:right;">Qtd. empresas</th>
+                  <th style="text-align:left;">Empresas</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bi-side">
+          <label>Mínimo de empresas</label>
+          <input id="rankingMinEmp" class="bi-input" type="number" min="1" step="1" value="8"/>
+
+          <label style="margin-top:10px;">Limite de linhas</label>
+          <input id="rankingLimite" class="bi-input" type="number" min="10" step="10" value="200"/>
+
+          <label class="bi-chk">
+            <input type="checkbox" id="rankingApenasVisiveis">
+            Considerar apenas os postes visíveis no mapa
+          </label>
+
+          <div id="rankingResumo" class="bi-resumo"></div>
+
+          <button id="btnAtualizarRanking" class="bi-btn">
+            <i class="fa fa-rotate"></i> Atualizar ranking
+          </button>
+
+          <button id="btnExportarRankingCsv" class="bi-btn">
+            <i class="fa fa-file-csv"></i> Exportar CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  `.trim();
+
+  document.body.appendChild(backdrop);
+
+  document.getElementById("fecharRanking8Mais")?.addEventListener("click", fecharRanking8Mais);
+  document.getElementById("btnAtualizarRanking")?.addEventListener("click", atualizarRanking8Mais);
+  document.getElementById("btnExportarRankingCsv")?.addEventListener("click", exportarRanking8MaisCSV);
+
+  // Atualiza quando abrir, por padrão
+  setTimeout(() => { try { atualizarRanking8Mais(); } catch (_) {} }, 0);
+}
+
+function abrirRanking8Mais() {
+  ensureRankingModal();
+  const modal = document.getElementById("modalRanking8Mais");
+  if (!modal) return;
+  modal.style.display = "flex";
+  try { atualizarRanking8Mais(); } catch (_) {}
+}
+
+function fecharRanking8Mais() {
+  const modal = document.getElementById("modalRanking8Mais");
+  if (modal) modal.style.display = "none";
+}
+
+function __getEmpresasTexto(p) {
+  try {
+    const arr = (typeof getEmpresasNomesArray === "function") ? getEmpresasNomesArray(p) : [];
+    return (arr || []).filter(Boolean).join(", ");
+  } catch (_) { return ""; }
+}
+
+function __getQtdEmp(p) {
+  return Array.isArray(p.empresas) ? p.empresas.length : 0;
+}
+
+function atualizarRanking8Mais() {
+  const minEmp = Math.max(1, Number(document.getElementById("rankingMinEmp")?.value || 8));
+  const limite = Math.max(10, Number(document.getElementById("rankingLimite")?.value || 200));
+  const apenasVisiveis = !!document.getElementById("rankingApenasVisiveis")?.checked;
+
+  const bounds = (apenasVisiveis && typeof map !== "undefined" && map && typeof map.getBounds === "function") ? map.getBounds() : null;
+
+  const rows = [];
+  let maxEmp = 0;
+
+  for (const p of (window.todosPostes || [])) {
+    if (!p || !isFinite(p.lat) || !isFinite(p.lon)) continue;
+    if (bounds && !bounds.contains([p.lat, p.lon])) continue;
+
+    const qtd = __getQtdEmp(p);
+    if (qtd > maxEmp) maxEmp = qtd;
+    if (qtd < minEmp) continue;
+
+    rows.push({
+      id: String(p.id ?? ""),
+      municipio: String(p.nome_municipio ?? ""),
+      qtd,
+      empresas: __getEmpresasTexto(p)
+    });
+  }
+
+  rows.sort((a, b) => (b.qtd - a.qtd) || String(a.id).localeCompare(String(b.id)));
+
+  const finalRows = rows.slice(0, limite);
+
+  __rankingLastRows = finalRows;
+  __rankingLastMeta = { minEmp, limite, apenasVisiveis, totalFiltrado: rows.length, maxEmp };
+
+  const tb = document.querySelector("#tabelaRanking8Mais tbody");
+  if (tb) {
+    tb.innerHTML = finalRows.length
+      ? finalRows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.id)}</td>
+            <td>${escapeHtml(r.municipio)}</td>
+            <td class="num">${r.qtd.toLocaleString("pt-BR")}</td>
+            <td>${escapeHtml(r.empresas || "—")}</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="4" style="padding:10px;color:#6b7280;">Nenhum poste encontrado com ${minEmp}+ empresas.</td></tr>`;
+  }
+
+  const resumo = document.getElementById("rankingResumo");
+  if (resumo) {
+    resumo.innerHTML =
+      `Postes com <b>${minEmp}+</b> empresas: <b>${rows.length.toLocaleString("pt-BR")}</b>` +
+      (maxEmp ? ` · Máximo encontrado: <b>${maxEmp}</b>` : "") +
+      (apenasVisiveis ? `<br><small style="color:#64748b;">(apenas área visível)</small>` : "");
+  }
+}
+
+function exportarRanking8MaisCSV() {
+  const rows = __rankingLastRows || [];
+  if (!rows.length) return alert("Nada para exportar. Gere o ranking primeiro.");
+
+  const meta = __rankingLastMeta || {};
+  const header = ["ID_POSTE","MUNICIPIO","QTD_EMPRESAS","EMPRESAS"].join(";") + "\n";
+  const body = rows.map(r => {
+    const esc = (v) => `"${String(v ?? "").replace(/"/g,'""')}"`;
+    return [esc(r.id), esc(r.municipio), String(r.qtd), esc(r.empresas)].join(";");
+  }).join("\n") + "\n";
+
+  const info = `# Ranking 8+ empresas | min=${meta.minEmp ?? 8} | limite=${meta.limite ?? rows.length} | apenasVisiveis=${meta.apenasVisiveis ? "sim" : "nao"}\n`;
+  const csv = info + header + body;
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ranking_postes_${meta.minEmp ?? 8}mais.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 (function injectExtraPanelButtons() {
   const actions = document.querySelector(".painel-busca .actions");
   if (!actions) return;
@@ -4843,6 +5136,9 @@ function ensureBIModal() {
         <div id="detalhesMunicipio" class="bi-detalhes" style="display:none;">
           <h4>Detalhes de <span id="detMunicipioNome"></span></h4>
           <div id="detMunicipioResumo" class="bi-detalhes-resumo"></div>
+          <button id="btnExportarEmpresasMunicipio" class="bi-btn" style="margin-top:6px;">
+            <i class="fa fa-file-csv"></i> Exportar empresas do município
+          </button>
 
           <div class="bi-detalhes-cols">
             <div>
@@ -4882,6 +5178,7 @@ function ensureBIModal() {
   document.getElementById("fecharIndicadores")?.addEventListener("click", fecharIndicadores);
   document.getElementById("filtroEmpresaBI")?.addEventListener("input", atualizarIndicadores);
   document.getElementById("apenasVisiveisBI")?.addEventListener("change", atualizarIndicadores);
+  document.getElementById("btnExportarEmpresasMunicipio")?.addEventListener("click", exportarEmpresasMunicipioSelecionado);
 
   map.on("moveend zoomend", () => {
     const modal = document.getElementById("modalIndicadores");
@@ -4993,6 +5290,7 @@ function mostrarDetalhesMunicipio(municipio) {
   const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
 
   const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
+  try { window.__biMunicipioSelecionado = municipio; window.__biMunicipioDetalhes = det; } catch (_) {}
 
   nomeEl.textContent = municipio;
 
@@ -5010,6 +5308,38 @@ function mostrarDetalhesMunicipio(municipio) {
   if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
 
   box.style.display = det.totalPostes ? "block" : "none";
+function exportarEmpresasMunicipioSelecionado() {
+  const municipio = (window.__biMunicipioSelecionado || "").toString();
+  if (!municipio) return alert('Selecione um município em "Ver empresas" para exportar.');
+
+  const empresa = document.getElementById("filtroEmpresaBI")?.value || "";
+  const apenasVisiveis = !!document.getElementById("apenasVisiveisBI")?.checked;
+
+  const det = getDetalhesMunicipioAgregado(municipio, { empresa, apenasVisiveis });
+  const rows = det.empresasRows || [];
+
+  if (!rows.length) return alert("Sem empresas para exportar neste município com os filtros atuais.");
+
+  const header = ["MUNICIPIO","EMPRESA","QTD_POSTES"].join(";") + "\n";
+  const body = rows.map(r => {
+    const esc = (v) => `"${String(v ?? "").replace(/"/g,'""')}"`;
+    return [esc(municipio), esc(r.nome), String(r.qtd)].join(";");
+  }).join("\n") + "\n";
+
+  const info = `# Empresas por município | municipio="${municipio}" | filtroEmpresa="${empresa || "-"}" | apenasVisiveis=${apenasVisiveis ? "sim" : "nao"}\n`;
+  const csv = info + header + body;
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `empresas_${municipio.toLowerCase().replace(/\W+/g,"_")}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 }
 
 function attachChartClickHandler() {
