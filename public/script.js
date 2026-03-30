@@ -1859,9 +1859,10 @@ function exibirTodosPostes() {
         filter: ["has", "point_count"],
         paint: {
           "circle-radius": ["step", ["get", "point_count"], 20, 50, 26, 200, 32, 1000, 40],
-          "circle-color": "rgba(0,0,0,0.18)",
+          "circle-color": "rgba(0,0,0,0.0)",
           "circle-blur": 0.8,
-          "circle-translate": [0, 2]
+          "circle-translate": [0, 2],
+          "circle-opacity": 0.0
         }
       });
     }
@@ -1876,8 +1877,8 @@ function exibirTodosPostes() {
           "circle-color": ["step", ["get", "point_count"], "#60a5fa", 50, "#3b82f6", 200, "#2563eb", 1000, "#1d4ed8"],
           "circle-radius": ["step", ["get", "point_count"], 16, 50, 20, 200, 26, 1000, 32],
           "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2,
-          "circle-opacity": 0.96
+          "circle-stroke-width": 0,
+          "circle-opacity": 0.0
         }
       });
     }
@@ -1890,9 +1891,9 @@ function exibirTodosPostes() {
         filter: ["has", "point_count"],
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
-          "text-size": 12,
+          "text-size": 14,
                   },
-        paint: { "text-color": "#ffffff" }
+        paint: { "text-color": "#111827", "text-halo-color": "#ffffff", "text-halo-width": 2.2 }
       });
     }
 
@@ -1907,7 +1908,7 @@ function exibirTodosPostes() {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4, 17, 7, 20, 10],
           "circle-color": ["case",
             [">=", ["get", "qtd_empresas"], 9], "rgba(185,28,28,0.55)",
-            [">=", ["get", "qtd_empresas"], 5], "rgba(239,68,68,0.40)",
+            [">=", ["get", "qtd_empresas"], 5], "rgba(245,158,11,0.45)",
             "rgba(34,197,94,0.30)"
           ],
           "circle-blur": 0.8,
@@ -1963,16 +1964,16 @@ function exibirTodosPostes() {
         ],
         minzoom: 13,
         layout: {
-          "text-field": "⭐",
-          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 12, 16, 16, 18, 20, 20, 24],
-          "text-offset": [0, -3.6],
-          "text-anchor": "center",
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-pitch-alignment": "viewport",
-          "text-rotation-alignment": "viewport"
+          "icon-image": "crit-star",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.22, 16, 0.28, 18, 0.34, 20, 0.44],
+          "icon-offset": [0, -3.0],
+          "icon-anchor": "center",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-pitch-alignment": "viewport",
+          "icon-rotation-alignment": "viewport"
         },
-        paint: { "text-opacity": 1 }
+        paint: { "icon-opacity": 1 }
       });
     }
 
@@ -2165,16 +2166,16 @@ if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
         filter: [">", ["get", "qtd_empresas"], 8],
         minzoom: 13,
         layout: {
-          "text-field": "⭐",
-          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 12, 16, 16, 18, 20, 20, 24],
-          "text-offset": [0, -3.6],
-          "text-anchor": "center",
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-pitch-alignment": "viewport",
-          "text-rotation-alignment": "viewport"
+          "icon-image": "crit-star",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.22, 16, 0.28, 18, 0.34, 20, 0.44],
+          "icon-offset": [0, -3.0],
+          "icon-anchor": "center",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-pitch-alignment": "viewport",
+          "icon-rotation-alignment": "viewport"
         },
-        paint: { "text-opacity": 1 }
+        paint: { "icon-opacity": 1 }
       });
     }
 
@@ -2345,7 +2346,7 @@ function limparCamadasMassivas3D() {
       feats.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
-        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 5 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p) }
+        properties: { id: String(p.id || ""), numero: String(i + 1), cor: (qtd > 8 ? "#ef4444" : (qtd >= 5 ? "#f59e0b" : "#22c55e")), material_tipo: getMaterialTipo(p) }
       });
     });
 
@@ -2816,6 +2817,18 @@ function limparCamadasMassivas3D() {
         preserveDrawingBuffer: false
       });
 
+      // Evita warnings de ícones ausentes (fallback transparente)
+      if (!map3d.__styleImgMissingBound) {
+        map3d.__styleImgMissingBound = true;
+        map3d.on("styleimagemissing", (e) => {
+          try {
+            if (!e || !e.id || map3d.hasImage(e.id)) return;
+            const data = new Uint8Array([0,0,0,0]);
+            map3d.addImage(e.id, { width: 1, height: 1, data }, { pixelRatio: 1 });
+          } catch (_) {}
+        });
+      }
+
       map3d.addControl(new maplibregl.NavigationControl(), "top-right");
 
       map3d.on("load", async () => {
@@ -2869,6 +2882,16 @@ function limparCamadasMassivas3D() {
         const treeSprite = await svgToPngImageData(SVG_TREE_3D, 64, 64);
         if (treeSprite && !map3d.hasImage("tree-3d")) {
           map3d.addImage("tree-3d", treeSprite, { pixelRatio: 2 });
+        }
+
+        // ⭐ Ícone do poste crítico (>8 empresas)
+        const SVG_STAR_CRIT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M32 6l7.6 15.4 17 2.5-12.3 12 2.9 17-15.2-8-15.2 8 2.9-17L7.4 23.9l17-2.5L32 6z"
+        fill="#facc15" stroke="#b45309" stroke-width="3" stroke-linejoin="round"/>
+</svg>`;
+        const starSprite = await svgToPngImageData(SVG_STAR_CRIT, 64, 64);
+        if (starSprite && !map3d.hasImage("crit-star")) {
+          map3d.addImage("crit-star", starSprite, { pixelRatio: 2 });
         }
 
         resetarEstrutura3D();
@@ -3152,7 +3175,7 @@ window.consultarIDsEmMassa = function () {
 
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      const cor = qtd >= 5 ? "red" : "green";
+      const cor = (qtd > 8 ? "red" : (qtd >= 5 ? "orange" : "green"));
       const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
       const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
@@ -4620,7 +4643,7 @@ function consultarIDsEmMassa() {
 
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 5 ? "red" : "green";
+  const cor = (qtd > 8 ? "red" : (qtd >= 5 ? "orange" : "green"));
   const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
@@ -5511,6 +5534,8 @@ function mostrarDetalhesMunicipio(municipio) {
   if (logTb) logTb.innerHTML = montarLinhasMiniTabela(det.logradourosRows);
 
   box.style.display = det.totalPostes ? "block" : "none";
+}
+
 function exportarEmpresasMunicipioSelecionado() {
   const municipio = (window.__biMunicipioSelecionado || "").toString();
   if (!municipio) return alert('Selecione um município em "Ver empresas" para exportar.');
@@ -5543,7 +5568,9 @@ function exportarEmpresasMunicipioSelecionado() {
   URL.revokeObjectURL(url);
 }
 
-}
+// Aliases de compatibilidade (evita ReferenceError em versões antigas)
+try { window.__exportarEmpresasMunicipioSelecionado = exportarEmpresasMunicipioSelecionado; } catch (_) {}
+try { window.__atualizarEstadoBotaoSelecaoSelecionando = function(){ try{ if (typeof atualizarEstadoBotaoSelecao==="function") atualizarEstadoBotaoSelecao(); }catch(_){} }; } catch (_) {}
 
 function attachChartClickHandler() {
   if (!chartMunicipiosRef) return;
