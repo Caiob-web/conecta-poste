@@ -12,7 +12,7 @@
   const css = `
     .poste-alert-tooltip{
       background: rgba(255,255,255,0.96);
-      color: #b91c1c;
+      color: #b91c1c !important;
       border-radius: 999px;
       padding: 2px 7px;
       box-shadow: 0 6px 16px rgba(0,0,0,.18);
@@ -648,7 +648,7 @@ function dotStyle(qtdEmpresas) {
     radius: 4,
     color: "#111827",
     weight: 0.5,
-    fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
+    fillColor: (Number(qtdEmpresas || 0) > 8 ? "#d64545" : "#24a148"),
     fillOpacity: 0.9
   };
 }
@@ -2196,6 +2196,13 @@ if (!map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) {
         }
       });
     }
+
+// Garantia: mantém as estrelas acima de todas as camadas (normal e análise)
+try {
+  if (map3d.getLayer("postes-3d-critical-star")) map3d.moveLayer("postes-3d-critical-star");
+  if (map3d.getLayer("postes-3d-mass-critical-star")) map3d.moveLayer("postes-3d-mass-critical-star");
+} catch (_) {}
+
   }
 
   function abrirPopup3DDoPoste(poste) {
@@ -3334,7 +3341,7 @@ const avisoReprovHtml = criticos9Mais.length
           border-radius: 12px;
           border: 1px solid rgba(239,68,68,.65);
           background: rgba(254,226,226,0.95);
-          color: #7f1d1d;
+          color: #7f1d1d !important;
           font: 900 12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial;
           box-shadow: 0 8px 22px rgba(0,0,0,.18);
         ">
@@ -5318,7 +5325,7 @@ function exportarRanking8MaisCSV() {
   } else {
     btnRk = document.createElement("button");
     btnRk.id = "btnRanking8Mais";
-    btnRk.innerHTML = \'<i class="fa fa-trophy"></i> Ranking 8+\';
+    btnRk.innerHTML = '<i class="fa fa-trophy"></i> Ranking 8+';
     btnRk.addEventListener("click", () => { try { abrirRanking8Mais(); } catch (e) { console.error("Ranking 8+ erro:", e); } });
     actions.appendChild(btnRk);
   }
