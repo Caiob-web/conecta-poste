@@ -648,7 +648,7 @@ function dotStyle(qtdEmpresas) {
     radius: 4,
     color: "#111827",
     weight: 0.5,
-    fillColor: (qtdEmpresas >= 8 ? "#d64545" : "#24a148"),
+    fillColor: (qtdEmpresas >= 5 ? "#d64545" : "#24a148"),
     fillOpacity: 0.9
   };
 }
@@ -1785,26 +1785,6 @@ function exibirTodosPostes() {
         }
       });
     }
-     if (!map3d.getLayer("postes-3d-mass-critical-star")) {
-  map3d.addLayer({
-    id: "postes-3d-mass-critical-star",
-    type: "symbol",
-    source: MAP3D_SOURCE_MASS,
-    filter: [">=", ["get", "qtd_empresas"], 9],
-    minzoom: 13,
-    layout: {
-      "text-field": "⭐",
-      "text-size": ["interpolate", ["linear"], ["zoom"], 13, 10, 16, 14, 18, 18, 20, 22],
-      "text-offset": [0, -2.8],
-      "text-anchor": "center",
-      "text-allow-overlap": true,
-      "text-ignore-placement": true,
-      "text-pitch-alignment": "viewport",
-      "text-rotation-alignment": "viewport"
-    },
-    paint: { "text-opacity": 1 }
-  });
-}
 
     if (!map3d.getLayer(MAP3D_LAYER_CLUSTER)) {
       map3d.addLayer({
@@ -1846,8 +1826,8 @@ function exibirTodosPostes() {
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 4, 17, 7, 20, 10],
           "circle-color": ["case",
-           [">=", ["get", "qtd_empresas"], 9], "rgba(185,28,28,0.55)",
-           [">=", ["get", "qtd_empresas"], 8], "rgba(239,68,68,0.40)",
+            [">=", ["get", "qtd_empresas"], 9], "rgba(185,28,28,0.55)",
+            [">=", ["get", "qtd_empresas"], 5], "rgba(239,68,68,0.40)",
             "rgba(34,197,94,0.30)"
           ],
           "circle-blur": 0.8,
@@ -1890,7 +1870,33 @@ function exibirTodosPostes() {
       });
     }
 
-    if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
+    
+    // ⭐ Postes críticos (9+ empresas): estrela acima do poste (modo normal)
+    if (!map3d.getLayer("postes-3d-critical-star")) {
+      map3d.addLayer({
+        id: "postes-3d-critical-star",
+        type: "symbol",
+        source: MAP3D_SOURCE_ACTIVE,
+        filter: ["all",
+          ["!", ["has", "point_count"]],
+          [">", ["get", "qtd_empresas"], 8]
+        ],
+        minzoom: 13,
+        layout: {
+          "text-field": "⭐",
+          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 12, 16, 16, 18, 20, 20, 24],
+          "text-offset": [0, -3.6],
+          "text-anchor": "center",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-pitch-alignment": "viewport",
+          "text-rotation-alignment": "viewport"
+        },
+        paint: { "text-opacity": 1 }
+      });
+    }
+
+if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
       map3d.addLayer({
         id: MAP3D_LAYER_POINT_LABELS,
         type: "symbol",
@@ -1910,32 +1916,6 @@ function exibirTodosPostes() {
           "text-color": "#111827",
           "text-halo-color": "#ffffff",
           "text-halo-width": 1.6
-        }
-      });
-    }
-     // ★ Estrela de alerta para postes críticos (>8 empresas) no 3D
-    if (!map3d.getLayer("postes-3d-critical-star")) {
-      map3d.addLayer({
-        id: "postes-3d-critical-star",
-        type: "symbol",
-        source: MAP3D_SOURCE_ACTIVE,
-        filter: ["all",
-          ["!", ["has", "point_count"]],
-          [">=", ["get", "qtd_empresas"], 9]
-        ],
-        minzoom: 13,
-        layout: {
-          "text-field": "⭐",
-          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 10, 16, 14, 18, 18, 20, 22],
-          "text-offset": [0, -2.8],
-          "text-anchor": "center",
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-pitch-alignment": "viewport",
-          "text-rotation-alignment": "viewport"
-        },
-        paint: {
-          "text-opacity": 1
         }
       });
     }
@@ -2095,7 +2075,30 @@ function exibirTodosPostes() {
     }
 
 
-    if (!map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) {
+    
+    // ⭐ Postes críticos (9+ empresas): estrela acima do poste (modo análise)
+    if (!map3d.getLayer("postes-3d-mass-critical-star")) {
+      map3d.addLayer({
+        id: "postes-3d-mass-critical-star",
+        type: "symbol",
+        source: MAP3D_SOURCE_MASS,
+        filter: [">", ["get", "qtd_empresas"], 8],
+        minzoom: 13,
+        layout: {
+          "text-field": "⭐",
+          "text-size": ["interpolate", ["linear"], ["zoom"], 13, 12, 16, 16, 18, 20, 20, 24],
+          "text-offset": [0, -3.6],
+          "text-anchor": "center",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-pitch-alignment": "viewport",
+          "text-rotation-alignment": "viewport"
+        },
+        paint: { "text-opacity": 1 }
+      });
+    }
+
+if (!map3d.getLayer(MAP3D_LAYER_MASS_LABELS)) {
       map3d.addLayer({
         id: MAP3D_LAYER_MASS_LABELS,
         type: "symbol",
@@ -2189,10 +2192,10 @@ function handleSelecao3D(poste) {
       MAP3D_LAYER_POINT_GLOW,
       MAP3D_LAYER_POINT_BODY,
       MAP3D_LAYER_POINT_LABELS,
+      "postes-3d-critical-star",
       MAP3D_LAYER_SELECTED_GLOW,
       MAP3D_LAYER_SELECTED,
-      MAP3D_LAYER_ROUTE,
-      "postes-3d-critical-star"
+      MAP3D_LAYER_ROUTE
     ];
 
     const analiseLayers = [
@@ -2203,7 +2206,7 @@ function handleSelecao3D(poste) {
       MAP3D_LAYER_MASS,
       MAP3D_LAYER_MASS_ICON,
       MAP3D_LAYER_MASS_LABELS,
-      "postes-3d-mass-critical-star"
+      "postes-3d-mass-critical-star",
     ];
 
     const setVis = (layerId, vis) => {
@@ -2262,7 +2265,7 @@ function limparCamadasMassivas3D() {
       feats.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
-        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 8 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p), qtd_empresas: qtd }
+        properties: { id: String(p.id || ""), numero: String(i + 1), cor: qtd >= 5 ? "#ef4444" : "#22c55e", material_tipo: getMaterialTipo(p) }
       });
     });
 
@@ -3017,6 +3020,25 @@ window.consultarIDsEmMassa = function () {
       .map((id) => todosPostes.find((p) => normId(p.id) === normId(id)))
       .filter(Boolean);
 
+    // 🚫 Regra: projeto deve ser REPROVADO se existir poste com 9+ empresas
+    const __criticosAcima8 = encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) > 8);
+    try {
+      window.__analiseCriticosAcima8 = {
+        total: __criticosAcima8.length,
+        ids: __criticosAcima8.map((p) => p.id),
+      };
+      window.__analiseAvisoReprovacaoHtml = __criticosAcima8.length
+        ? `<div style="margin:6px 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(185,28,28,.35);background:rgba(254,226,226,.95);color:#7f1d1d;font:700 12px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Arial;">
+            ⚠️ <b>ATENÇÃO:</b> Foram encontrados <b>${__criticosAcima8.length}</b> poste(s) com <b>9+ empresas</b>. 
+            Pela regra do projeto, este caso deve ser <b>REPROVADO</b> (acima de 8 empresas).
+            <div style="margin-top:6px;font-weight:600;opacity:.9;">
+              IDs críticos: ${__criticosAcima8.slice(0, 20).map(p => escapeHtml(p.id)).join(", ")}${__criticosAcima8.length > 20 ? "…" : ""}
+            </div>
+          </div>`
+        : "";
+    } catch (_) {}
+
+
     // guarda a sequência encontrada para PDF/relatórios (polígono/traçado)
     try { window.analiseEncontrados = encontrados.slice(); } catch (_) {}
 
@@ -3050,7 +3072,7 @@ window.consultarIDsEmMassa = function () {
 
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      const cor = qtd >= 8 ? "red" : "green";
+      const cor = qtd >= 5 ? "red" : "green";
       const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
       const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
@@ -3188,8 +3210,8 @@ window.consultarIDsEmMassa = function () {
       total: ids.length,
       encontrados: encontrados.length,
       dist_total_m: totalDist,
-      disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 7).length,
-      ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 8).length,
+      disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
+      ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
       naoEncontrados: ids.filter((id) => !todosPostes.some((p) => normId(p.id) === normId(id))),
       intermediarios: window.intermediarios.length,
     };
@@ -4270,8 +4292,8 @@ function consultarIDsEmMassa() {
 
   window.ultimoResumoPostes = {
     total: ids.length,
-    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 7).length,
-    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 8).length,
+    disponiveis: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) <= 4).length,
+    ocupados: encontrados.filter((p) => (Array.isArray(p.empresas) ? p.empresas.length : 0) >= 5).length,
     naoEncontrados: ids.filter((id) => !todosPostes.some((p) => keyId(p.id) === keyId(id))),
     intermediarios: window.intermediarios.length,
   };
@@ -4284,7 +4306,7 @@ function consultarIDsEmMassa() {
 
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 8 ? "red" : "green";
+  const cor = qtd >= 5 ? "red" : "green";
   const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
