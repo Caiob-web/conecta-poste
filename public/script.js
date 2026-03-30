@@ -3152,7 +3152,7 @@ window.consultarIDsEmMassa = function () {
 
     const addNumero = (p, num) => {
       const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-      const cor = qtd >= 8 ? "red" : "green";
+      const cor = qtd >= 5 ? "red" : "green";
       const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
       const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
 
@@ -4417,7 +4417,7 @@ function consultarIDsEmMassa() {
 
 function adicionarNumerado(p, num) {
   const qtd = Array.isArray(p.empresas) ? p.empresas.length : 0;
-  const cor = qtd >= 8 ? "red" : "green";
+  const cor = qtd >= 5 ? "red" : "green";
   const html = `<div style="background:${cor};color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${num}</div>`;
   const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ html }) });
   mk.bindTooltip(`${p.id}`, { direction: "top", sticky: true });
