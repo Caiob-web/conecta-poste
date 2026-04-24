@@ -4713,9 +4713,28 @@ function gerarPDFComMapa() {
     }
   };
 
-  const finalizar = () => {
-    try { doc.save("relatorio_projeto.pdf"); } catch (e) { alert("Falha ao baixar o PDF."); }
-  };
+ const finalizar = () => {
+  const filename = "relatorio_projeto.pdf";
+
+  // tenta o save padrão
+  try { doc.save(filename); return; } catch (_) {}
+
+  // fallback: baixa via blob/url
+  try {
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (e) {
+    console.error("Falha ao baixar PDF:", e);
+    alert("Falha ao baixar o PDF.");
+  }
+};
 
   const desenharEsquemaProjetoNoPDF = (docRef, x, y, w, h) => {
     const ptsObj = Array.isArray(window.analiseEncontrados) ? window.analiseEncontrados : [];
@@ -4825,37 +4844,43 @@ function gerarPDFComMapa() {
     }
   };
 
-  const capturarLeafletDataURL = () => new Promise((resolve) => {
+const capturarLeafletDataURL = () => new Promise((resolve) => {
+  // ✅ se a lib não existir, não trava o PDF — cai no fallback vetorial
+  if (typeof leafletImage !== "function") return resolve(null);
+
+  try {
+    const hadCarto = map.hasLayer(cartoPositronAll);
+    const hadOSM = map.hasLayer(osm);
+
     try {
-      // tenta trocar momentaneamente para um basemap com CORS (Carto) para permitir canvas
-      const hadCarto = map.hasLayer(cartoPositronAll);
-      const hadOSM = map.hasLayer(osm);
+      if (!hadCarto) map.addLayer(cartoPositronAll);
+      if (hadOSM) map.removeLayer(osm);
+    } catch (_) {}
 
+    setTimeout(() => {
       try {
-        if (!hadCarto) map.addLayer(cartoPositronAll);
-        if (hadOSM) map.removeLayer(osm);
-      } catch (_) {}
-
-      setTimeout(() => {
         leafletImage(map, (err, canvas) => {
-          // restaura basemap original
+          // restaura basemap
           try {
             if (!hadCarto && map.hasLayer(cartoPositronAll)) map.removeLayer(cartoPositronAll);
             if (hadOSM && !map.hasLayer(osm)) map.addLayer(osm);
           } catch (_) {}
 
           if (err || !canvas) return resolve(null);
-          try {
-            resolve(canvas.toDataURL("image/png"));
-          } catch (_) {
-            resolve(null);
-          }
+
+          try { return resolve(canvas.toDataURL("image/png")); }
+          catch (_) { return resolve(null); }
         });
-      }, 180);
-    } catch (_) {
-      resolve(null);
-    }
-  });
+      } catch (e) {
+        console.error("leafletImage falhou:", e);
+        return resolve(null);
+      }
+    }, 180);
+  } catch (e) {
+    console.error("capturarLeafletDataURL falhou:", e);
+    return resolve(null);
+  }
+});
 
   (async () => {
     // Tenta captura do 3D primeiro (se estiver no 3D)
