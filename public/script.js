@@ -3239,9 +3239,23 @@ window.consultarIDsEmMassa = function () {
           )
           .forEach((p) => {
             const empresasStr = typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível";
-            const cm = L.circleMarker([p.lat, p.lon], {
-              radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
-            })
+           const cm = L.circleMarker([p.lat, p.lon], {
+           pane: "postes",                 // ✅ isso resolve 90% dos casos
+           radius: 6,
+           color: "gold",
+           fillColor: "yellow",
+           fillOpacity: 0.8
+         })
+         .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
+         .on("click", (e) => {
+           if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
+         
+           // se estiver em seleção, ele só seleciona e não abre popup:
+           if (handleSelecaoClick(p, cm)) return;
+         
+           try { cm.openTooltip?.(); } catch {}
+           abrirPopup(p);                 // ✅ popup completo com infos
+         });
               .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
               .on("mouseover", () => {
                 if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
