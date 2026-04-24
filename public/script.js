@@ -4846,12 +4846,47 @@ function gerarPDFComMapa() {
   };
 
   const capturarLeafletDataURL = () => new Promise((resolve) => {
+    let done = false;
+    let tmr = null;
+
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      try { if (tmr) clearTimeout(tmr); } catch (_) {}
+      try { window.removeEventListener("error", onErr, true); } catch (_) {}
+      resolve(val);
+    };
+
+    // ✅ captura erros internos do leaflet-image (ex.: 'match' em undefined) e não deixa travar o PDF
+    const onErr = (ev) => {
+      try {
+        const file = String(ev?.filename || "");
+        const msg  = String(ev?.message  || "");
+        if (file.includes("leaflet-image") || msg.includes("leaflet-image") || msg.includes("reading 'match'")) {
+          try { ev.preventDefault?.(); } catch (_) {}
+          finish(null);
+        }
+      } catch (_) {}
+    };
+
     try {
-      // ✅ guard: se leaflet-image não estiver carregado, não trava o PDF
-      if (typeof leafletImage !== "function") return resolve(null);
-      // tenta trocar momentaneamente para um basemap com CORS (Carto) para permitir canvas
+      if (typeof leafletImage !== "function") return finish(null);
+
+      // timeout de segurança: nunca pode ficar preso aguardando captura
+      tmr = setTimeout(() => finish(null), 4500);
+
+      window.addEventListener("error", onErr, true);
+
+      // troca momentânea para basemap com CORS (Carto) para permitir canvas
       const hadCarto = map.hasLayer(cartoPositronAll);
       const hadOSM = map.hasLayer(osm);
+
+      // ⚠️ remove cluster temporariamente (DivIcon quebra leaflet-image e gera erro de 'match')
+      const hadClusters = (typeof markers !== "undefined" && markers && map.hasLayer(markers));
+
+      try {
+        if (hadClusters) map.removeLayer(markers);
+      } catch (_) {}
 
       try {
         if (!hadCarto) map.addLayer(cartoPositronAll);
@@ -4859,20 +4894,40 @@ function gerarPDFComMapa() {
       } catch (_) {}
 
       setTimeout(() => {
-        leafletImage(map, (err, canvas) => {
-          // restaura basemap original
+        try {
+          leafletImage(map, (err, canvas) => {
+            // restaura basemap/camadas como estavam
+            try {
+              if (!hadCarto && map.hasLayer(cartoPositronAll)) map.removeLayer(cartoPositronAll);
+              if (hadOSM && !map.hasLayer(osm)) map.addLayer(osm);
+            } catch (_) {}
+
+            try {
+              if (hadClusters && !map.hasLayer(markers)) map.addLayer(markers);
+            } catch (_) {}
+
+            if (err || !canvas) return finish(null);
+
+            try {
+              finish(canvas.toDataURL("image/png"));
+            } catch (_) {
+              finish(null);
+            }
+          });
+        } catch (e) {
+          console.error("leafletImage falhou:", e);
           try {
             if (!hadCarto && map.hasLayer(cartoPositronAll)) map.removeLayer(cartoPositronAll);
             if (hadOSM && !map.hasLayer(osm)) map.addLayer(osm);
+            if (hadClusters && !map.hasLayer(markers)) map.addLayer(markers);
           } catch (_) {}
-
-          if (err || !canvas) return resolve(null);
-          try {
-            resolve(canvas.toDataURL("image/png"));
-          } catch (_) {
-            resolve(null);
-          }
-        });
+          finish(null);
+        }
+      }, 220);
+    } catch (_) {
+      finish(null);
+    }
+  });
       }, 180);
     } catch (_) {
       resolve(null);
