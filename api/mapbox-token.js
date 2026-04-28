@@ -1,3 +1,6 @@
+// /api/mapbox-token.js (Vercel Serverless Function)
+// Lê o token público do Mapbox a partir da variável de ambiente MAPBOX_TOKEN.
+// (Mantém compatibilidade com nomes antigos caso existam, mas o principal é MAPBOX_TOKEN.)
 module.exports = function handler(req, res) {
   try {
     const token =
