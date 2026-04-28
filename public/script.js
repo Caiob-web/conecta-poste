@@ -541,7 +541,7 @@ let map3d = null;
 let map3dLoaded = false;
 let modoMapaAtual = "2d";
 
-const MAP3D_STYLE = "https://tiles.openfreemap.org/styles/bright";
+const MAP3D_STYLE = "mapbox://styles/mapbox/streets-v12";
 
 // cache único do 3D
 let postes3DSourceLoaded = false;
@@ -1567,13 +1567,48 @@ function exibirTodosPostes() {
 // script-3d-override.js
 // Override completo do modo 3D com clusters + poste 3D + funções do 2D
 // =====================================================================
+
 (function () {
-  if (typeof maplibregl === "undefined") {
-    console.error("MapLibre GL não encontrado.");
+  // ================================
+  // Mapbox token (carregado sob demanda)
+  // - Preferência: /api/mapbox-token (env no Vercel)
+  // - Fallback: window.MAPBOX_TOKEN (token público 'pk.' com URL restriction)
+  // ================================
+  let __MAPBOX_TOKEN_CACHE__ = null;
+  async function __getMapboxToken__() {
+    if (__MAPBOX_TOKEN_CACHE__) return __MAPBOX_TOKEN_CACHE__;
+    try {
+      const w = (typeof window !== "undefined") ? window : null;
+      const t1 = w && w.MAPBOX_TOKEN ? String(w.MAPBOX_TOKEN) : "";
+      if (t1 && t1.startsWith("pk.")) {
+        __MAPBOX_TOKEN_CACHE__ = t1;
+        return t1;
+      }
+    } catch (_) {}
+
+    try {
+      const r = await fetch("/api/mapbox-token", { cache: "no-store", credentials: "same-origin" });
+      if (r && r.ok) {
+        const j = await r.json();
+        const t2 = (j && (j.token || j.mapboxToken)) ? String(j.token || j.mapboxToken) : "";
+        if (t2 && t2.startsWith("pk.")) {
+          __MAPBOX_TOKEN_CACHE__ = t2;
+          return t2;
+        }
+      }
+    } catch (e) {
+      console.warn("Falha ao buscar /api/mapbox-token:", e);
+    }
+
+    return "";
+  }
+
+  if (typeof mapboxgl === "undefined") {
+    console.error("Mapbox GL JS não encontrado.");
     return;
   }
 
-  const MAP3D_STYLE = "https://tiles.openfreemap.org/styles/bright";
+  const MAP3D_STYLE = "mapbox://styles/mapbox/streets-v12";
 
   const MAP3D_SOURCE_ACTIVE = "postes-geojson-active";
   const MAP3D_SOURCE_SELECTED = "postes-geojson-selected";
@@ -2228,7 +2263,7 @@ try {
     if (ultimoPopup3D) {
       try { ultimoPopup3D.remove(); } catch (_) {}
     }
-    ultimoPopup3D = new maplibregl.Popup({ closeButton: true, maxWidth: "380px" })
+    ultimoPopup3D = new mapboxgl.Popup({ closeButton: true, maxWidth: "380px" })
       .setLngLat([Number(poste.lon), Number(poste.lat)])
       .setHTML(montarPopupModeloCard(poste))
       .addTo(map3d);
@@ -2664,7 +2699,7 @@ function limparCamadasMassivas3D() {
     if (!lista || !lista.length) return;
 
     if (is3D && map3d) {
-      const bounds = new maplibregl.LngLatBounds();
+      const bounds = new mapboxgl.LngLatBounds();
       lista.forEach((p) => bounds.extend([Number(p.lon), Number(p.lat)]));
       map3d.fitBounds(bounds, { padding: 80, duration: 1000, pitch: 60, bearing: -25 });
     } else {
@@ -2707,7 +2742,7 @@ function limparCamadasMassivas3D() {
         try { ultimoPopup3D.remove(); } catch (_) {}
       }
 
-      ultimoPopup3D = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
+      ultimoPopup3D = new mapboxgl.Popup({ closeButton: true, maxWidth: "260px" })
         .setLngLat([Number(lon), Number(lat)])
         .setHTML(`<b>Coordenada:</b> ${lat}, ${lon}`)
         .addTo(map3d);
@@ -2813,22 +2848,27 @@ function limparCamadasMassivas3D() {
 
     document.body.classList.add("modo-3d-ativo");
 
+    // Mapbox: define token somente quando entrar no 3D (evita consumo desnecessário)
+    try {
+      const __t = await __getMapboxToken__();
+      if (!__t) {
+        alert("Token Mapbox não configurado. Configure MAPBOX_TOKEN no Vercel (ou defina window.MAPBOX_TOKEN).");
+        document.body.classList.remove("modo-3d-ativo");
+        return;
+      }
+      mapboxgl.accessToken = __t;
+    } catch (e) {
+      console.error("Falha ao definir token Mapbox:", e);
+      document.body.classList.remove("modo-3d-ativo");
+      return;
+    }
+
     if (map.hasLayer(markers)) map.removeLayer(markers);
 
     if (!map3d) {
-      map3d = new maplibregl.Map({
+      map3d = new mapboxgl.Map({
         container: "map3d",
-        style: MAP3D_STYLE,
-        transformRequest: (url, resourceType) => {
-          try {
-            if (resourceType === "Glyphs" && String(url).includes("tiles.openfreemap.org")) {
-              const u = new URL(url);
-              const parts = u.pathname.split("/").filter(Boolean);
-              const range = parts.pop();
-              const fontstack = parts.pop();
-              if (fontstack && range) {
-                return { url: `https://demotiles.maplibre.org/font/${fontstack}/${range}` };
-              }
+        style: MAP3D_STYLE
             }
           } catch (_) {}
           return { url };
@@ -2853,7 +2893,7 @@ function limparCamadasMassivas3D() {
         });
       }
 
-      map3d.addControl(new maplibregl.NavigationControl(), "top-right");
+      map3d.addControl(new mapboxgl.NavigationControl(), "top-right");
 
       map3d.on("load", async () => {
         map3dLoaded = true;
