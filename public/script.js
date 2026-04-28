@@ -5,7 +5,7 @@
 
 
 // ================================================================
-//  SCRIPT VERSION: V6-PDF-ANALISE (sem leaflet-image)
+//  SCRIPT VERSION: V7-MODO-2D-OU-3D (sem leaflet-image)
 //  (Gerador de PDF robusto para Análise de Projeto)
 // ================================================================
 (function(){
@@ -1608,7 +1608,213 @@ function exibirTodosPostes() {
     return;
   }
 
-  const MAP3D_STYLE = "mapbox://styles/mapbox/standard";
+  const MAP3D_STYLE_STD = "mapbox://styles/mapbox/standard";
+  const MAP3D_STYLE_SAT = "mapbox://styles/mapbox/standard-satellite"; // satélite + labels + 3D environment
+  const MAP3D_STYLE_SAT_FALLBACK = "mapbox://styles/mapbox/satellite-streets-v12"; // fallback
+  let MAP3D_STYLE = MAP3D_STYLE_STD; // padrão
+  let __map3dBasemapMode = "std"; // "std" | "sat"
+
+  // Cache dos sprites 3D (reutiliza após troca de estilo)
+  let __MB_SPRITES__ = null;
+
+  function __svgToPngImageData3D(svgStr, w, h) {
+    return new Promise((resolve) => {
+      try {
+        const cleanSvg = String(svgStr || "")
+          .replace(/<svg /, '<svg style="background:none;" ')
+          .replace(/background="[^"]*"/g, "")
+          .replace(/background:[^;"']*/g, "background:none");
+
+        const blob = new Blob([cleanSvg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            const scale = 2;
+            canvas.width = w * scale;
+            canvas.height = h * scale;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true, alpha: true });
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            resolve({ width: canvas.width, height: canvas.height, data: imageData.data });
+          } catch (e) {
+            try { URL.revokeObjectURL(url); } catch (_) {}
+            resolve(null);
+          }
+        };
+        img.onerror = () => { try { URL.revokeObjectURL(url); } catch (_) {} resolve(null); };
+        img.src = url;
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  async function __ensureMap3DImages() {
+    if (!map3d) return;
+
+    if (!__MB_SPRITES__) {
+      const [spriteConcreto, spriteMadeira] = await Promise.all([
+        __svgToPngImageData3D(SVG_3D_POSTE_CONCRETO, 64, 128),
+        __svgToPngImageData3D(SVG_3D_POSTE_MADEIRA, 64, 128)
+      ]);
+
+      const SVG_TREE_3D = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="26" cy="22" r="12" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/>
+  <circle cx="38" cy="24" r="14" fill="#388e3c" stroke="#1b5e20" stroke-width="2"/>
+  <circle cx="32" cy="34" r="14" fill="#43a047" stroke="#1b5e20" stroke-width="2"/>
+  <rect x="28" y="34" width="8" height="22" rx="2" fill="#6d4c41" stroke="#4e342e" stroke-width="2"/>
+</svg>`;
+      const treeSprite = await __svgToPngImageData3D(SVG_TREE_3D, 64, 64);
+
+      const SVG_STAR_CRIT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M32 6l7.6 15.4 17 2.5-12.3 12 2.9 17-15.2-8-15.2 8 2.9-17L7.4 23.9l17-2.5L32 6z"
+        fill="#facc15" stroke="#b45309" stroke-width="3" stroke-linejoin="round"/>
+</svg>`;
+      const starSprite = await __svgToPngImageData3D(SVG_STAR_CRIT, 64, 64);
+
+      __MB_SPRITES__ = { spriteConcreto, spriteMadeira, treeSprite, starSprite };
+    }
+
+    try {
+      if (__MB_SPRITES__.spriteConcreto && !map3d.hasImage("poste-concreto-3d")) {
+        map3d.addImage("poste-concreto-3d", __MB_SPRITES__.spriteConcreto, { pixelRatio: 2 });
+      }
+      if (__MB_SPRITES__.spriteMadeira && !map3d.hasImage("poste-madeira-3d")) {
+        map3d.addImage("poste-madeira-3d", __MB_SPRITES__.spriteMadeira, { pixelRatio: 2 });
+      }
+      if (__MB_SPRITES__.treeSprite && !map3d.hasImage("tree-3d")) {
+        map3d.addImage("tree-3d", __MB_SPRITES__.treeSprite, { pixelRatio: 2 });
+      }
+      if (__MB_SPRITES__.starSprite && !map3d.hasImage("crit-star")) {
+        map3d.addImage("crit-star", __MB_SPRITES__.starSprite, { pixelRatio: 2 });
+      }
+    } catch (_) {}
+  }
+
+  async function __init3DStyleAfterChange() {
+    if (!map3d) return;
+    try { await __ensureMap3DImages(); } catch (_) {}
+    try { map3d.setConfigProperty?.("basemap", "lightPreset", "dusk"); } catch (_) {}
+
+    try { postes3DSourceLoaded = false; } catch (_) {}
+    try { resetarEstrutura3D(); } catch (_) {}
+    try { adicionarPredios3D(); } catch (_) {}
+    try { adicionarVegetacao3D(); } catch (_) {}
+    try { await garantirSources3D(); } catch (_) {}
+    try { garantirCamadasPostes3D(); } catch (_) {}
+    try { bindEventosPostes3D(); } catch (_) {}
+    try { bindAtualizacaoPostes3D(); } catch (_) {}
+    try { iniciarAnimacao3D(); } catch (_) {}
+    try { atualizarPostesExtrudados3D(); } catch (_) {}
+  }
+
+  async function __setBasemap3D(mode) {
+    if (!map3d) return;
+    const next = (mode === "sat") ? "sat" : "std";
+    if (__map3dBasemapMode === next) return;
+
+    __map3dBasemapMode = next;
+
+    const style = (next === "sat")
+      ? (MAP3D_STYLE_SAT || MAP3D_STYLE_SAT_FALLBACK)
+      : MAP3D_STYLE_STD;
+
+    const cam = {
+      center: map3d.getCenter(),
+      zoom: map3d.getZoom(),
+      bearing: map3d.getBearing(),
+      pitch: map3d.getPitch()
+    };
+
+    map3d.once("style.load", async () => {
+      try { map3d.jumpTo(cam); } catch (_) {}
+      await __init3DStyleAfterChange();
+      try { map3d.jumpTo(cam); } catch (_) {}
+    });
+
+    try {
+      map3d.setStyle(style, { diff: true });
+    } catch (e) {
+      console.warn("Falha ao trocar estilo 3D:", e);
+    }
+  }
+
+  function __addBasemapToggleControl3D() {
+    if (!map3d || map3d.__basemapToggleCtrl) return;
+
+    try {
+      if (!document.getElementById("mb-basemap-toggle-css")) {
+        const css = `
+          .mb-basemap-toggle{
+            display:inline-flex; gap:6px; padding:6px;
+            background: rgba(15,27,42,.86);
+            border:1px solid rgba(25,214,143,.55);
+            border-radius: 12px;
+            box-shadow: 0 10px 24px rgba(0,0,0,.22);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+          }
+          .mb-basemap-toggle button{
+            border:1px solid rgba(255,255,255,.18);
+            background: rgba(255,255,255,.06);
+            color:#e6edf7;
+            padding:6px 10px;
+            border-radius: 10px;
+            cursor:pointer;
+            font-weight:800;
+            font-size:12px;
+          }
+          .mb-basemap-toggle button.active{
+            background:#19d68f;
+            color:#07251a;
+            border-color:#19d68f;
+          }
+        `;
+        const st = document.createElement("style");
+        st.id = "mb-basemap-toggle-css";
+        st.textContent = css;
+        document.head.appendChild(st);
+      }
+    } catch (_) {}
+
+    class BasemapToggleCtrl {
+      onAdd(map) {
+        this._map = map;
+        const el = document.createElement("div");
+        el.className = "mb-basemap-toggle mapboxgl-ctrl";
+        const bStd = document.createElement("button");
+        bStd.type = "button";
+        bStd.textContent = "Rua";
+        const bSat = document.createElement("button");
+        bSat.type = "button";
+        bSat.textContent = "Satélite";
+
+        const setActive = () => {
+          bStd.classList.toggle("active", __map3dBasemapMode === "std");
+          bSat.classList.toggle("active", __map3dBasemapMode === "sat");
+        };
+        setActive();
+
+        bStd.addEventListener("click", async () => { await __setBasemap3D("std"); setActive(); });
+        bSat.addEventListener("click", async () => { await __setBasemap3D("sat"); setActive(); });
+
+        el.appendChild(bStd);
+        el.appendChild(bSat);
+        this._el = el;
+        return el;
+      }
+      onRemove() {
+        try { this._el?.parentNode?.removeChild(this._el); } catch (_) {}
+        this._map = undefined;
+      }
+    }
+
+    map3d.__basemapToggleCtrl = new BasemapToggleCtrl();
+    try { map3d.addControl(map3d.__basemapToggleCtrl, "top-left"); } catch (_) {}
+  }
 
   const MAP3D_SOURCE_ACTIVE = "postes-geojson-active";
   const MAP3D_SOURCE_SELECTED = "postes-geojson-selected";
@@ -2901,78 +3107,18 @@ function limparCamadasMassivas3D() {
 
       map3d.addControl(new mapboxgl.NavigationControl(), "top-right");
 
+      // Toggle de base 3D (Rua/Satélite)
+      try { __addBasemapToggleControl3D(); } catch (_) {}
+
+
       map3d.on("load", async () => {
         map3dLoaded = true;
 
-        function svgToPngImageData(svgStr, w, h) {
-          return new Promise((resolve) => {
-            const cleanSvg = svgStr
-              .replace(/<svg /, '<svg style="background:none;" ')
-              .replace(/background="[^"]*"/g, '')
-              .replace(/background:[^;"']*/g, 'background:none');
+        // Toggle de base 3D (Rua/Satélite)
+        try { __addBasemapToggleControl3D(); } catch (_) {}
 
-            const blob = new Blob([cleanSvg], { type: "image/svg+xml;charset=utf-8" });
-            const url  = URL.createObjectURL(blob);
-            const img  = new Image();
-
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              const scale  = 2;
-              canvas.width  = w * scale;
-              canvas.height = h * scale;
-              const ctx = canvas.getContext("2d", { willReadFrequently: true, alpha: true });
-              ctx.drawImage(img, 0, 0, w * scale, h * scale);
-              const imageData = ctx.getImageData(0, 0, w * scale, h * scale);
-              URL.revokeObjectURL(url);
-              resolve({ width: w * scale, height: h * scale, data: imageData.data });
-            };
-            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-            img.src = url;
-          });
-        }
-
-        const [spriteConcreto, spriteMadeira] = await Promise.all([
-          svgToPngImageData(SVG_3D_POSTE_CONCRETO, 64, 128),
-          svgToPngImageData(SVG_3D_POSTE_MADEIRA,  64, 128)
-        ]);
-
-        if (spriteConcreto && !map3d.hasImage("poste-concreto-3d")) {
-          map3d.addImage("poste-concreto-3d", spriteConcreto, { pixelRatio: 2 });
-        }
-        if (spriteMadeira && !map3d.hasImage("poste-madeira-3d")) {
-          map3d.addImage("poste-madeira-3d", spriteMadeira, { pixelRatio: 2 });
-        }
-
-                const SVG_TREE_3D = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <circle cx="26" cy="22" r="12" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/>
-  <circle cx="38" cy="24" r="14" fill="#388e3c" stroke="#1b5e20" stroke-width="2"/>
-  <circle cx="32" cy="34" r="14" fill="#43a047" stroke="#1b5e20" stroke-width="2"/>
-  <rect x="28" y="34" width="8" height="22" rx="2" fill="#6d4c41" stroke="#4e342e" stroke-width="2"/>
-</svg>`;
-        const treeSprite = await svgToPngImageData(SVG_TREE_3D, 64, 64);
-        if (treeSprite && !map3d.hasImage("tree-3d")) {
-          map3d.addImage("tree-3d", treeSprite, { pixelRatio: 2 });
-        }
-
-        // ⭐ Ícone do poste crítico (>8 empresas)
-        const SVG_STAR_CRIT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path d="M32 6l7.6 15.4 17 2.5-12.3 12 2.9 17-15.2-8-15.2 8 2.9-17L7.4 23.9l17-2.5L32 6z"
-        fill="#facc15" stroke="#b45309" stroke-width="3" stroke-linejoin="round"/>
-</svg>`;
-        const starSprite = await svgToPngImageData(SVG_STAR_CRIT, 64, 64);
-        if (starSprite && !map3d.hasImage("crit-star")) {
-          map3d.addImage("crit-star", starSprite, { pixelRatio: 2 });
-        }
-
-        resetarEstrutura3D();
-        adicionarPredios3D();
-        adicionarVegetacao3D();
-        await garantirSources3D();
-        garantirCamadasPostes3D();
-        bindEventosPostes3D();
-        bindAtualizacaoPostes3D();
-        iniciarAnimacao3D();
-        atualizarPostesExtrudados3D();
+        // Init do estilo atual (sprites + camadas + eventos)
+        await __init3DStyleAfterChange();
       });
     } else {
       syncLeafletTo3DOverride();
@@ -3773,6 +3919,60 @@ let modoAtual = null;
 let modalModoEl = null;
 const selecionadosSet = new Set();
 
+let modoVisInicial = "2d";
+
+function __setPanelModoButtons__(modo){
+  try{
+    const b2=document.getElementById("btnModo2D");
+    const b3=document.getElementById("btnModo3D");
+    if (b2) b2.classList.toggle("active", modo==="2d");
+    if (b3) b3.classList.toggle("active", modo==="3d");
+  }catch(_){}
+}
+
+async function __init3DAndApplyList__(lista){
+  try{ __setPanelModoButtons__("3d"); }catch(_){}
+  try{ showOverlay("Inicializando modo 3D…"); }catch(_){}
+  try{ await window.ativarMapa3D(); }catch(e){
+    console.error("Falha ao ativar 3D:", e);
+    try{ hideOverlay(); }catch(_){}
+    return;
+  }
+  try{
+    if (typeof window.reconstruirFonte3D === "function") {
+      if (Array.isArray(lista)) window.reconstruirFonte3D(lista);
+      else window.reconstruirFonte3D(null);
+    }
+  }catch(e){ console.warn("Falha ao aplicar filtro 3D:", e); }
+
+  // Zoom para a lista (quando existir)
+  try{
+    if (Array.isArray(lista) && lista.length && typeof map3d !== "undefined" && map3d) {
+      const bounds = new mapboxgl.LngLatBounds();
+      lista.forEach(p=>{ bounds.extend([Number(p.lon), Number(p.lat)]); });
+      map3d.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 800 });
+    }
+  }catch(_){ }
+
+  // Aguarda mapa ficar pronto e fecha overlay
+  try{
+    const t0 = Date.now();
+    const timer = setInterval(()=>{
+      if ((typeof map3dLoaded !== "undefined" && map3dLoaded) || (Date.now()-t0>6000)) {
+        clearInterval(timer);
+        try{ hideOverlay(); }catch(_){}
+      }
+    }, 120);
+  }catch(_){ try{ hideOverlay(); }catch(_){} }
+}
+
+async function __init2DAndLoadAll__(cbLoad){
+  try{ __setPanelModoButtons__("2d"); }catch(_){}
+  try{ if (typeof window.ativarMapa2D === "function") window.ativarMapa2D(); }catch(_){}
+  try{ showOverlay("Carregando postes no modo 2D…"); }catch(_){}
+  try{ cbLoad && cbLoad(); }catch(e){ console.error(e); try{ hideOverlay(); }catch(_){} }
+}
+
 function buildModalModoInicial() {
   if (modalModoEl) return modalModoEl;
 
@@ -3785,8 +3985,15 @@ function buildModalModoInicial() {
   card.innerHTML = `
     <div class="modo-head">
       <div>
-        <h2>Como você quer visualizar os postes?</h2>
-        <p>Você pode carregar todos os 620 mil postes de uma vez ou focar em um ou mais municípios para deixar o mapa mais leve.</p>
+        <h2>Você quer visualizar o mapa em modo 2D ou 3D?</h2>
+        <p>Escolha o modo primeiro — assim carregamos apenas o que você vai usar (mais leve, principalmente em máquinas mais antigas).</p>
+        <div class="modo-footer" style="margin:10px 0 8px;">
+          <div class="modo-footer-left">
+            <button type="button" id="btnInitModo2D" class="modo-btn-primary"><i class="fa fa-map"></i> Modo 2D</button>
+            <button type="button" id="btnInitModo3D" class="modo-btn-secondary"><i class="fa fa-cubes"></i> Modo 3D</button>
+          </div>
+          <div class="modo-footer-right" style="color:#6b7280;font-size:12px;">Depois, escolha se quer ver todos os postes ou só municípios.</div>
+        </div>
       </div>
       <div class="modo-tag">
         <i class="fa fa-bolt"></i> Carregamento inteligente
@@ -3861,19 +4068,45 @@ function buildModalModoInicial() {
   const btnSel = card.querySelector("#btnModoSelecionados");
   const btnFechar = card.querySelector("#btnModoFechar");
 
-  btnTodos.addEventListener("click", () => {
+  const btnInit2D = card.querySelector("#btnInitModo2D");
+  const btnInit3D = card.querySelector("#btnInitModo3D");
+  function setModoInit(m){
+    modoVisInicial = (m==="3d" ? "3d" : "2d");
+    if (btnInit2D) {
+      btnInit2D.classList.toggle("modo-btn-primary", modoVisInicial==="2d");
+      btnInit2D.classList.toggle("modo-btn-secondary", modoVisInicial!=="2d");
+    }
+    if (btnInit3D) {
+      btnInit3D.classList.toggle("modo-btn-primary", modoVisInicial==="3d");
+      btnInit3D.classList.toggle("modo-btn-secondary", modoVisInicial!=="3d");
+    }
+  }
+  try{ setModoInit(modoVisInicial); }catch(_){ }
+  btnInit2D && btnInit2D.addEventListener("click", ()=> setModoInit("2d"));
+  btnInit3D && btnInit3D.addEventListener("click", ()=> setModoInit("3d"));
+
+
+  btnTodos.addEventListener("click", async () => {
     fecharModalModoInicial();
     modoAtual = "todos";
-    showOverlay("Carregando todos os municípios e postes…");
-    if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
-      map.removeLayer(window.userLocationMarker);
-      window.userLocationMarker = null;
+    // Se escolheu 3D: não carrega cluster 2D (mais leve)
+    if (modoVisInicial === "3d") {
+      try { if (markers) markers.clearLayers(); } catch (_) {}
+      await __init3DAndApplyList__(null);
+      return;
     }
-    carregarPoligonosMunicipios();
-    carregarTodosPostesGradualmente();
+    // 2D: mantém o comportamento atual
+    await __init2DAndLoadAll__(() => {
+      if (window.userLocationMarker && map.hasLayer(window.userLocationMarker)) {
+        map.removeLayer(window.userLocationMarker);
+        window.userLocationMarker = null;
+      }
+      carregarPoligonosMunicipios();
+      carregarTodosPostesGradualmente();
+    });
   });
 
-  btnSel.addEventListener("click", () => {
+  btnSel.addEventListener("click", async () => {
     if (!selecionadosSet.size) {
       alert("Selecione ao menos um município para carregar.");
       return;
@@ -3888,9 +4121,20 @@ function buildModalModoInicial() {
       if (meta) muniDbSet.add(normKey(meta.db));
     });
 
-    showOverlay("Carregando municípios selecionados e respectivos postes…");
-    carregarPoligonosMunicipios(ids);
-    carregarPostesPorMunicipiosGradual(muniDbSet);
+    // 3D: aplica filtro no Mapbox e não carrega cluster 2D
+    if (modoVisInicial === "3d") {
+      const candidatos = todosPostes.filter((p) => muniDbSet.has(normKey(p.nome_municipio || "")));
+      try { if (markers) markers.clearLayers(); } catch (_) {}
+      await __init3DAndApplyList__(candidatos);
+      return;
+    }
+
+    // 2D: comportamento atual
+    await __init2DAndLoadAll__(() => {
+      showOverlay("Carregando municípios selecionados e respectivos postes…");
+      carregarPoligonosMunicipios(ids);
+      carregarPostesPorMunicipiosGradual(muniDbSet);
+    });
   });
 
   btnFechar.addEventListener("click", fecharModalModoInicial);
