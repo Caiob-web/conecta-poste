@@ -405,7 +405,7 @@
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="script.js?v=33"></script>
+<script src="script.js?v=34"></script>
 
     <script>
       // =====================================================================
@@ -478,90 +478,6 @@
           e.preventDefault();
           limparAnaliseProjeto();
         });
-      })();
-
-
-      // =====================================================================
-      // CORREÇÃO DO SVG NO MODO 3D
-
-      // =====================================================================
-      // CORREÇÃO DO SVG NO MODO 3D
-      // Força os ícones/símbolos do MapLibre a ficarem retos na viewport,
-      // sem acompanhar o pitch/rotação do mapa.
-      // =====================================================================
-      (function () {
-        const LAYER_BODY = "postes-3d-points-body";
-        const LAYER_LABELS = "postes-3d-point-labels";
-        let listenersBound = false;
-
-        function aplicarFix3D() {
-          try {
-            const map3d = (typeof window.getMapa3D === "function") ? window.getMapa3D() : null;
-            if (!map3d) return false;
-
-            if (map3d.getLayer(LAYER_BODY)) {
-              map3d.setLayoutProperty(LAYER_BODY, "icon-pitch-alignment", "viewport");
-              map3d.setLayoutProperty(LAYER_BODY, "icon-rotation-alignment", "viewport");
-              map3d.setLayoutProperty(LAYER_BODY, "icon-keep-upright", true);
-              map3d.setLayoutProperty(LAYER_BODY, "icon-anchor", "bottom");
-            }
-
-            if (map3d.getLayer(LAYER_LABELS)) {
-              map3d.setLayoutProperty(LAYER_LABELS, "text-pitch-alignment", "viewport");
-              map3d.setLayoutProperty(LAYER_LABELS, "text-rotation-alignment", "viewport");
-              map3d.setLayoutProperty(LAYER_LABELS, "text-anchor", "top");
-            }
-
-            if (!listenersBound) {
-              const reaplicar = function () {
-                try {
-                  if (map3d.getLayer(LAYER_BODY)) {
-                    map3d.setLayoutProperty(LAYER_BODY, "icon-pitch-alignment", "viewport");
-                    map3d.setLayoutProperty(LAYER_BODY, "icon-rotation-alignment", "viewport");
-                    map3d.setLayoutProperty(LAYER_BODY, "icon-keep-upright", true);
-                    map3d.setLayoutProperty(LAYER_BODY, "icon-anchor", "bottom");
-                  }
-
-                  if (map3d.getLayer(LAYER_LABELS)) {
-                    map3d.setLayoutProperty(LAYER_LABELS, "text-pitch-alignment", "viewport");
-                    map3d.setLayoutProperty(LAYER_LABELS, "text-rotation-alignment", "viewport");
-                    map3d.setLayoutProperty(LAYER_LABELS, "text-anchor", "top");
-                  }
-                } catch (_) {}
-              };
-
-              map3d.on("styledata", reaplicar);
-              map3d.on("idle", reaplicar);
-              listenersBound = true;
-            }
-
-            return true;
-          } catch (e) {
-            console.warn("Não foi possível aplicar o fix do modo 3D:", e);
-            return false;
-          }
-        }
-
-        function agendarFix3D(tentativas = 40, intervalo = 150) {
-          let n = 0;
-          const timer = setInterval(() => {
-            n++;
-            const ok = aplicarFix3D();
-            if (ok || n >= tentativas) clearInterval(timer);
-          }, intervalo);
-        }
-
-        if (typeof window.ativarMapa3D === "function") {
-          const ativarMapa3DOriginal = window.ativarMapa3D;
-
-          window.ativarMapa3D = async function () {
-            const retorno = await ativarMapa3DOriginal.apply(this, arguments);
-            agendarFix3D();
-            return retorno;
-          };
-        } else {
-          window.addEventListener("load", () => agendarFix3D());
-        }
       })();
 
       // =====================================================================
