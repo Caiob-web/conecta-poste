@@ -541,7 +541,7 @@ let map3d = null;
 let map3dLoaded = false;
 let modoMapaAtual = "2d";
 
-const MAP3D_STYLE = "mapbox://styles/mapbox/streets-v12";
+const MAP3D_STYLE = "mapbox://styles/mapbox/standard";
 
 // cache único do 3D
 let postes3DSourceLoaded = false;
@@ -1608,7 +1608,7 @@ function exibirTodosPostes() {
     return;
   }
 
-  const MAP3D_STYLE = "mapbox://styles/mapbox/streets-v12";
+  const MAP3D_STYLE = "mapbox://styles/mapbox/standard";
 
   const MAP3D_SOURCE_ACTIVE = "postes-geojson-active";
   const MAP3D_SOURCE_SELECTED = "postes-geojson-selected";
@@ -2869,11 +2869,21 @@ function limparCamadasMassivas3D() {
       map3d = new mapboxgl.Map({
         container: "map3d",
         style: MAP3D_STYLE,
+
+        // Mapbox Standard: aparência 3D (próxima ao demo do Mapbox)
+        config: { basemap: { lightPreset: "dusk" } },
+
         center: [center.lng, center.lat],
         zoom: Math.max(zoom - 1, 1),
-        pitch: 60,
+
+        // câmera padrão "cinematográfica"
+        pitch: 65,
         bearing: -25,
-        antialias: false,
+
+        // melhor qualidade no 3D
+        antialias: true,
+        projection: "globe",
+
         preserveDrawingBuffer: false
       });
 
