@@ -2868,11 +2868,7 @@ function limparCamadasMassivas3D() {
     if (!map3d) {
       map3d = new mapboxgl.Map({
         container: "map3d",
-        style: MAP3D_STYLE
-            }
-          } catch (_) {}
-          return { url };
-        },
+        style: MAP3D_STYLE,
         center: [center.lng, center.lat],
         zoom: Math.max(zoom - 1, 1),
         pitch: 60,
