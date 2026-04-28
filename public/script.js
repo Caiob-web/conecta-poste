@@ -3,6 +3,24 @@
 //  (Street View via link público do Google — sem API, sem custo)
 // =====================================================================
 
+
+// ================================================================
+//  SCRIPT VERSION: V6-PDF-ANALISE (sem leaflet-image)
+//  (Gerador de PDF robusto para Análise de Projeto)
+// ================================================================
+(function(){
+  try{ console.log('[Mapa de Postes] Script V6 carregado'); }catch(_){ }
+  // Desativa/neutraliza leaflet-image (ele quebra em mapas com cluster/DivIcon)
+  try{
+    if (typeof window.leafletImage === 'function') {
+      window.leafletImage = function(_map, cb){
+        try{ console.warn('[Mapa de Postes] leaflet-image desativado (V6)'); }catch(_){ }
+        try{ if (typeof cb === 'function') cb(new Error('leaflet-image disabled'), null); }catch(_){ }
+      };
+    }
+  }catch(_){ }
+})();
+
 // ------------------------- Estilos do HUD (hora/tempo/mapa) ----------
 
 /* ====================================================================
@@ -3240,7 +3258,6 @@ window.consultarIDsEmMassa = function () {
           .forEach((p) => {
             const empresasStr = typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível";
             const cm = L.circleMarker([p.lat, p.lon], {
-              pane: "postes",
               radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
             })
               .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
@@ -3251,17 +3268,12 @@ window.consultarIDsEmMassa = function () {
               .on("click", (e) => {
                 if (e && e.originalEvent) L.DomEvent.stop(e.originalEvent);
 
-                // Medição: por padrão, clique no intermediário vira ponto.
-                // ✅ ALT ou CTRL pressionado: abre as informações do poste (não mede).
+                // Medição: clique no intermediário também vira ponto
                 if (typeof window.isMedicaoAtiva === "function" && window.isMedicaoAtiva()) {
-                  const ev = e?.originalEvent;
-                  const querAbrirInfo = !!(ev && (ev.altKey || ev.ctrlKey));
-                  if (!querAbrirInfo) {
-                    try {
-                      if (typeof window.__medicaoAddPoint2D === "function") window.__medicaoAddPoint2D(cm.getLatLng());
-                    } catch (_) {}
-                    return;
-                  }
+                  try {
+                    if (typeof window.__medicaoAddPoint2D === "function") window.__medicaoAddPoint2D(cm.getLatLng());
+                  } catch (_) {}
+                  return;
                 }
 
                 if (typeof handleSelecaoClick === "function" && handleSelecaoClick(p, cm)) return;
@@ -4677,13 +4689,370 @@ function gerarPDFComMapa() {
   const jsPDF = window.jspdf?.jsPDF || window.jsPDF;
   if (!jsPDF) return alert("Biblioteca de PDF (jsPDF) não carregou.");
 
+  // ✅ PDF deste botão é focado na ANÁLISE DE PROJETO
+  const encontrados = Array.isArray(window.analiseEncontrados) ? window.analiseEncontrados : [];
+  if (!encontrados.length) {
+    return alert("Para gerar o PDF, primeiro execute a 'Análise de Projeto' (informe os IDs e clique em Análise de Projeto).");
+  }
+
   const resumo = window.ultimoResumoPostes || {};
   const dist = window.analiseDistancias || {};
   const titulo = "Relatório — Análise de Projeto";
   const agora = new Date();
   const dataHora = agora.toLocaleString("pt-BR");
 
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  // IDs informados (da caixa de texto) para montar a lista de inexistentes
+  const idsInformados = (document.getElementById("ids-multiplos")?.value || "")
+    .split(/[^0-9]+/).filter(Boolean);
+
+  const normId = (v) => (typeof keyId === "function" ? keyId(v) : String(v));
+  const setEncontrados = new Set(encontrados.map(p => normId(p.id)));
+  const inexistentes = idsInformados.filter(id => !setEncontrados.has(normId(id)));
+
+  // -------- helpers (polígono / ponto no polígono) --------
+  function getRingFromAnalise() {
+    let ring = null;
+    try {
+      ring = Array.isArray(window.analisePolygonRing) ? window.analisePolygonRing : null;
+    } catch (_) {}
+    if (ring && ring.length >= 4) return ring;
+
+    // fallback: calcula com base nos encontrados
+    try {
+      const pts = encontrados
+        .map(p => [Number(p.lon), Number(p.lat)])
+        .filter(p => isFinite(p[0]) && isFinite(p[1]));
+      if (pts.length >= 3) {
+        const hull = (typeof __convexHullLngLat === "function") ? __convexHullLngLat(pts) : pts;
+        ring = hull.concat([hull[0]]);
+      } else if (pts.length) {
+        ring = (typeof __bboxPolygonLngLat === "function") ? __bboxPolygonLngLat(pts, 45) : null;
+      }
+    } catch (_) {}
+    return (ring && ring.length >= 4) ? ring : null;
+  }
+
+  function ringBBox(ring) {
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const pt of ring) {
+      const lng = Number(pt[0]), lat = Number(pt[1]);
+      if (!isFinite(lng) || !isFinite(lat)) continue;
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+    return { minLng, minLat, maxLng, maxLat };
+  }
+
+  function pointInPoly(lng, lat, ring) {
+    // Ray casting (ring: [[lng,lat],...], pode estar fechado)
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = Number(ring[i][0]), yi = Number(ring[i][1]);
+      const xj = Number(ring[j][0]), yj = Number(ring[j][1]);
+      const intersect = ((yi > lat) !== (yj > lat)) &&
+        (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function getPostesNoPoligono() {
+    const ring = getRingFromAnalise();
+    if (!ring) return { ring: null, postes: [], intermediarios: [] };
+
+    const bb = ringBBox(ring);
+    if (![bb.minLng, bb.minLat, bb.maxLng, bb.maxLat].every(isFinite)) {
+      return { ring: ring, postes: [], intermediarios: [] };
+    }
+
+    const candidatos = [];
+    // ⚡ filtro rápido por bbox primeiro (economiza MUITO)
+    for (const p of (Array.isArray(todosPostes) ? todosPostes : [])) {
+      const lng = Number(p.lon), lat = Number(p.lat);
+      if (!isFinite(lng) || !isFinite(lat)) continue;
+      if (lng < bb.minLng || lng > bb.maxLng || lat < bb.minLat || lat > bb.maxLat) continue;
+      if (pointInPoly(lng, lat, ring)) candidatos.push(p);
+    }
+
+    const intermediarios = candidatos.filter(p => !setEncontrados.has(normId(p.id)));
+    return { ring, postes: candidatos, intermediarios };
+  }
+
+  // -------- imagem do traçado (gerada localmente — sem tiles/CORS) --------
+  function gerarImagemTraçadoPNG(encontrados, ring, intermediarios) {
+    const canvas = document.createElement("canvas");
+    const W = 1400, H = 700;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    // fundo
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+
+    const pts = [];
+
+    if (Array.isArray(ring) && ring.length >= 4) {
+      for (const [lng, lat] of ring) pts.push([Number(lng), Number(lat)]);
+    }
+    for (const p of encontrados) pts.push([Number(p.lon), Number(p.lat)]);
+    if (Array.isArray(intermediarios)) {
+      for (const p of intermediarios) pts.push([Number(p.lon), Number(p.lat)]);
+    }
+
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const [lng, lat] of pts) {
+      if (!isFinite(lng) || !isFinite(lat)) continue;
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+    }
+    if (!isFinite(minLng) || minLng === maxLng || minLat === maxLat) return null;
+
+    const pad = 0.08;
+    const padLng = (maxLng - minLng) * pad;
+    const padLat = (maxLat - minLat) * pad;
+    minLng -= padLng; maxLng += padLng;
+    minLat -= padLat; maxLat += padLat;
+
+    const m = 50;
+    const proj = (lng, lat) => {
+      const x = m + ((lng - minLng) / (maxLng - minLng)) * (W - 2 * m);
+      const y = m + ((maxLat - lat) / (maxLat - minLat)) * (H - 2 * m);
+      return [x, y];
+    };
+
+    // grade suave
+    ctx.strokeStyle = "rgba(0,0,0,0.06)";
+    ctx.lineWidth = 1;
+    for (let x = m; x <= W - m; x += 80) {
+      ctx.beginPath(); ctx.moveTo(x, m); ctx.lineTo(x, H - m); ctx.stroke();
+    }
+    for (let y = m; y <= H - m; y += 80) {
+      ctx.beginPath(); ctx.moveTo(m, y); ctx.lineTo(W - m, y); ctx.stroke();
+    }
+
+    // polígono
+    if (Array.isArray(ring) && ring.length >= 4) {
+      ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = "#16a34a";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ring.forEach((pt, i) => {
+        const [x, y] = proj(Number(pt[0]), Number(pt[1]));
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // intermediários (todos no polígono fora do traçado)
+    if (Array.isArray(intermediarios) && intermediarios.length) {
+      ctx.fillStyle = "rgba(234,179,8,0.75)"; // amarelo
+      for (const p of intermediarios) {
+        const [x, y] = proj(Number(p.lon), Number(p.lat));
+        if (!isFinite(x) || !isFinite(y)) continue;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // traçado
+    const route = encontrados.map(p => [Number(p.lon), Number(p.lat)]).filter(v => isFinite(v[0]) && isFinite(v[1]));
+    if (route.length >= 2) {
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      route.forEach((pt, i) => {
+        const [x, y] = proj(pt[0], pt[1]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // pontos do traçado numerados
+    const drawBadge = (x, y, n, bg, fg) => {
+      ctx.fillStyle = bg;
+      ctx.strokeStyle = "rgba(255,255,255,0.95)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = fg;
+      ctx.font = "bold 15px system-ui, Segoe UI, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(n), x, y);
+    };
+
+    encontrados.forEach((p, i) => {
+      const [x, y] = proj(Number(p.lon), Number(p.lat));
+      if (!isFinite(x) || !isFinite(y)) return;
+      drawBadge(x, y, i + 1, "#f97316", "#111827");
+    });
+
+    // início e fim em destaque
+    if (encontrados.length) {
+      const [x1, y1] = proj(Number(encontrados[0].lon), Number(encontrados[0].lat));
+      const [x2, y2] = proj(Number(encontrados[encontrados.length - 1].lon), Number(encontrados[encontrados.length - 1].lat));
+      if (isFinite(x1) && isFinite(y1)) drawBadge(x1, y1, 1, "#22c55e", "#052e1a");
+      if (isFinite(x2) && isFinite(y2)) drawBadge(x2, y2, encontrados.length, "#ef4444", "#fff");
+    }
+
+    // título dentro da imagem
+    ctx.fillStyle = "rgba(15,27,42,0.92)";
+    ctx.fillRect(16, 16, 520, 44);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "800 18px system-ui, Segoe UI, Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Traçado + Polígono da Análise (imagem gerada localmente)", 28, 38);
+
+    // legenda
+    const lx = 20, ly = H - 54;
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.strokeStyle = "rgba(0,0,0,0.12)";
+    ctx.lineWidth = 1;
+        // retângulo arredondado (compat)
+    const rr = (x,y,w,h,r)=>{
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.lineTo(x+w-r,y);
+      ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+      ctx.lineTo(x+w,y+h-r);
+      ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+      ctx.lineTo(x+r,y+h);
+      ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+      ctx.lineTo(x,y+r);
+      ctx.quadraticCurveTo(x,y,x+r,y);
+      ctx.closePath();
+    };
+    rr(lx, ly, 650, 34, 10);
+    ctx.fill(); ctx.stroke();
+
+    // itens
+    const legend = [
+      { label: "Polígono", stroke: "#16a34a", dash: [10,8], width: 4 },
+      { label: "Traçado", stroke: "#2563eb", dash: [8,8], width: 5 },
+      { label: "Intermediários (no polígono)", fill: "rgba(234,179,8,0.75)" }
+    ];
+
+    let cx = lx + 16;
+    for (const it of legend) {
+      if (it.stroke) {
+        ctx.setLineDash(it.dash || []);
+        ctx.strokeStyle = it.stroke;
+        ctx.lineWidth = it.width || 3;
+        ctx.beginPath();
+        ctx.moveTo(cx, ly + 17);
+        ctx.lineTo(cx + 40, ly + 17);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        cx += 54;
+      } else if (it.fill) {
+        ctx.fillStyle = it.fill;
+        ctx.beginPath();
+        ctx.arc(cx + 14, ly + 17, 6, 0, Math.PI*2);
+        ctx.fill();
+        cx += 34;
+      }
+      ctx.fillStyle = "#111827";
+      ctx.font = "700 13px system-ui, Segoe UI, Arial";
+      ctx.fillText(it.label, cx, ly + 17);
+      cx += ctx.measureText(it.label).width + 22;
+    }
+
+    try { return canvas.toDataURL("image/png"); } catch (_) { return null; }
+  }
+
+  // -------- TABELA em jsPDF (com quebra de página) --------
+  function addTable(doc, title, columns, rows, startY) {
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginX = 10;
+    const marginBottom = 10;
+
+    let y = startY;
+
+    // título da seção
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+    doc.text(title, marginX, y);
+    y += 6;
+
+    // cabeçalho
+    const colXs = [];
+    let x = marginX;
+    for (const c of columns) {
+      colXs.push(x);
+      x += c.w;
+    }
+
+    const drawHeader = () => {
+      doc.setFontSize(9);
+      doc.setFont(undefined, "bold");
+      doc.setFillColor(15, 27, 42);
+      doc.setTextColor(255, 255, 255);
+      doc.rect(marginX, y, columns.reduce((s,c)=>s+c.w,0), 7, "F");
+
+      for (let i = 0; i < columns.length; i++) {
+        doc.text(String(columns[i].h), colXs[i] + 1.5, y + 5);
+      }
+      doc.setTextColor(17, 24, 39);
+      y += 7;
+      doc.setFont(undefined, "normal");
+    };
+
+    const newPageIfNeeded = (rowH) => {
+      if (y + rowH > pageH - marginBottom) {
+        doc.addPage();
+        y = 12;
+        drawHeader();
+      }
+    };
+
+    drawHeader();
+
+    doc.setFontSize(8);
+
+    for (const row of rows) {
+      // calcula altura por wrap
+      let maxLines = 1;
+      const cellTexts = columns.map((c) => {
+        const val = row[c.k] == null ? "" : String(row[c.k]);
+        const wrapped = doc.splitTextToSize(val, c.w - 3);
+        maxLines = Math.max(maxLines, wrapped.length);
+        return wrapped;
+      });
+
+      const rowH = Math.max(6, maxLines * 4);
+      newPageIfNeeded(rowH);
+
+      // linhas da tabela
+      doc.setDrawColor(220, 220, 220);
+      doc.rect(marginX, y, columns.reduce((s,c)=>s+c.w,0), rowH);
+
+      for (let i = 0; i < columns.length; i++) {
+        const cx = colXs[i];
+        if (i > 0) doc.line(cx, y, cx, y + rowH);
+        const wrapped = cellTexts[i];
+        doc.text(wrapped, cx + 1.5, y + 4);
+      }
+
+      y += rowH;
+    }
+
+    return y + 6;
+  }
 
   const fmtDist = (m) => {
     const n = Number(m || 0);
@@ -4692,217 +5061,153 @@ function gerarPDFComMapa() {
     return Math.round(n) + " m";
   };
 
-  const addResumo = (yStart) => {
-    let y = yStart;
-    doc.setFontSize(12);
-    doc.text(titulo, 10, y); y += 7;
-    doc.setFontSize(10);
-    doc.text("Gerado em: " + dataHora, 10, y); y += 8;
+  // --------- montar dados do polígono ---------
+  const { ring, postes: postesNoPoligono, intermediarios: intermediariosNoPoligono } = getPostesNoPoligono();
 
-    const totalPostes = resumo.encontrados || dist.totalPostes || resumo.total || 0;
-    const distTotal = resumo.dist_total_m || dist.totalDist || resumo.dist_total || 0;
+  // --------- montar PDF ---------
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-    doc.setFontSize(12);
-    doc.text(`Postes no projeto: ${totalPostes}`, 10, y); y += 6;
-    doc.text(`Distância total: ${fmtDist(distTotal)}`, 10, y); y += 8;
+  // Cabeçalho
+  doc.setFontSize(16);
+  doc.setFont(undefined, "bold");
+  doc.text(titulo, 10, 12);
 
-    doc.setFontSize(10);
-    if (typeof resumo.disponiveis !== "undefined") { doc.text("✔️ Até 4 empresas: " + (resumo.disponiveis || 0), 10, y); y += 6; }
-    if (typeof resumo.ocupados !== "undefined") { doc.text("❌ 5+ empresas: " + (resumo.ocupados || 0), 10, y); y += 6; }
-    if (typeof resumo.intermediarios !== "undefined") { doc.text("🟡 Intermediários: " + (resumo.intermediarios || 0), 10, y); y += 6; }
+  doc.setFontSize(10);
+  doc.setFont(undefined, "normal");
+  doc.text("Gerado em: " + dataHora, 10, 18);
 
-    const nao = Array.isArray(resumo.naoEncontrados) ? resumo.naoEncontrados : [];
-    if (nao.length) {
-      const txt = ("⚠️ Não encontrados (" + nao.length + "): " + nao.join(", "));
-      doc.text(doc.splitTextToSize(txt, 270), 10, y);
-      y += 10;
+  // Resumo
+  const totalPostes = Number(resumo.encontrados || dist.totalPostes || encontrados.length || 0);
+  const distTotal = Number(resumo.dist_total_m || dist.totalDist || 0);
+
+  const totalNoPoligono = postesNoPoligono.length;
+  const totalInterNoPoligono = intermediariosNoPoligono.length;
+
+  let y = 26;
+  doc.setFontSize(11);
+  doc.text(`Postes no traçado (IDs informados e encontrados): ${totalPostes}`, 10, y); y += 6;
+  doc.text(`Distância total do traçado: ${fmtDist(distTotal)}`, 10, y); y += 6;
+  doc.text(`Todos os postes no polígono: ${totalNoPoligono}`, 10, y); y += 6;
+  doc.text(`Postes intermediários (no polígono, fora do traçado): ${totalInterNoPoligono}`, 10, y); y += 6;
+  doc.text(`Postes inexistentes (IDs informados não encontrados): ${inexistentes.length}`, 10, y); y += 6;
+
+  // Critérios de reprovação (9+)
+  try {
+    const crit = Array.isArray(window.__analiseCriticos9mais) ? window.__analiseCriticos9mais : [];
+    if (crit.length) {
+      doc.setTextColor(185, 28, 28);
+      doc.text(`ATENÇÃO: ${crit.length} poste(s) com 9+ empresas (projeto deve ser reprovado).`, 10, y); y += 6;
+      doc.setTextColor(17, 24, 39);
     }
-  };
+  } catch (_) {}
 
-  const finalizar = () => {
-    const filename = "relatorio_projeto.pdf";
-    try {
-      const blob = doc.output("blob");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-    } catch (e) {
-      console.error("Falha ao baixar o PDF:", e);
-      try { doc.save(filename); } catch (_) { alert("Falha ao baixar o PDF."); }
-    }
-  };
+  // Imagem do traçado
+  const img = gerarImagemTraçadoPNG(encontrados, ring, intermediariosNoPoligono);
+  if (img) {
+    // área reservada pra imagem
+    doc.addImage(img, "PNG", 10, y + 2, 277, 125, undefined, "FAST");
+    y = y + 132;
+  } else {
+    // fallback: sem imagem, segue com tabelas
+    y = y + 8;
+  }
 
-  const desenharEsquemaProjetoNoPDF = (docRef, x, y, w, h) => {
-    const ptsObj = Array.isArray(window.analiseEncontrados) ? window.analiseEncontrados : [];
-    const pts = ptsObj
-      .map(p => [Number(p.lon), Number(p.lat)])
-      .filter(p => isFinite(p[0]) && isFinite(p[1]));
+  // -------- TABELAS --------
+  // 1) Postes no traçado (ordem)
+  const rowsTracado = encontrados.map((p, i) => ({
+    seq: String(i + 1),
+    id: String(p.id ?? ""),
+    emp: String(Array.isArray(p.empresas) ? p.empresas.length : (p.qtd_empresas ?? "")),
+    municipio: String(p.municipio ?? p.cidade ?? ""),
+    bairro: String(p.bairro ?? ""),
+    logradouro: String(p.logradouro ?? p.rua ?? ""),
+    lat: (p.lat != null ? String(p.lat) : ""),
+    lon: (p.lon != null ? String(p.lon) : "")
+  }));
 
-    if (pts.length < 2) return;
+  
+// 2) Todos os postes no polígono (inclui traçado)
+const rowsPoligono = postesNoPoligono.map((p) => ({
+  id: String(p.id ?? ""),
+  emp: String(Array.isArray(p.empresas) ? p.empresas.length : (p.qtd_empresas ?? "")),
+  municipio: String(p.municipio ?? p.cidade ?? ""),
+  bairro: String(p.bairro ?? ""),
+  logradouro: String(p.logradouro ?? p.rua ?? ""),
+  lat: (p.lat != null ? String(p.lat) : ""),
+  lon: (p.lon != null ? String(p.lon) : "")
+}));
 
-    // Polígono (hull ou bbox)
-    let ring = null;
-    if (pts.length >= 3) {
-      const hull = __convexHullLngLat(pts);
-      ring = hull && hull.length ? hull.concat([hull[0]]) : null;
-    } else {
-      ring = __bboxPolygonLngLat(pts, 45);
-    }
+// 2) Intermediários (todos dentro do polígono exceto traçado)
+  const rowsInter = intermediariosNoPoligono.map((p) => ({
+    id: String(p.id ?? ""),
+    emp: String(Array.isArray(p.empresas) ? p.empresas.length : (p.qtd_empresas ?? "")),
+    municipio: String(p.municipio ?? p.cidade ?? ""),
+    bairro: String(p.bairro ?? ""),
+    logradouro: String(p.logradouro ?? p.rua ?? ""),
+    lat: (p.lat != null ? String(p.lat) : ""),
+    lon: (p.lon != null ? String(p.lon) : "")
+  }));
 
-    const all = (ring && ring.length >= 4) ? ring : pts;
+  // 3) Inexistentes
+  const rowsInex = inexistentes.map((id) => ({ id: String(id), status: "Não encontrado / trocado" }));
 
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-    for (const [lng, lat] of all) {
-      if (lng < minLng) minLng = lng;
-      if (lng > maxLng) maxLng = lng;
-      if (lat < minLat) minLat = lat;
-      if (lat > maxLat) maxLat = lat;
-    }
-    if (!isFinite(minLng) || !isFinite(minLat) || minLng === maxLng || minLat === maxLat) return;
-
-    // padding
-    const padX = (maxLng - minLng) * 0.08;
-    const padY = (maxLat - minLat) * 0.08;
-    minLng -= padX; maxLng += padX; minLat -= padY; maxLat += padY;
-
-    const proj = (lng, lat) => {
-      const px = x + ((lng - minLng) / (maxLng - minLng)) * w;
-      const py = y + ((maxLat - lat) / (maxLat - minLat)) * h;
-      return [px, py];
-    };
-
-    // moldura
-    try { docRef.setDrawColor(210, 210, 210); } catch (_) {}
-    try { docRef.rect(x, y, w, h); } catch (_) {}
-
-    // desenha polígono
-    if (ring && ring.length >= 4) {
-      try { docRef.setDrawColor(34, 197, 94); } catch (_) {}
-      try { docRef.setLineWidth(0.6); } catch (_) {}
-      try { docRef.setLineDashPattern([4, 3], 0); } catch (_) {}
-      for (let i = 0; i < ring.length - 1; i++) {
-        const [x1, y1] = proj(ring[i][0], ring[i][1]);
-        const [x2, y2] = proj(ring[i + 1][0], ring[i + 1][1]);
-        try { docRef.line(x1, y1, x2, y2); } catch (_) {}
-      }
-      try { docRef.setLineDashPattern([], 0); } catch (_) {}
-    }
-
-    // traçado (ordem do projeto)
-    const route = ptsObj
-      .map(p => [Number(p.lon), Number(p.lat)])
-      .filter(p => isFinite(p[0]) && isFinite(p[1]));
-
-    if (route.length >= 2) {
-      try { docRef.setDrawColor(37, 99, 235); } catch (_) {}
-      try { docRef.setLineWidth(0.7); } catch (_) {}
-      try { docRef.setLineDashPattern([3, 3], 0); } catch (_) {}
-      for (let i = 0; i < route.length - 1; i++) {
-        const [x1, y1] = proj(route[i][0], route[i][1]);
-        const [x2, y2] = proj(route[i + 1][0], route[i + 1][1]);
-        try { docRef.line(x1, y1, x2, y2); } catch (_) {}
-      }
-      try { docRef.setLineDashPattern([], 0); } catch (_) {}
-    }
-
-    // pontos (início/fim em destaque)
-    const drawPoint = (lng, lat, r, fill) => {
-      const [px, py] = proj(lng, lat);
-      try { docRef.setDrawColor(20, 20, 20); } catch (_) {}
-      try { docRef.setFillColor(...fill); } catch (_) {}
-      try { docRef.circle(px, py, r, "FD"); } catch (_) {}
-    };
-
-    // todos os pontos pequenos
-    for (const [lng, lat] of route) drawPoint(lng, lat, 1.1, [249, 115, 22]);
-
-    // início/fim maiores
-    if (route.length) {
-      drawPoint(route[0][0], route[0][1], 2.0, [34, 197, 94]);
-      drawPoint(route[route.length - 1][0], route[route.length - 1][1], 2.0, [239, 68, 68]);
-    }
-
-    // legenda
-    try {
-      docRef.setFontSize(9);
-      docRef.text("Esquema vetorial do projeto (polígono + traçado)", x + 2, y + h - 2);
-    } catch (_) {}
-  };
+  // Se não couber na primeira página, começa nova página automaticamente dentro do addTable
+  y = addTable(doc, "Postes no traçado (IDs informados e encontrados)", [
+    { h: "#", k: "seq", w: 10 },
+    { h: "ID Poste", k: "id", w: 28 },
+    { h: "Emp", k: "emp", w: 12 },
+    { h: "Município", k: "municipio", w: 35 },
+    { h: "Bairro", k: "bairro", w: 35 },
+    { h: "Logradouro", k: "logradouro", w: 65 },
+    { h: "Lat", k: "lat", w: 46 },
+    { h: "Lon", k: "lon", w: 46 }
+  ], rowsTracado, Math.max(y, 160));
 
 
-  const tentarCaptura3D = () => {
-    try {
-      if (modoMapaAtual !== "3d" || !map3d || !map3dLoaded) return null;
-      const c = map3d.getCanvas();
-      return c && c.toDataURL ? c.toDataURL("image/png") : null;
-    } catch (_) {
-      return null;
-    }
-  };
+y = addTable(doc, "Todos os postes no polígono (inclui o traçado)", [
+  { h: "ID Poste", k: "id", w: 28 },
+  { h: "Emp", k: "emp", w: 12 },
+  { h: "Município", k: "municipio", w: 35 },
+  { h: "Bairro", k: "bairro", w: 35 },
+  { h: "Logradouro", k: "logradouro", w: 75 },
+  { h: "Lat", k: "lat", w: 46 },
+  { h: "Lon", k: "lon", w: 46 }
+], rowsPoligono, y);
 
-  const capturarLeafletDataURL = () => new Promise((resolve) => {
-    try {
-      // ✅ guard: se leaflet-image não estiver carregado, não trava o PDF
-      if (typeof leafletImage !== "function") return resolve(null);
-      // tenta trocar momentaneamente para um basemap com CORS (Carto) para permitir canvas
-      const hadCarto = map.hasLayer(cartoPositronAll);
-      const hadOSM = map.hasLayer(osm);
+  y = addTable(doc, "Postes intermediários (todos os postes no polígono fora do traçado)", [
+    { h: "ID Poste", k: "id", w: 28 },
+    { h: "Emp", k: "emp", w: 12 },
+    { h: "Município", k: "municipio", w: 35 },
+    { h: "Bairro", k: "bairro", w: 35 },
+    { h: "Logradouro", k: "logradouro", w: 75 },
+    { h: "Lat", k: "lat", w: 46 },
+    { h: "Lon", k: "lon", w: 46 }
+  ], rowsInter, y);
 
-      try {
-        if (!hadCarto) map.addLayer(cartoPositronAll);
-        if (hadOSM) map.removeLayer(osm);
-      } catch (_) {}
+  y = addTable(doc, "Postes inexistentes (IDs informados que não foram encontrados)", [
+    { h: "ID informado", k: "id", w: 55 },
+    { h: "Status", k: "status", w: 222 }
+  ], rowsInex, y);
 
-      setTimeout(() => {
-        leafletImage(map, (err, canvas) => {
-          // restaura basemap original
-          try {
-            if (!hadCarto && map.hasLayer(cartoPositronAll)) map.removeLayer(cartoPositronAll);
-            if (hadOSM && !map.hasLayer(osm)) map.addLayer(osm);
-          } catch (_) {}
-
-          if (err || !canvas) return resolve(null);
-          try {
-            resolve(canvas.toDataURL("image/png"));
-          } catch (_) {
-            resolve(null);
-          }
-        });
-      }, 180);
-    } catch (_) {
-      resolve(null);
-    }
-  });
-
-  (async () => {
-    // Tenta captura do 3D primeiro (se estiver no 3D)
-    let imgData = tentarCaptura3D();
-
-    // Se não conseguiu, tenta o 2D via leaflet-image
-    if (!imgData) imgData = await capturarLeafletDataURL();
-
-    if (imgData) {
-      // área para imagem
-      doc.addImage(imgData, "PNG", 10, 12, 277, 130, undefined, "FAST");
-      addResumo(150);
-      finalizar();
-      return;
-    }
-
-    // Fallback: sem imagem do basemap — desenha esquema vetorial do projeto (polígono + traçado)
-    try { desenharEsquemaProjetoNoPDF(doc, 10, 12, 277, 130); } catch (_) {}
-
-    addResumo(150);
-    doc.setFontSize(9);
-    doc.text("Obs.: o basemap não pôde ser capturado (CORS). Foi gerado um esquema vetorial do projeto.", 10, 195);
-    finalizar();
-  })();
+  // Download (blob) — mais confiável
+  const filename = "relatorio_analise_projeto.pdf";
+  try {
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (e) {
+    console.error("Falha ao baixar o PDF:", e);
+    try { doc.save(filename); } catch (_) { alert("Falha ao baixar o PDF."); }
+  }
 }
+
+
 
 function getDistanciaMetros(lat1, lon1, lat2, lon2) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180;
