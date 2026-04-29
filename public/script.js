@@ -572,6 +572,11 @@ const cartoPositronAll = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_al
 const postesPane = map.createPane("postes");
 postesPane.style.zIndex = 630;
 
+// Pane para formas da análise (polígono/traçado) - abaixo dos postes e sem capturar clique
+const analiseShapesPane = map.createPane("analiseShapes");
+analiseShapesPane.style.zIndex = 620;
+analiseShapesPane.style.pointerEvents = "none";
+
 osm.addTo(map);
 
 // ========= ÍCONES SVG DOS POSTES 2D (CONCRETO / MADEIRA) — EXCLUSIVOS DO MODO 2D =========
@@ -3449,9 +3454,7 @@ window.consultarIDsEmMassa = function () {
           )
           .forEach((p) => {
             const empresasStr = typeof empresasToString === "function" ? (empresasToString(p) || "Disponível") : "Disponível";
-            const cm = L.circleMarker([p.lat, p.lon], {
-              radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
-            })
+            const cm = L.circleMarker([p.lat, p.lon], { pane: "postes", radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
               .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
               .on("mouseover", () => {
                 if (typeof lastTip !== "undefined") lastTip = { id: normId(p.id) };
@@ -3487,8 +3490,10 @@ window.consultarIDsEmMassa = function () {
     const coords = encontrados.map((p) => [p.lat, p.lon]);
     // Polígono de destaque da área do projeto
     try { desenharPoligonoAnalise2D(encontrados); } catch (_) {}
+    // Garante que intermediários fiquem acima do polígono (mesmo se o navegador reordenar SVG)
+    try { window.intermediarios?.forEach((m) => { try { m.bringToFront?.(); } catch (_) {} }); } catch (_) {}
     if (coords.length >= 2) {
-      const line = L.polyline(coords, { color: "blue", weight: 3, dashArray: "4,6" });
+      const line = L.polyline(coords, { pane: "analiseShapes", interactive: false, bubblingMouseEvents: false, color: "blue", weight: 3, dashArray: "4,6" });
       try { analiseLayer2D.addLayer(line); } catch (_) { line.addTo(map); }
       window.tracadoMassivo = line;
 
@@ -4910,9 +4915,7 @@ function consultarIDsEmMassa() {
         )
         .forEach((p) => {
           const empresasStr = empresasToString(p) || "Disponível";
-          const m = L.circleMarker([p.lat, p.lon], {
-            radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8
-          })
+          const m = L.circleMarker([p.lat, p.lon], { pane: "postes", radius: 6, color: "gold", fillColor: "yellow", fillOpacity: 0.8 })
             .bindTooltip(`ID: ${p.id}<br>Empresas: ${empresasStr}`, { direction: "top", sticky: true })
             .on("mouseover", () => { lastTip = { id: keyId(p.id) }; tipPinned = false; })
             .on("click", (e) => {
@@ -5576,6 +5579,10 @@ function desenharPoligonoAnalise2D(encontrados) {
       analisePolygon2D = null;
     }
     analisePolygon2D = L.polygon(latlngs, {
+      pane: "analiseShapes",
+      interactive: false,
+      bubblingMouseEvents: false,
+
       color: "#16a34a",
       weight: 2,
       opacity: 0.9,
