@@ -1707,14 +1707,21 @@ function exibirTodosPostes() {
 
     try { postes3DSourceLoaded = false; } catch (_) {}
     try { resetarEstrutura3D(); } catch (_) {}
-    try { adicionarPredios3D(); } catch (_) {}
-    try { adicionarVegetacao3D(); } catch (_) {}
+    if (!__PERF_LITE) {
+      try { adicionarPredios3D(); } catch (_) {}
+      try { adicionarVegetacao3D(); } catch (_) {}
+    }
     try { await garantirSources3D(); } catch (_) {}
     try { garantirCamadasPostes3D(); } catch (_) {}
     try { bindEventosPostes3D(); } catch (_) {}
     try { bindAtualizacaoPostes3D(); } catch (_) {}
-    try { iniciarAnimacao3D(); } catch (_) {}
-    try { atualizarPostesExtrudados3D(); } catch (_) {}
+    if (!__PERF_LITE) {
+      try { iniciarAnimacao3D(); } catch (_) {}
+      try { atualizarPostesExtrudados3D(); } catch (_) {}
+    } else {
+      // modo leve: sem animação/extrusão extra
+      try { map3d.setConfigProperty?.("basemap", "lightPreset", "day"); } catch (_) {}
+    }
   }
 
   async function __setBasemap3D(mode) {
@@ -1978,7 +1985,7 @@ function exibirTodosPostes() {
         source: "openfreemap",
         "source-layer": "building",
         type: "fill-extrusion",
-        minzoom: 14,
+        minzoom: (__PERF_LITE ? 16 : 14),
         filter: ["!=", ["get", "hide_3d"], true],
         paint: {
           "fill-extrusion-color": [
@@ -2065,8 +2072,8 @@ function exibirTodosPostes() {
       type: "geojson",
       data: postes3DActiveGeoJSON || master,
       cluster: true,
-      clusterMaxZoom: 17,
-      clusterRadius: 60
+      clusterMaxZoom: (__PERF_LITE ? 15 : 17),
+      clusterRadius: (__PERF_LITE ? 80 : 60)
     });
 
     map3d.addSource(MAP3D_SOURCE_SELECTED, {
@@ -2114,7 +2121,8 @@ function exibirTodosPostes() {
         paint: {
           "circle-radius": ["step", ["get", "point_count"], 20, 50, 26, 200, 32, 1000, 40],
           "circle-color": "rgba(0,0,0,0.0)",
-          "circle-blur": 0.8,
+          "circle-blur": (__PERF_LITE ? 0.4 : 0.8),
+          "circle-opacity": (__PERF_LITE ? 0.55 : 1),
           "circle-translate": [0, 2],
           "circle-opacity": 0.0
         }
@@ -2165,7 +2173,8 @@ function exibirTodosPostes() {
             [">=", ["to-number", ["coalesce", ["get","qtd_empresas"], 0]], 5], "rgba(245,158,11,0.45)",
             "rgba(34,197,94,0.30)"
           ],
-          "circle-blur": 0.8,
+          "circle-blur": (__PERF_LITE ? 0.4 : 0.8),
+          "circle-opacity": (__PERF_LITE ? 0.55 : 1),
           "circle-translate": [0, 4],
           "circle-opacity": 0.7
         }
@@ -2178,23 +2187,23 @@ function exibirTodosPostes() {
         type: "symbol",
         source: MAP3D_SOURCE_ACTIVE,
         filter: ["!", ["has", "point_count"]],
-        minzoom: 13,
+        minzoom: (__PERF_LITE ? 15 : 13),
         layout: {
           "icon-image": [
             "case",
             ["==", ["get", "material_tipo"], "madeira"], "poste-madeira-3d",
             "poste-concreto-3d"
           ],
-          "icon-size": [
+          "icon-size": (__PERF_LITE ? 0.22 : [
             "interpolate", ["linear"], ["zoom"],
             13, 0.18,
             16, 0.28,
             18, 0.40,
             20, 0.55
-          ],
+          ]),
           "icon-anchor": "bottom",
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+          "icon-allow-overlap": !__PERF_LITE,
+          "icon-ignore-placement": !__PERF_LITE,
           "icon-pitch-alignment": "viewport",
           "icon-rotation-alignment": "viewport",
           "icon-keep-upright": true
@@ -2216,14 +2225,14 @@ function exibirTodosPostes() {
           ["!", ["has", "point_count"]],
           [">", ["to-number", ["coalesce", ["get","qtd_empresas"], 0]], 8]
         ],
-        minzoom: 13,
+        minzoom: (__PERF_LITE ? 17 : 13),
         layout: {
           "icon-image": "crit-star",
           "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.34, 16, 0.44, 18, 0.54, 20, 0.70],
           "icon-offset": [0, -6.0],
           "icon-anchor": "bottom",
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+          "icon-allow-overlap": !__PERF_LITE,
+          "icon-ignore-placement": !__PERF_LITE,
           "icon-pitch-alignment": "viewport",
           "icon-rotation-alignment": "viewport"
         },
@@ -2389,16 +2398,16 @@ if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
             ["==", ["get", "material_tipo"], "madeira"], "poste-madeira-3d",
             "poste-concreto-3d"
           ],
-          "icon-size": [
+          "icon-size": (__PERF_LITE ? 0.22 : [
             "interpolate", ["linear"], ["zoom"],
             13, 0.18,
             16, 0.28,
             18, 0.40,
             20, 0.55
-          ],
+          ]),
           "icon-anchor": "bottom",
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+          "icon-allow-overlap": !__PERF_LITE,
+          "icon-ignore-placement": !__PERF_LITE,
           "icon-pitch-alignment": "viewport",
           "icon-rotation-alignment": "viewport",
           "icon-keep-upright": true
@@ -2424,8 +2433,8 @@ if (!map3d.getLayer(MAP3D_LAYER_POINT_LABELS)) {
           "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.34, 16, 0.44, 18, 0.54, 20, 0.70],
           "icon-offset": [0, -6.0],
           "icon-anchor": "bottom",
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+          "icon-allow-overlap": !__PERF_LITE,
+          "icon-ignore-placement": !__PERF_LITE,
           "icon-pitch-alignment": "viewport",
           "icon-rotation-alignment": "viewport"
         },
@@ -2786,6 +2795,14 @@ function limparCamadasMassivas3D() {
   }
 
   function bindAtualizacaoPostes3D() {
+    const __throttleMs = (__PERF_LITE ? 260 : 120);
+    let __t = null;
+    const __throttle = (fn) => {
+      return function() {
+        try { if (__t) return; } catch(_) {}
+        __t = setTimeout(() => { __t = null; try { fn(); } catch(_) {} }, __throttleMs);
+      };
+    };
     if (!map3d || map3d.__postes3dMoveBound) return;
 
     let timer = null;
@@ -3088,12 +3105,15 @@ function limparCamadasMassivas3D() {
         zoom: Math.max(zoom - 1, 1),
 
         // câmera padrão "cinematográfica"
-        pitch: 65,
-        bearing: -25,
+        pitch: (__PERF_LITE ? 55 : 65),
+        bearing: (__PERF_LITE ? -10 : -25),
 
-        // melhor qualidade no 3D
-        antialias: true,
-        projection: "globe",
+        // performance / qualidade (auto)
+        antialias: !__PERF_LITE,
+        projection: (__PERF_LITE ? "mercator" : "globe"),
+        fadeDuration: (__PERF_LITE ? 0 : 300),
+        maxPitch: (__PERF_LITE ? 60 : 75),
+        pixelRatio: (__PERF_LITE ? 1 : Math.min(window.devicePixelRatio || 1, 2)),
 
         preserveDrawingBuffer: false
       });
