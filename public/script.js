@@ -637,6 +637,79 @@ const SVG_3D_POSTE_MADEIRA  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="
 
 // Dados e sets para autocomplete
 const todosPostes = [];
+
+// ==============================
+// Limitar carregamento ao "envelope" dos postes (2D/3D)
+// - Evita carregar mundo inteiro e deixa mais leve em PCs antigos
+// ==============================
+let __POSTES_DATA_BOUNDS__ = null; // {minLat,maxLat,minLon,maxLon}
+const __boundsAgg = { minLat:  90, maxLat: -90, minLon:  180, maxLon: -180, count: 0 };
+
+function __boundsAggAdd(lat, lon) {
+  const la = Number(lat), lo = Number(lon);
+  if (!isFinite(la) || !isFinite(lo)) return;
+  __boundsAgg.minLat = Math.min(__boundsAgg.minLat, la);
+  __boundsAgg.maxLat = Math.max(__boundsAgg.maxLat, la);
+  __boundsAgg.minLon = Math.min(__boundsAgg.minLon, lo);
+  __boundsAgg.maxLon = Math.max(__boundsAgg.maxLon, lo);
+  __boundsAgg.count++;
+}
+function __boundsAggGet() {
+  if (!__boundsAgg.count) return null;
+  const b = {
+    minLat: __boundsAgg.minLat,
+    maxLat: __boundsAgg.maxLat,
+    minLon: __boundsAgg.minLon,
+    maxLon: __boundsAgg.maxLon
+  };
+  __POSTES_DATA_BOUNDS__ = b;
+  try { window.__POSTES_DATA_BOUNDS__ = b; } catch(_) {}
+  return b;
+}
+function __padBoundsObj(b, padFrac = 0.12) {
+  if (!b) return null;
+  const latSpan = Math.max(0.0001, b.maxLat - b.minLat);
+  const lonSpan = Math.max(0.0001, b.maxLon - b.minLon);
+  const padLat = latSpan * padFrac;
+  const padLon = lonSpan * padFrac;
+  return {
+    minLat: b.minLat - padLat,
+    maxLat: b.maxLat + padLat,
+    minLon: b.minLon - padLon,
+    maxLon: b.maxLon + padLon
+  };
+}
+function __applyDataBounds2D(b) {
+  try {
+    if (!b || !map) return;
+    const bb = __padBoundsObj(b, 0.14);
+    const bounds = L.latLngBounds([[bb.minLat, bb.minLon], [bb.maxLat, bb.maxLon]]);
+    // limita navegação / requests
+    map.setMaxBounds(bounds);
+    map.options.maxBoundsViscosity = 1.0;
+    // evita zoom-out pro "mundo"
+    const zFit = map.getBoundsZoom(bounds, true);
+    map.setMinZoom(Math.max(6, zFit - 2));
+    map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
+  } catch (e) {
+    console.warn("Falha ao aplicar bounds no 2D:", e);
+  }
+}
+function __applyDataBounds3D(b) {
+  try {
+    if (!b || !map3d) return;
+    const bb = __padBoundsObj(b, 0.14);
+    const bounds = [[bb.minLon, bb.minLat], [bb.maxLon, bb.maxLat]];
+    map3d.setMaxBounds(bounds);
+    // evita zoom-out pro mundo
+    map3d.fitBounds(bounds, { padding: 80, duration: 0, maxZoom: 16 });
+    const z = map3d.getZoom();
+    map3d.setMinZoom(Math.max(6, z - 2));
+  } catch (e) {
+    console.warn("Falha ao aplicar bounds no 3D:", e);
+  }
+}
+
 const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
@@ -2983,8 +3056,17 @@ function limparCamadasMassivas3D() {
   function syncLeafletTo3DOverride() {
     if (!map3d) return;
 
-    const center = map.getCenter();
-    const zoom = map.getZoom();
+    let center = map.getCenter();
+    let zoom = map.getZoom();
+
+    try {
+      const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+      if (__b) {
+        center = { lat: (__b.minLat + __b.maxLat) / 2, lng: (__b.minLon + __b.maxLon) / 2 };
+        // usa um zoom mais próximo do envelope, pra evitar puxar tiles do mundo
+        zoom = Math.max(12, zoom);
+      }
+    } catch (_) {}
 
     map3d.jumpTo({
       center: [center.lng, center.lat],
@@ -3071,8 +3153,17 @@ function limparCamadasMassivas3D() {
       return;
     }
 
-    const center = map.getCenter();
-    const zoom = map.getZoom();
+    let center = map.getCenter();
+    let zoom = map.getZoom();
+
+    try {
+      const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+      if (__b) {
+        center = { lat: (__b.minLat + __b.maxLat) / 2, lng: (__b.minLon + __b.maxLon) / 2 };
+        // usa um zoom mais próximo do envelope, pra evitar puxar tiles do mundo
+        zoom = Math.max(12, zoom);
+      }
+    } catch (_) {}
 
     document.body.classList.add("modo-3d-ativo");
 
@@ -3082,6 +3173,12 @@ function limparCamadasMassivas3D() {
       if (!__t) {
         alert("Token Mapbox não configurado. Configure MAPBOX_TOKEN no Vercel (ou defina window.MAPBOX_TOKEN).");
         document.body.classList.remove("modo-3d-ativo");
+
+    // Reaplica bounds no 2D (evita zoom/pan pro mundo)
+    try {
+      const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+      if (__b) __applyDataBounds2D(__b);
+    } catch(_) {}
         return;
       }
       mapboxgl.accessToken = __t;
@@ -3138,6 +3235,12 @@ function limparCamadasMassivas3D() {
 
       map3d.on("load", async () => {
         map3dLoaded = true;
+
+        // Limita navegação no 3D ao envelope dos postes
+        try {
+          const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+          if (__b) __applyDataBounds3D(__b);
+        } catch(_) {}
 
         // Toggle de base 3D (Rua/Satélite)
         try { __addBasemapToggleControl3D(); } catch (_) {}
@@ -4325,6 +4428,7 @@ fetch("/api/postes", { credentials: "include" })
 
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
+      try { __boundsAggAdd(poste.lat, poste.lon); } catch(_) {}
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
       logradourosSet.add(poste.nome_logradouro);
@@ -4337,6 +4441,11 @@ fetch("/api/postes", { credentials: "include" })
     });
 
     if (typeof window.reconstruirFonte3D === "function") window.reconstruirFonte3D();
+
+    try {
+      const __b = __boundsAggGet();
+      if (__b) __applyDataBounds2D(__b);
+    } catch(_) {}
 
     preencherListas();
     hideOverlay();
