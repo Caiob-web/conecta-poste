@@ -643,6 +643,7 @@ const todosPostes = [];
 // - Evita carregar mundo inteiro e deixa mais leve em PCs antigos
 // ==============================
 let __POSTES_DATA_BOUNDS__ = null; // {minLat,maxLat,minLon,maxLon}
+const __HULL_POINTS_FLAT__ = []; // [lon1,lat1, lon2,lat2, ...] usado no worker do recorte
 const __boundsAgg = { minLat:  90, maxLat: -90, minLon:  180, maxLon: -180, count: 0 };
 
 function __boundsAggAdd(lat, lon) {
@@ -743,56 +744,166 @@ function __convexHullLonLat(pointsLonLat) {
   return hull.length ? hull : pts.slice(0, 3);
 }
 
+
+// --- Hull async (Web Worker) para não travar carregamento ---
+let __HULL_PROMISE__ = null;
+
 function __calcHullFromPostes() {
-  try {
-    if (!todosPostes || !todosPostes.length) return null;
-
-    const pts = [];
-    for (const p of todosPostes) {
-      if (!p) continue;
-      const la = Number(p.lat), lo = Number(p.lon);
-      if (!isFinite(la) || !isFinite(lo)) continue;
-      pts.push([lo, la]); // [lon,lat]
-    }
-    if (pts.length < 3) return null;
-
-    const hullLonLat = __convexHullLonLat(pts);
-
-    // bbox do hull
-    let minLat=90, maxLat=-90, minLon=180, maxLon=-180;
-    hullLonLat.forEach(([lo,la]) => {
-      minLat = Math.min(minLat, la); maxLat = Math.max(maxLat, la);
-      minLon = Math.min(minLon, lo); maxLon = Math.max(maxLon, lo);
-    });
-
-    // "pad" do hull (expande a partir do centro)
-    const cx = (minLon + maxLon)/2;
-    const cy = (minLat + maxLat)/2;
-    const pad = 0.06; // 6%
-    const padded = hullLonLat.map(([lo,la]) => {
-      const dx = lo - cx;
-      const dy = la - cy;
-      return [cx + dx*(1+pad), cy + dy*(1+pad)];
-    });
-
-    // converte para [[lat,lon], ...]
-    const hullLL = padded.map(([lo,la]) => [la, lo]);
-
-    // garante "fechado" (último = primeiro)
-    if (hullLL.length && (hullLL[0][0] !== hullLL[hullLL.length-1][0] || hullLL[0][1] !== hullLL[hullLL.length-1][1])) {
-      hullLL.push([hullLL[0][0], hullLL[0][1]]);
-    }
-
-    __CONCESSAO_HULL_LL__ = hullLL;
-    __CONCESSAO_HULL_BBOX__ = { minLat, maxLat, minLon, maxLon };
-    try { window.__CONCESSAO_HULL_LL__ = hullLL; window.__CONCESSAO_HULL_BBOX__ = __CONCESSAO_HULL_BBOX__; } catch(_) {}
-
-    return { hullLL, bbox: __CONCESSAO_HULL_BBOX__ };
-  } catch (e) {
-    console.warn("Falha ao calcular hull da concessão:", e);
-    return null;
-  }
+  // compat: mantém assinatura, mas NÃO faz mais hull sincrono (evita travar)
+  return null;
 }
+
+function __getHullAsync() {
+  try {
+    if (__CONCESSAO_HULL_LL__ && __CONCESSAO_HULL_LL__.length >= 4) {
+      return Promise.resolve({ hullLL: __CONCESSAO_HULL_LL__, bbox: __CONCESSAO_HULL_BBOX__ });
+    }
+  } catch (_) {}
+
+  if (__HULL_PROMISE__) return __HULL_PROMISE__;
+
+  __HULL_PROMISE__ = new Promise((resolve) => {
+    try {
+      const flat = Array.isArray(__HULL_POINTS_FLAT__) ? __HULL_POINTS_FLAT__ : [];
+      if (!flat || flat.length < 6) return resolve(null);
+
+      // cria buffer transferível (não bloqueia o main thread com sort)
+      const arr = new Float32Array(flat.length);
+      for (let i = 0; i < flat.length; i++) arr[i] = Number(flat[i]);
+
+      const workerCode = `
+        function convexHullLonLat(points) {
+          // points: array of [lon,lat]
+          if (points.length <= 2) return points.slice();
+
+          points.sort((a,b) => (a[0]-b[0]) || (a[1]-b[1]));
+          const cross = (o,a,b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+
+          const lower = [];
+          for (const p of points) {
+            while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) lower.pop();
+            lower.push(p);
+          }
+          const upper = [];
+          for (let i=points.length-1; i>=0; i--) {
+            const p = points[i];
+            while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) upper.pop();
+            upper.push(p);
+          }
+          upper.pop(); lower.pop();
+          const hull = lower.concat(upper);
+          return hull.length ? hull : points.slice(0, 3);
+        }
+
+        onmessage = (e) => {
+          try {
+            const buf = e.data && e.data.buf;
+            if (!buf) return postMessage({ ok:false });
+            const f = new Float32Array(buf);
+            const pts = [];
+            for (let i=0; i<f.length; i+=2) {
+              const lo = f[i], la = f[i+1];
+              if (Number.isFinite(lo) && Number.isFinite(la)) pts.push([lo,la]);
+            }
+            if (pts.length < 3) return postMessage({ ok:false });
+
+            const hull = convexHullLonLat(pts);
+
+            let minLat=90, maxLat=-90, minLon=180, maxLon=-180;
+            for (const p of hull) {
+              const lo=p[0], la=p[1];
+              minLat = Math.min(minLat, la); maxLat = Math.max(maxLat, la);
+              minLon = Math.min(minLon, lo); maxLon = Math.max(maxLon, lo);
+            }
+
+            // pad 6%
+            const cx=(minLon+maxLon)/2, cy=(minLat+maxLat)/2;
+            const pad=0.06;
+            const padded = hull.map(([lo,la]) => {
+              const dx = lo-cx, dy=la-cy;
+              return [cx + dx*(1+pad), cy + dy*(1+pad)];
+            });
+
+            postMessage({ ok:true, hull: padded, bbox:{minLat,maxLat,minLon,maxLon} });
+          } catch (err) {
+            postMessage({ ok:false, err: String(err) });
+          }
+        };
+      `;
+
+      const blob = new Blob([workerCode], { type: "text/javascript" });
+      const url = URL.createObjectURL(blob);
+      const w = new Worker(url);
+
+      const done = (val) => {
+        try { w.terminate(); } catch (_) {}
+        try { URL.revokeObjectURL(url); } catch (_) {}
+        resolve(val);
+      };
+
+      w.onmessage = (ev) => {
+        try {
+          const d = ev.data || {};
+          if (!d.ok || !d.hull || !d.bbox) return done(null);
+
+          // converte para [[lat,lon], ...] e fecha
+          const hullLL = d.hull.map(([lo,la]) => [la,lo]);
+          if (hullLL.length && (hullLL[0][0] !== hullLL[hullLL.length-1][0] || hullLL[0][1] !== hullLL[hullLL.length-1][1])) {
+            hullLL.push([hullLL[0][0], hullLL[0][1]]);
+          }
+
+          __CONCESSAO_HULL_LL__ = hullLL;
+          __CONCESSAO_HULL_BBOX__ = d.bbox;
+          try { window.__CONCESSAO_HULL_LL__ = hullLL; window.__CONCESSAO_HULL_BBOX__ = d.bbox; } catch(_) {}
+
+          done({ hullLL, bbox: d.bbox });
+        } catch (e) {
+          done(null);
+        }
+      };
+
+      w.onerror = () => done(null);
+
+      // transfere buffer (não copia)
+      w.postMessage({ buf: arr.buffer }, [arr.buffer]);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+
+  return __HULL_PROMISE__;
+}
+
+// Máscara rápida (bbox) — aplica instantâneo, depois troca para hull quando pronto
+function __applyConcessaoMask2DFromBBox(b) {
+  try {
+    if (!map || !b) return;
+    const bb = __padBoundsObj(b, 0.14);
+    const rect = [
+      [bb.minLat, bb.minLon],
+      [bb.minLat, bb.maxLon],
+      [bb.maxLat, bb.maxLon],
+      [bb.maxLat, bb.minLon],
+      [bb.minLat, bb.minLon]
+    ];
+    __applyConcessaoMask2D(rect);
+  } catch (_) {}
+}
+function __applyConcessaoMask3DFromBBox(b) {
+  try {
+    if (!map3d || !b) return;
+    const bb = __padBoundsObj(b, 0.14);
+    const rect = [
+      [bb.minLat, bb.minLon],
+      [bb.minLat, bb.maxLon],
+      [bb.maxLat, bb.maxLon],
+      [bb.maxLat, bb.minLon],
+      [bb.minLat, bb.minLon]
+    ];
+    __applyConcessaoMask3D(rect);
+  } catch (_) {}
+}
+
 
 let __concessaoMask2D = null;
 
@@ -2010,6 +2121,13 @@ function exibirTodosPostes() {
     try {
       const __hull = (window.__CONCESSAO_HULL_LL__ || __CONCESSAO_HULL_LL__);
       if (__hull) __applyConcessaoMask3D(__hull);
+            else {
+              try {
+                const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+                if (__b) __applyConcessaoMask3DFromBBox(__b);
+                __getHullAsync().then((h) => { try { if (h && h.hullLL) __applyConcessaoMask3D(h.hullLL); } catch(_) {} });
+              } catch(_) {}
+            }
     } catch (_) {}
     try { garantirCamadasPostes3D(); } catch (_) {}
     try { bindEventosPostes3D(); } catch (_) {}
@@ -3404,15 +3522,29 @@ function limparCamadasMassivas3D() {
     try {
       const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
       if (__b) __applyDataBounds2D(__b);
+      try { if (__b) __applyConcessaoMask2DFromBBox(__b); } catch(_) {}
+
+      // Hull completo em background (worker) — não trava carregamento
+      try {
+        (__getHullAsync()).then((h) => {
+          try {
+            if (h && h.hullLL) __applyConcessaoMask2D(h.hullLL);
+            // se o 3D já estiver ativo, aplica lá também
+            if (typeof map3d !== "undefined" && map3d && h && h.hullLL) __applyConcessaoMask3D(h.hullLL);
+          } catch (_) {}
+        });
+      } catch(_) {}
       try {
         const __hull = (window.__CONCESSAO_HULL_LL__ || __CONCESSAO_HULL_LL__);
         if (__hull) __applyConcessaoMask2D(__hull);
       } catch(_) {}
+      // Hull (worker) já roda em background. Se ainda não terminou, reaplica bbox e aguarda.
       try {
-        const __h = __calcHullFromPostes();
-        if (__h && __h.hullLL) __applyConcessaoMask2D(__h.hullLL);
+        const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+        if (__b) __applyConcessaoMask2DFromBBox(__b);
+        __getHullAsync().then((h) => { try { if (h && h.hullLL) __applyConcessaoMask2D(h.hullLL); } catch(_) {} });
       } catch(_) {}
-    } catch(_) {}
+} catch(_) {}
         return;
       }
       mapboxgl.accessToken = __t;
@@ -3477,6 +3609,13 @@ function limparCamadasMassivas3D() {
           try {
             const __hull = (window.__CONCESSAO_HULL_LL__ || __CONCESSAO_HULL_LL__);
             if (__hull) __applyConcessaoMask3D(__hull);
+            else {
+              try {
+                const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
+                if (__b) __applyConcessaoMask3DFromBBox(__b);
+                __getHullAsync().then((h) => { try { if (h && h.hullLL) __applyConcessaoMask3D(h.hullLL); } catch(_) {} });
+              } catch(_) {}
+            }
           } catch(_) {}
         } catch(_) {}
 
@@ -4667,6 +4806,7 @@ fetch("/api/postes", { credentials: "include" })
     postsArray.forEach((poste) => {
       todosPostes.push(poste);
       try { __boundsAggAdd(poste.lat, poste.lon); } catch(_) {}
+      try { __HULL_POINTS_FLAT__.push(Number(poste.lon), Number(poste.lat)); } catch(_) {}
       municipiosSet.add(poste.nome_municipio);
       bairrosSet.add(poste.nome_bairro);
       logradourosSet.add(poste.nome_logradouro);
