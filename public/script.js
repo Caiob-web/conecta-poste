@@ -710,6 +710,227 @@ function __applyDataBounds3D(b) {
   }
 }
 
+// ==============================
+// Concessão (máscara) — mostrar somente a área onde existem postes
+// - Calcula um polígono de "concessão" automaticamente via convex hull dos postes
+// - Aplica máscara no 2D (Leaflet) e no 3D (Mapbox) para esconder fora da área
+// ==============================
+let __CONCESSAO_HULL_LL__ = null;  // [[lat,lon], ...]
+let __CONCESSAO_HULL_BBOX__ = null; // {minLat,maxLat,minLon,maxLon}
+
+function __convexHullLonLat(pointsLonLat) {
+  // Monotonic chain (O(n log n))
+  const pts = (pointsLonLat || []).filter(p => p && isFinite(p[0]) && isFinite(p[1]));
+  if (pts.length <= 2) return pts.slice();
+
+  pts.sort((a,b) => (a[0] - b[0]) || (a[1] - b[1]));
+
+  const cross = (o,a,b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper = [];
+  for (let i=pts.length-1; i>=0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  upper.pop(); lower.pop();
+  const hull = lower.concat(upper);
+  return hull.length ? hull : pts.slice(0, 3);
+}
+
+function __calcHullFromPostes() {
+  try {
+    if (!todosPostes || !todosPostes.length) return null;
+
+    const pts = [];
+    for (const p of todosPostes) {
+      if (!p) continue;
+      const la = Number(p.lat), lo = Number(p.lon);
+      if (!isFinite(la) || !isFinite(lo)) continue;
+      pts.push([lo, la]); // [lon,lat]
+    }
+    if (pts.length < 3) return null;
+
+    const hullLonLat = __convexHullLonLat(pts);
+
+    // bbox do hull
+    let minLat=90, maxLat=-90, minLon=180, maxLon=-180;
+    hullLonLat.forEach(([lo,la]) => {
+      minLat = Math.min(minLat, la); maxLat = Math.max(maxLat, la);
+      minLon = Math.min(minLon, lo); maxLon = Math.max(maxLon, lo);
+    });
+
+    // "pad" do hull (expande a partir do centro)
+    const cx = (minLon + maxLon)/2;
+    const cy = (minLat + maxLat)/2;
+    const pad = 0.06; // 6%
+    const padded = hullLonLat.map(([lo,la]) => {
+      const dx = lo - cx;
+      const dy = la - cy;
+      return [cx + dx*(1+pad), cy + dy*(1+pad)];
+    });
+
+    // converte para [[lat,lon], ...]
+    const hullLL = padded.map(([lo,la]) => [la, lo]);
+
+    // garante "fechado" (último = primeiro)
+    if (hullLL.length && (hullLL[0][0] !== hullLL[hullLL.length-1][0] || hullLL[0][1] !== hullLL[hullLL.length-1][1])) {
+      hullLL.push([hullLL[0][0], hullLL[0][1]]);
+    }
+
+    __CONCESSAO_HULL_LL__ = hullLL;
+    __CONCESSAO_HULL_BBOX__ = { minLat, maxLat, minLon, maxLon };
+    try { window.__CONCESSAO_HULL_LL__ = hullLL; window.__CONCESSAO_HULL_BBOX__ = __CONCESSAO_HULL_BBOX__; } catch(_) {}
+
+    return { hullLL, bbox: __CONCESSAO_HULL_BBOX__ };
+  } catch (e) {
+    console.warn("Falha ao calcular hull da concessão:", e);
+    return null;
+  }
+}
+
+let __concessaoMask2D = null;
+
+function __ensureMaskPane2D() {
+  try {
+    if (!map) return;
+    if (!map.getPane("concessaoMask")) {
+      const pane = map.createPane("concessaoMask");
+      pane.style.zIndex = 690; // acima do labels/polígonos
+      pane.style.pointerEvents = "none"; // não bloquear clique
+    }
+  } catch (_) {}
+}
+
+function __applyConcessaoMask2D(hullLL) {
+  try {
+    if (!map || !hullLL || hullLL.length < 4) return;
+
+    __ensureMaskPane2D();
+
+    // mundo (anel externo) — Leaflet precisa de lat/lon
+    const outer = [
+      [ 89.0, -180.0],
+      [ 89.0,  180.0],
+      [-89.0,  180.0],
+      [-89.0, -180.0]
+    ];
+
+    if (__concessaoMask2D) {
+      try { map.removeLayer(__concessaoMask2D); } catch (_) {}
+      __concessaoMask2D = null;
+    }
+
+    __concessaoMask2D = L.polygon([outer, hullLL], {
+      pane: "concessaoMask",
+      stroke: false,
+      fill: true,
+      fillColor: "#0b1624",
+      fillOpacity: 0.92
+    }).addTo(map);
+
+    try { __concessaoMask2D.bringToFront(); } catch (_) {}
+
+    // limita navegação ao bbox do hull (mais forte que somente bounds dos postes)
+    const b = __CONCESSAO_HULL_BBOX__ || window.__CONCESSAO_HULL_BBOX__;
+    if (b) {
+      __applyDataBounds2D(b);
+    }
+  } catch (e) {
+    console.warn("Falha ao aplicar máscara 2D da concessão:", e);
+  }
+}
+
+// --------- Mapbox 3D mask ----------
+const MAP3D_SOURCE_CONCESSAO_MASK = "concessao-mask";
+const MAP3D_LAYER_CONCESSAO_MASK = "concessao-mask-fill";
+const MAP3D_LAYER_CONCESSAO_BORDER = "concessao-mask-border";
+
+function __getMaskGeoJSON3D(hullLL) {
+  if (!hullLL || hullLL.length < 4) return null;
+
+  // Outer ring (world box) in [lon,lat]
+  const outer = [
+    [-180.0, -85.0],
+    [ 180.0, -85.0],
+    [ 180.0,  85.0],
+    [-180.0,  85.0],
+    [-180.0, -85.0]
+  ];
+
+  // inner ring: hull in [lon,lat]
+  const inner = hullLL.map(([la,lo]) => [lo,la]);
+
+  // ensure closed
+  if (inner.length && (inner[0][0] !== inner[inner.length-1][0] || inner[0][1] !== inner[inner.length-1][1])) {
+    inner.push([inner[0][0], inner[0][1]]);
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "Polygon",
+        coordinates: [outer, inner]
+      }
+    }]
+  };
+}
+
+function __applyConcessaoMask3D(hullLL) {
+  try {
+    if (!map3d || !hullLL || hullLL.length < 4) return;
+
+    const gj = __getMaskGeoJSON3D(hullLL);
+    if (!gj) return;
+
+    if (map3d.getSource(MAP3D_SOURCE_CONCESSAO_MASK)) {
+      try { map3d.getSource(MAP3D_SOURCE_CONCESSAO_MASK).setData(gj); } catch(_) {}
+    } else {
+      map3d.addSource(MAP3D_SOURCE_CONCESSAO_MASK, { type: "geojson", data: gj });
+    }
+
+    // Fill acima do basemap, abaixo dos postes
+    if (!map3d.getLayer(MAP3D_LAYER_CONCESSAO_MASK)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_CONCESSAO_MASK,
+        type: "fill",
+        source: MAP3D_SOURCE_CONCESSAO_MASK,
+        paint: {
+          "fill-color": "#0b1624",
+          "fill-opacity": 0.92
+        }
+      }, MAP3D_LAYER_CLUSTER_SHADOW /* insere antes dos postes/cluster */);
+    }
+
+    if (!map3d.getLayer(MAP3D_LAYER_CONCESSAO_BORDER)) {
+      map3d.addLayer({
+        id: MAP3D_LAYER_CONCESSAO_BORDER,
+        type: "line",
+        source: MAP3D_SOURCE_CONCESSAO_MASK,
+        paint: {
+          "line-color": "rgba(25,214,143,0.75)",
+          "line-width": 2
+        }
+      }, MAP3D_LAYER_CLUSTER_SHADOW);
+    }
+
+    // limita navegação
+    const b = __CONCESSAO_HULL_BBOX__ || window.__CONCESSAO_HULL_BBOX__;
+    if (b) __applyDataBounds3D(b);
+  } catch (e) {
+    console.warn("Falha ao aplicar máscara 3D da concessão:", e);
+  }
+}
+
+
 const empresasContagem = {};
 const municipiosSet = new Set();
 const bairrosSet = new Set();
@@ -1785,6 +2006,11 @@ function exibirTodosPostes() {
       try { adicionarVegetacao3D(); } catch (_) {}
     }
     try { await garantirSources3D(); } catch (_) {}
+    // re-aplica máscara de concessão após troca de estilo
+    try {
+      const __hull = (window.__CONCESSAO_HULL_LL__ || __CONCESSAO_HULL_LL__);
+      if (__hull) __applyConcessaoMask3D(__hull);
+    } catch (_) {}
     try { garantirCamadasPostes3D(); } catch (_) {}
     try { bindEventosPostes3D(); } catch (_) {}
     try { bindAtualizacaoPostes3D(); } catch (_) {}
@@ -3178,6 +3404,14 @@ function limparCamadasMassivas3D() {
     try {
       const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
       if (__b) __applyDataBounds2D(__b);
+      try {
+        const __hull = (window.__CONCESSAO_HULL_LL__ || __CONCESSAO_HULL_LL__);
+        if (__hull) __applyConcessaoMask2D(__hull);
+      } catch(_) {}
+      try {
+        const __h = __calcHullFromPostes();
+        if (__h && __h.hullLL) __applyConcessaoMask2D(__h.hullLL);
+      } catch(_) {}
     } catch(_) {}
         return;
       }
@@ -3240,6 +3474,10 @@ function limparCamadasMassivas3D() {
         try {
           const __b = (window.__POSTES_DATA_BOUNDS__ || __POSTES_DATA_BOUNDS__);
           if (__b) __applyDataBounds3D(__b);
+          try {
+            const __hull = (window.__CONCESSAO_HULL_LL__ || __CONCESSAO_HULL_LL__);
+            if (__hull) __applyConcessaoMask3D(__hull);
+          } catch(_) {}
         } catch(_) {}
 
         // Toggle de base 3D (Rua/Satélite)
