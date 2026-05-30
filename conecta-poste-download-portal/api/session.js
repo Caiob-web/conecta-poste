@@ -1,6 +1,6 @@
-import { readSession } from "./_auth.js";
+const { readSession } = require("./_auth.js");
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   const session = readSession(req);
 
   res.statusCode = 200;
@@ -9,4 +9,4 @@ export default function handler(req, res) {
     authenticated: Boolean(session),
     user: session ? { id: session.sub, username: session.username } : null
   }));
-}
+};
