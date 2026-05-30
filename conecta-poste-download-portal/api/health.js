@@ -32,7 +32,6 @@ module.exports = async function handler(req, res) {
       status.database.usersTable = true;
     } catch (error) {
       status.database.errorCode = error.code || "UNKNOWN";
-      status.database.error = String(error.message || "Erro desconhecido").slice(0, 160);
     } finally {
       await pool.end().catch(() => {});
     }
