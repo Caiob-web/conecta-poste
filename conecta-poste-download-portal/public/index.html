@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conecta Poste — Download</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="brand">
+        <div class="brand-mark">CP</div>
+        <div>
+          <strong>Conecta Poste</strong>
+          <span>Portal de instalação Windows</span>
+        </div>
+      </div>
+
+      <div class="hero-copy">
+        <p class="eyebrow">Acesso autorizado</p>
+        <h1>Baixe o instalador oficial do Conecta Poste Desktop.</h1>
+        <p>
+          Use o mesmo usuário e senha cadastrados na base NEON para acessar o
+          instalador atualizado do sistema.
+        </p>
+      </div>
+
+      <div class="release-card">
+        <span>Versão atual</span>
+        <strong>1.0.42</strong>
+        <small>Windows • WebView2 • SQLite offline</small>
+      </div>
+    </section>
+
+    <section class="panel" id="loginPanel">
+      <div class="panel-header">
+        <h2>Entrar</h2>
+        <p>Informe suas credenciais do sistema.</p>
+      </div>
+
+      <form id="loginForm" autocomplete="on">
+        <label>
+          Usuário
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="ex.: admin" required>
+        </label>
+
+        <label>
+          Senha
+          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        </label>
+
+        <button type="submit" id="loginButton">Entrar no portal</button>
+        <p class="message" id="loginMessage" role="status"></p>
+      </form>
+    </section>
+
+    <section class="panel dashboard hidden" id="downloadPanel">
+      <div class="panel-header">
+        <h2>Download liberado</h2>
+        <p id="welcomeText">Sessão autenticada.</p>
+      </div>
+
+      <div class="download-box">
+        <div>
+          <strong>ConectaPoste-Setup.exe</strong>
+          <span>Instalador oficial para Windows</span>
+        </div>
+        <a class="download-button" href="/api/download">Baixar instalador</a>
+      </div>
+
+      <ul class="checks">
+        <li>Aplicativo desktop offline/online</li>
+        <li>Banco local SQLite</li>
+        <li>Mapa de postes com dados sincronizados</li>
+      </ul>
+
+      <button class="ghost" type="button" id="logoutButton">Sair</button>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

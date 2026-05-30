@@ -1,0 +1,16 @@
+{
+  "name": "conecta-poste-download-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "check": "node --check api/login.js && node --check api/session.js && node --check api/logout.js && node --check api/download.js && node --check api/_auth.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2"
+  },
+  "devDependencies": {
+    "vercel": "^48.9.0"
+  }
+}
