@@ -23,7 +23,7 @@ Configure em **Project Settings > Environment Variables**:
 ```env
 DATABASE_URL=postgresql://USUARIO:SENHA@HOST/neondb?sslmode=require
 SESSION_SECRET=uma-chave-grande-aleatoria-com-32-caracteres-ou-mais
-DOWNLOAD_URL=https://github.com/Caiob-web/conecta-poste/releases/latest/download/ConectaPoste-Setup.exe
+DOWNLOAD_ZIP_URL=https://github.com/Caiob-web/conecta-poste/releases/latest/download/ConectaPoste-Windows.zip
 ```
 
 Nunca coloque a `DATABASE_URL` no HTML, JavaScript público ou GitHub.
@@ -31,7 +31,7 @@ Nunca coloque a `DATABASE_URL` no HTML, JavaScript público ou GitHub.
 ## Deploy no Vercel
 
 1. Importe o repositório `Caiob-web/conecta-poste` no Vercel.
-2. Defina o **Root Directory** como `conecta-poste-download-portal`.
+2. Use a raiz do repositório ou defina o **Root Directory** como `conecta-poste-download-portal`.
 3. Configure as variáveis de ambiente acima.
 4. Faça o deploy.
 
@@ -44,10 +44,10 @@ npm run dev
 
 ## Atualizar o instalador
 
-Publique uma nova GitHub Release com o arquivo `ConectaPoste-Setup.exe` e marque como `latest`. O portal usa o link fixo:
+Publique uma nova GitHub Release com o arquivo `ConectaPoste-Windows.zip` e marque como `latest`. O portal usa o link fixo:
 
 ```text
-https://github.com/Caiob-web/conecta-poste/releases/latest/download/ConectaPoste-Setup.exe
+https://github.com/Caiob-web/conecta-poste/releases/latest/download/ConectaPoste-Windows.zip
 ```
 
 Assim os usuários sempre baixam a versão mais recente.
