@@ -9,8 +9,8 @@ Repositório dedicado ao aplicativo Conecta Poste Desktop para Windows.
 
 ## Versão atual
 
-- Conecta Poste Desktop `1.0.42`
-- Publicado em `desktop-v1.0.42`
+- Conecta Poste Desktop `1.0.43`
+- Publicado em `desktop-v1.0.43`
 
 ## Atualizações
 
