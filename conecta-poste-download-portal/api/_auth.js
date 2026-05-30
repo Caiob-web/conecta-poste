@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+const crypto = require("node:crypto");
 
 const COOKIE_NAME = "cp_download_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
@@ -7,9 +7,11 @@ function getSessionSecret() {
   const secret = process.env.SESSION_SECRET;
   if (secret && secret.length >= 32) return secret;
 
-  const isProduction = process.env.VERCEL || process.env.NODE_ENV === "production";
-  if (isProduction) {
-    throw new Error("SESSION_SECRET ausente ou muito curto. Configure uma chave com pelo menos 32 caracteres.");
+  if (process.env.DATABASE_URL) {
+    return crypto
+      .createHash("sha256")
+      .update(`${process.env.DATABASE_URL}:conecta-poste-download-session`, "utf8")
+      .digest("hex");
   }
 
   return "dev-local-session-secret-change-before-deploy";
@@ -46,7 +48,7 @@ function isHttpsRuntime() {
   return process.env.VERCEL || process.env.NODE_ENV === "production";
 }
 
-export function createSessionCookie(user) {
+function createSessionCookie(user) {
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;
   const payload = base64UrlEncode(JSON.stringify({
     sub: String(user.id),
@@ -64,7 +66,7 @@ export function createSessionCookie(user) {
   });
 }
 
-export function clearSessionCookie() {
+function clearSessionCookie() {
   return serializeCookie(COOKIE_NAME, "", {
     maxAge: 0,
     path: "/",
@@ -74,7 +76,7 @@ export function clearSessionCookie() {
   });
 }
 
-export function readSession(req) {
+function readSession(req) {
   const cookieHeader = req.headers.cookie || "";
   const cookie = cookieHeader
     .split(";")
@@ -102,18 +104,15 @@ export function readSession(req) {
   }
 }
 
-export function requireSession(req, res) {
-  const session = readSession(req);
-  if (session) return session;
-
-  res.statusCode = 401;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.end(JSON.stringify({ error: "Sessão expirada. Faça login novamente." }));
-  return null;
-}
-
-export function safePasswordEquals(storedPassword, submittedPassword) {
+function safePasswordEquals(storedPassword, submittedPassword) {
   const left = crypto.createHash("sha256").update(String(storedPassword ?? ""), "utf8").digest();
   const right = crypto.createHash("sha256").update(String(submittedPassword ?? ""), "utf8").digest();
   return crypto.timingSafeEqual(left, right);
 }
+
+module.exports = {
+  createSessionCookie,
+  clearSessionCookie,
+  readSession,
+  safePasswordEquals
+};
