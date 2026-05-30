@@ -69,10 +69,6 @@ module.exports = async function handler(req, res) {
     });
   } catch (error) {
     console.error("Falha no login do portal:", error.message);
-    return sendJson(res, 500, {
-      error: "Não foi possível autenticar agora. Tente novamente em instantes.",
-      code: error.code || "UNKNOWN",
-      detail: String(error.message || "Erro desconhecido").slice(0, 160)
-    });
+    return sendJson(res, 500, { error: "Não foi possível autenticar agora. Tente novamente em instantes." });
   }
 };
