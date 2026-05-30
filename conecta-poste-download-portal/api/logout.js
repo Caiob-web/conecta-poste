@@ -1,6 +1,6 @@
-import { clearSessionCookie } from "./_auth.js";
+const { clearSessionCookie } = require("./_auth.js");
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.statusCode = 405;
@@ -11,4 +11,4 @@ export default function handler(req, res) {
   res.statusCode = 200;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify({ ok: true }));
-}
+};
