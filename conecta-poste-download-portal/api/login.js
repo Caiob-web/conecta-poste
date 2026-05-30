@@ -1,5 +1,7 @@
-import { neon } from "@neondatabase/serverless";
-import { createSessionCookie, safePasswordEquals } from "./_auth.js";
+const { Pool } = require("pg");
+const { createSessionCookie, safePasswordEquals } = require("./_auth.js");
+
+let pool;
 
 function sendJson(res, status, body) {
   res.statusCode = status;
@@ -12,10 +14,17 @@ function getDatabase() {
     throw new Error("DATABASE_URL não configurada.");
   }
 
-  return neon(process.env.DATABASE_URL);
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+  }
+
+  return pool;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return sendJson(res, 405, { error: "Método não permitido." });
@@ -34,13 +43,13 @@ export default async function handler(req, res) {
       return sendJson(res, 400, { error: "Usuário ou senha inválidos." });
     }
 
-    const sql = getDatabase();
-    const rows = await sql`
+    const db = getDatabase();
+    const { rows } = await db.query(`
       select id, username, "password" as password, is_active
       from public.users
-      where lower(username) = lower(${normalizedUsername})
+      where lower(username) = lower($1)
       limit 1
-    `;
+    `, [normalizedUsername]);
 
     const user = rows[0];
     const isActive = user?.is_active === true;
@@ -61,4 +70,4 @@ export default async function handler(req, res) {
     console.error("Falha no login do portal:", error.message);
     return sendJson(res, 500, { error: "Não foi possível autenticar agora. Tente novamente em instantes." });
   }
-}
+};
