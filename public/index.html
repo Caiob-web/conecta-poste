@@ -1,518 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mapa de Postes</title>
-
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" href="/favicon.png" sizes="64x64">
-
-
-    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-
-    <script>
-      (function () {
-        try {
-          var navEntries = (performance.getEntriesByType && performance.getEntriesByType('navigation')) || [];
-          var nav = navEntries[0];
-          var isReload = nav ? nav.type === 'reload'
-                             : (performance && performance.navigation ? performance.navigation.type === 1 : false);
-
-          if (isReload) {
-            fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" })
-              .catch(function(){})
-              .finally(function(){
-                try {
-                  localStorage.removeItem("auth_user");
-                  sessionStorage.removeItem("auth_token");
-                  document.cookie = "auth_token=; Max-Age=0; Path=/; SameSite=Lax";
-                } catch(_) {}
-                location.replace("/login.html");
-              });
-          }
-        } catch (e) {}
-      })();
-    </script>
-
-    <script>
-      (function () {
-        try {
-          const u = localStorage.getItem('auth_user');
-          if (!u) location.replace('/login.html');
-        } catch (_) {
-          location.replace('/login.html');
-        }
-      })();
-    </script>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
-
-    <!-- MapLibre -->
-    <!-- Mapbox GL JS (somente para Modo 3D) -->
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.css" rel="stylesheet" />
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/v4-shims.min.css" />
-
-    <style>
-      :root{
-        --ui-bg:#0f1b2a; --ui-elev:#132235; --ui-text:#e6edf7; --ui-muted:#9fb3c8;
-        --ui-border:#19d68f; --ui-border-dim:#0d7b55; --ui-accent:#18c77f; --ui-accent-2:#0fb171; --ui-danger:#ef4444;
-        --shadow:0 10px 28px rgba(0,0,0,.28); --dock-w:340px;
-      }
-
-      html, body { margin:0; padding:0; height:100%; background:#0b1624; }
-
-      #map {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-      }
-
-      body.modo-3d-ativo #map {
-        position: fixed !important;
-        left: -200vw !important;
-        top: 0 !important;
-        pointer-events: none !important;
-        z-index: -999 !important;
-      }
-      body.modo-3d-ativo #map .leaflet-pane,
-      body.modo-3d-ativo #map .leaflet-top,
-      body.modo-3d-ativo #map .leaflet-bottom,
-      body.modo-3d-ativo #map .leaflet-control-container {
-        opacity: 0 !important;
-        pointer-events: none !important;
-      }
-      body.modo-3d-ativo #map3d {
-        display: block !important;
-        position: fixed !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 1 !important;
-      }
-      body:not(.modo-3d-ativo) #map3d {
-        position: fixed !important;
-        left: -200vw !important;
-        display: block !important;
-        pointer-events: none !important;
-        z-index: -999 !important;
-      }
-
-      #map3d {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        display: none;
-      }
-
-      .map-wrap {
-        position: relative;
-        width: 100%;
-        height: 100%;
-      }
-
-      #carregando[style*="display: none"] { pointer-events:none !important; }
-
-      .painel-busca {
-        position: fixed; top: 0; right: 0; height: 100vh; width: var(--dock-w); overflow: auto;
-        background: var(--ui-bg); color: var(--ui-text);
-        border-left: 2px solid var(--ui-border);
-        padding: 16px 14px 18px; box-shadow: var(--shadow);
-        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; z-index: 1000;
-        transform: translateX(0%); transition: transform .25s ease;
-      }
-      .painel-busca.collapsed{ transform: translateX(100%); }
-      .painel-busca h3 { margin: 6px 0 12px; font-weight: 800; color: var(--ui-text); letter-spacing:.3px; font-size: 16px; text-transform: uppercase; }
-      .painel-busca .field { position: relative; margin-bottom: 10px; }
-      .painel-busca .field input, .painel-busca .field textarea {
-        width: 100%; padding: 10px 36px 10px 12px; background: var(--ui-elev); color: var(--ui-text);
-        border: 1px solid var(--ui-border); border-radius: 10px; font-size: 14px; box-sizing: border-box;
-        transition: border-color .15s ease, box-shadow .15s ease;
-      }
-      .painel-busca .field input::placeholder, .painel-busca .field textarea::placeholder { color: #8fb0c7; }
-      .painel-busca .field input:focus, .painel-busca .field textarea:focus { outline: none; border-color: var(--ui-accent); box-shadow: 0 0 0 3px rgba(24,199,127,.22); }
-      .painel-busca .field .fa { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--ui-muted); font-size: 14px; pointer-events:none; }
-
-      .painel-busca .actions {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        margin-top: 6px;
-      }
-      .painel-busca .actions button {
-        display: flex; align-items: center; justify-content: center; padding: 10px 0;
-        background: var(--ui-accent); color: #07251a; border: 1px solid var(--ui-border); border-radius: 10px;
-        font-weight: 800; font-size: 13.5px; cursor: pointer;
-        transition: transform .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
-        box-shadow: 0 1px 2px rgba(0,0,0,.18);
-      }
-      .painel-busca .actions button:hover { background: var(--ui-accent-2); border-color: var(--ui-accent); transform: translateY(-1px); }
-      .painel-busca .actions button:active { transform: translateY(1px) scale(.98); }
-      .painel-busca .actions button .fa { margin-right: 6px; }
-
-      .painel-busca .actions button.active{
-        background:#0f172a;
-        color:#ffffff;
-        border-color:#0f172a;
-        box-shadow:0 10px 22px rgba(0,0,0,.18);
-      }
-      .measure-info, .walk-info{
-        grid-column: 1 / -1;
-        margin-top: 6px;
-        padding: 10px 10px;
-        border-radius: 10px;
-        background: rgba(255,255,255,0.92);
-        border: 1px solid var(--ui-border);
-        box-shadow: 0 1px 2px rgba(0,0,0,.12);
-        font-size: 12.5px;
-        line-height: 1.25;
-        color:#0f172a;
-      }
-      .walk-info b{ font-weight: 900; }
-
-
-      .map-mode-toggle {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin: 10px 0 12px;
-      }
-      .map-mode-toggle button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 10px 0;
-        background: var(--ui-elev);
-        color: var(--ui-text);
-        border: 1px solid var(--ui-border);
-        border-radius: 10px;
-        font-weight: 800;
-        font-size: 13.5px;
-        cursor: pointer;
-        transition: .15s ease;
-      }
-      .map-mode-toggle button:hover {
-        background: #17304a;
-        transform: translateY(-1px);
-      }
-      .map-mode-toggle button.active {
-        background: var(--ui-accent);
-        color: #07251a;
-      }
-
-      .layer-toggle{
-        display:flex; align-items:center; gap:10px;
-        padding:10px 12px;
-        border:1px solid var(--ui-border);
-        border-radius:10px;
-        background: var(--ui-elev);
-        margin: 10px 0 8px;
-        user-select:none;
-      }
-      .layer-toggle input{
-        width:18px; height:18px;
-        accent-color: var(--ui-accent);
-        cursor:pointer;
-      }
-      .layer-toggle .txt{
-        display:flex; flex-direction:column; gap:2px;
-        font-size:13px; color: var(--ui-text);
-      }
-      .layer-toggle .txt small{ color: var(--ui-muted); font-size:11px; }
-      .layer-toggle img{
-        width:22px; height:22px; object-fit:contain;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
-      }
-
-      .legenda {
-        position: absolute; bottom: 20px; right: 20px; background: rgba(15, 27, 42, 0.92); color: var(--ui-text);
-        padding: 12px 14px; border-radius: 12px; border: 1px solid var(--ui-border);
-        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; font-size: 13px; box-shadow: var(--shadow); z-index: 900;
-      }
-      .legenda-item { display: flex; align-items: center; margin-bottom: 6px; gap:8px; }
-      .legenda-item:last-child{ margin-bottom:0; }
-      .legenda-item .bolinha { width: 12px; height: 12px; border-radius: 50%; margin-right: 0; border: 1px solid var(--ui-border); }
-      .legenda-item .ico{
-        width:20px; height:20px; object-fit:contain;
-        filter: drop-shadow(0 2px 3px rgba(0,0,0,.35));
-      }
-
-      .botao-topo {
-        position: fixed; right: calc(var(--dock-w) + 16px); width: 42px; height: 42px;
-        background: var(--ui-bg); color: var(--ui-text); border: 1px solid var(--ui-border); border-radius: 12px;
-        box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: background .15s ease, transform .12s ease, box-shadow .15s ease; z-index: 1100;
-      }
-      .botao-topo:hover { background: #122236; transform: translateY(-1px); }
-      .botao-topo i { color: var(--ui-accent); }
-
-      #togglePainel{ top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border-radius: 12px 0 0 12px; }
-      body.sidebar-collapsed #togglePainel{ right: 16px; }
-      #localizacaoUsuario { top: 20px; }
-      #logoutBtn { top: 70px; }
-      body.sidebar-collapsed #localizacaoUsuario, body.sidebar-collapsed #logoutBtn{ right: 16px; }
-
-      #widget-clima{ margin-top: 12px; }
-
-      .overlay-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(5, 12, 22, 0.70); display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 3000; }
-      .spinner { border: 6px solid #0e2236; border-top: 6px solid var(--ui-accent); border-radius: 50%;
-        width: 48px; height: 48px; animation: girar 1s linear infinite; box-shadow: inset 0 0 0 1px rgba(25,214,143,.15); }
-      .texto-loading { margin-top: 12px; color: var(--ui-text); font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
-      @keyframes girar { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
-
-      @media (max-width: 880px){
-        :root{ --dock-w: 300px; }
-        .painel-busca .actions{ grid-template-columns: repeat(2,1fr); }
-      }
-      @media (max-width: 560px){
-        :root{ --dock-w: 86vw; }
-        .painel-busca .actions{ grid-template-columns: 1fr 1fr; gap:10px; }
-      }
-      @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
-    </style>
-  </head>
-
-  <body>
-    <div id="togglePainel" class="botao-topo" title="Esconder/Mostrar painel"><i class="fa fa-sliders"></i></div>
-    <div id="localizacaoUsuario" class="botao-topo" title="Minha localização"><i class="fa fa-location-dot"></i></div>
-    <div id="logoutBtn" class="botao-topo" title="Logout"><i class="fa fa-sign-out-alt"></i></div>
-
-    <div class="painel-busca" id="painelBusca">
-      <h3>Buscar Postes</h3>
-
-      <div class="map-mode-toggle">
-        <button id="btnModo2D" class="active" type="button">
-          <i class="fa fa-map"></i>&nbsp;Modo 2D
-        </button>
-        <button id="btnModo3D" type="button">
-          <i class="fa fa-cubes"></i>&nbsp;Modo 3D
-        </button>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conecta Poste — Download</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="brand">
+        <div class="brand-mark">CP</div>
+        <div>
+          <strong>Conecta Poste</strong>
+          <span>Portal de instalação Windows</span>
+        </div>
       </div>
 
-      <div class="field">
-        <input type="text" id="busca-id" placeholder="ID do Poste…" />
-        <i class="fa fa-hashtag"></i>
+      <div class="hero-copy">
+        <p class="eyebrow">Acesso autorizado</p>
+        <h1>Baixe o pacote oficial do Conecta Poste Desktop.</h1>
+        <p>
+          Use o mesmo usuário e senha cadastrados na base NEON para acessar o
+          arquivo ZIP atualizado do sistema.
+        </p>
       </div>
 
-      <div class="field">
-        <input type="text" id="busca-coord" placeholder="Lat, Lon…" />
-        <i class="fa fa-map-marker-alt"></i>
+      <div class="release-card">
+        <span>Versão atual</span>
+        <strong>1.0.43</strong>
+        <small>Windows • WebView2 • SQLite offline</small>
+      </div>
+    </section>
+
+    <section class="panel" id="loginPanel">
+      <div class="panel-header">
+        <h2>Entrar</h2>
+        <p>Informe suas credenciais do sistema.</p>
       </div>
 
-      <div class="field">
-        <input type="text" id="busca-municipio" placeholder="Município…" list="lista-municipios" />
-        <i class="fa fa-city"></i>
-      </div>
-      <datalist id="lista-municipios"></datalist>
-
-      <div class="field">
-        <input type="text" id="busca-bairro" placeholder="Bairro…" list="lista-bairros" />
-        <i class="fa fa-map-marker-alt"></i>
-      </div>
-      <datalist id="lista-bairros"></datalist>
-
-      <div class="field">
-        <input type="text" id="busca-logradouro" placeholder="Logradouro…" list="lista-logradouros" />
-        <i class="fa fa-road"></i>
-      </div>
-      <datalist id="lista-logradouros"></datalist>
-
-      <div class="field">
-        <input type="text" id="busca-empresa" placeholder="Empresa…" list="lista-empresas" />
-        <i class="fa fa-building"></i>
-      </div>
-      <datalist id="lista-empresas"></datalist>
-
-      <div class="field">
-        <textarea id="ids-multiplos" rows="2" placeholder="Vários IDs…"></textarea>
-        <i class="fa fa-list"></i>
-      </div>
-
-      <div class="actions">
-        <button onclick="buscarID()"><i class="fa fa-search"></i>Buscar</button>
-        <button onclick="buscarCoordenada()"><i class="fa fa-map-marker-alt"></i>Coordenada</button>
-        <button onclick="filtrarLocal()"><i class="fa fa-filter"></i>Filtrar</button>
-
-        <button onclick="consultarIDsEmMassa()" id="btnAnaliseProjeto"><i class="fa fa-chart-line"></i>Análise de Projeto</button>
-        <button id="btnLimparAnalise" type="button" onclick="limparAnaliseProjeto()"><i class="fa fa-eraser"></i>Limpar</button>
-        <button id="btnToggleDistAnalise" type="button" onclick="toggleDistanciasAnalise()" disabled><i class="fa fa-route"></i>Trechos</button>
-
-        <button id="btnMedir" type="button" onclick="toggleMedicao()"><i class="fa fa-ruler"></i>Medir</button>
-        <button id="btnLimparMedida" type="button" onclick="limparMedicao()"><i class="fa fa-times"></i>Limpar Medida</button>        <div id="medidaInfo" class="measure-info" style="display:none"></div>
-        <div id="analiseInfo" class="measure-info" style="display:none"></div>
-
-        <button onclick="resetarMapa()"><i class="fa fa-undo"></i>Resetar</button>
-        <button onclick="window.gerarPDFComMapa()"><i class="fa fa-file-pdf"></i>PDF</button>
-        
-        <button onclick="exportarExcelPadrao()"><i class="fa fa-file-excel"></i>Excel</button>
-        <button onclick="exportarCSVEO()"><i class="fa fa-file-csv"></i>CSV EO</button>
-        
-        <button id="btnCenso"><i class="fa fa-camera"></i>Censo</button>
-        <button id="btnRanking8Mais" type="button"><i class="fa fa-trophy"></i>Ranking 8+</button>
-        <button id="btnVisualizacao"><i class="fa fa-layer-group"></i>Visualização</button>
-      </div>
-
-      <div class="layer-toggle" title="Exibir/ocultar os transformadores no mapa">
-        <img data-icon="transformador" alt="Transformador">
-        <label class="txt" style="cursor:pointer;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <input type="checkbox" id="chkTransformadores" />
-            <span><b>Mostrar transformadores</b></span>
-          </div>
-          <small>Ícone no mapa + popup com dados do transformador</small>
+      <form id="loginForm" autocomplete="on">
+        <label>
+          Usuário
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="ex.: admin" required>
         </label>
+
+        <label>
+          Senha
+          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        </label>
+
+        <button type="submit" id="loginButton">Entrar no portal</button>
+        <p class="message" id="loginMessage" role="status"></p>
+      </form>
+    </section>
+
+    <section class="panel dashboard hidden" id="downloadPanel">
+      <div class="panel-header">
+        <h2>Download liberado</h2>
+        <p id="welcomeText">Sessão autenticada.</p>
       </div>
 
-      <div id="widget-clima" class="dock-hud">
-        <div id="tempo"></div>
+      <div class="download-box">
+        <div>
+          <strong>ConectaPoste-Windows.zip</strong>
+          <span>Pacote oficial com instalador Windows</span>
+        </div>
+        <a class="download-button" href="/api/download">Baixar ZIP</a>
       </div>
-    </div>
 
-    <div class="legenda">
-      <div class="legenda-item">
-        <img class="ico" data-icon="transformador" alt="Transformador">
-        Transformador
-      </div>
-      <div class="legenda-item"><div class="bolinha" style="background: yellow"></div>Poste intermediário</div>
-      <div class="legenda-item"><div class="bolinha" style="background: green"></div>Até 5 empresas</div>
-      <div class="legenda-item"><div class="bolinha" style="background: red"></div>Mais de 5 empresas</div>
-    </div>
+      <ul class="checks">
+        <li>Aplicativo desktop offline/online</li>
+        <li>Banco local SQLite</li>
+        <li>Mapa de postes com dados sincronizados</li>
+      </ul>
 
-    <div class="map-wrap">
-      <div id="map"></div>
-      <div id="map3d"></div>
-    </div>
+      <button class="ghost" type="button" id="logoutButton">Sair</button>
+    </section>
+  </main>
 
-    <div id="carregando" class="overlay-loading" style="display: flex">
-      <div class="spinner"></div>
-      <div class="texto-loading">Carregando postes…</div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.js"></script>
-
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="script.js?v=38"></script>
-
-    <script>
-      // =====================================================================
-      // Wrappers para os botões do HTML
-      // =====================================================================
-
-      function exportarExcelPadrao() {
-        try {
-          if (typeof postesSelecionados !== "undefined" && Array.isArray(postesSelecionados) && postesSelecionados.length) {
-            const ids = postesSelecionados.map((r) => r && r.poste ? r.poste.id : null).filter(Boolean);
-            if (!ids.length) return alert("Nenhum poste selecionado válido.");
-            exportarExcel(ids);
-            gerarExcelCliente(ids);
-            try { gerarCSVParaEO(ids); } catch (_) {}
-            return;
-          }
-          const ids = (document.getElementById("ids-multiplos")?.value || "").split(/[^0-9]+/).filter(Boolean);
-          if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
-          exportarExcel(ids);
-          gerarExcelCliente(ids);
-          try { gerarCSVParaEO(ids); } catch (_) {}
-        } catch (e) {
-          console.error("Erro exportarExcelPadrao:", e);
-          alert("Falha ao gerar Excel.");
-        }
-      }
-
-      function exportarCSVEO() {
-        try {
-          if (typeof postesSelecionados !== "undefined" && Array.isArray(postesSelecionados) && postesSelecionados.length) {
-            const ids = postesSelecionados.map((r) => r && r.poste ? r.poste.id : null).filter(Boolean);
-            if (!ids.length) return alert("Nenhum poste selecionado válido.");
-            return gerarCSVParaEO(ids);
-          }
-          const ids = (document.getElementById("ids-multiplos")?.value || "").split(/[^0-9]+/).filter(Boolean);
-          if (!ids.length) return alert("Informe ao menos um ID ou selecione postes no mapa.");
-          return gerarCSVParaEO(ids);
-        } catch (e) {
-          console.error("Erro exportarCSVEO:", e);
-          alert("Falha ao gerar CSV EO.");
-        }
-      }
-
-      // =====================================================================
-      // Limpar Análise de Projeto (sem recarregar tudo)
-      // - Sai do modo análise 2D/3D e restaura a base usando cache em memória
-      // =====================================================================
-      function limparAnaliseProjeto() {
-        try { if (typeof sairModoAnalise2D === "function") sairModoAnalise2D(); } catch (_) {}
-        try { if (typeof setModoAnalise3D === "function") setModoAnalise3D(false); } catch (_) {}
-        try { if (typeof limparCamadasMassivas3D === "function") limparCamadasMassivas3D(); } catch (_) {}
-
-        // Preferência: restaura base sem refazer cluster
-        try {
-          if (typeof resetarRapidoBase === "function") {
-            resetarRapidoBase();
-            return;
-          }
-        } catch (_) {}
-
-        // Fallback seguro
-        try { if (typeof resetarMapa === "function") resetarMapa(); } catch (_) {}
-      }
-
-      // Garantia (caso remova o onclick do botão no futuro)
-      (function () {
-        const b = document.getElementById("btnLimparAnalise");
-        if (!b) return;
-        b.addEventListener("click", function (e) {
-          e.preventDefault();
-          limparAnaliseProjeto();
-        });
-      })();
-
-      // =====================================================================
-      // Alternância 2D / 3D
-      // =====================================================================
-      (function () {
-        const btn2d = document.getElementById("btnModo2D");
-        const btn3d = document.getElementById("btnModo3D");
-
-        function setActiveButton(modo) {
-          btn2d.classList.toggle("active", modo === "2d");
-          btn3d.classList.toggle("active", modo === "3d");
-        }
-
-        btn3d?.addEventListener("click", function () {
-          setActiveButton("3d");
-          if (typeof window.ativarMapa3D === "function") {
-            window.ativarMapa3D();
-          } else {
-            console.warn("ativarMapa3D ainda não disponível.");
-          }
-        });
-
-        btn2d?.addEventListener("click", function () {
-          setActiveButton("2d");
-          if (typeof window.ativarMapa2D === "function") {
-            window.ativarMapa2D();
-          } else {
-            document.getElementById("map3d").style.display = "none";
-            document.getElementById("map").style.display  = "block";
-          }
-        });
-      })();
-    </script>
-  </body>
+  <script src="/app.js"></script>
+</body>
 </html>
