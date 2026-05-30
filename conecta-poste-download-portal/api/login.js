@@ -1,5 +1,5 @@
 const { Pool } = require("pg");
-const { createSessionCookie, safePasswordEquals } = require("./_auth.js");
+const { createSessionCookie, safePasswordEquals, getConnectionString } = require("./_auth.js");
 
 let pool;
 
@@ -10,13 +10,14 @@ function sendJson(res, status, body) {
 }
 
 function getDatabase() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL não configurada.");
+  const connectionString = getConnectionString();
+  if (!connectionString) {
+    throw new Error("DATABASE_URL/POSTGRES_URL não configurada.");
   }
 
   if (!pool) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: { rejectUnauthorized: false }
     });
   }
