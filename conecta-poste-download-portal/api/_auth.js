@@ -3,14 +3,24 @@ const crypto = require("node:crypto");
 const COOKIE_NAME = "cp_download_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 
+function getConnectionString() {
+  return process.env.DATABASE_URL ||
+    process.env.NEON_DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    "";
+}
+
 function getSessionSecret() {
   const secret = process.env.SESSION_SECRET;
   if (secret && secret.length >= 32) return secret;
 
-  if (process.env.DATABASE_URL) {
+  const connectionString = getConnectionString();
+  if (connectionString) {
     return crypto
       .createHash("sha256")
-      .update(`${process.env.DATABASE_URL}:conecta-poste-download-session`, "utf8")
+      .update(`${connectionString}:conecta-poste-download-session`, "utf8")
       .digest("hex");
   }
 
@@ -114,5 +124,6 @@ module.exports = {
   createSessionCookie,
   clearSessionCookie,
   readSession,
-  safePasswordEquals
+  safePasswordEquals,
+  getConnectionString
 };
