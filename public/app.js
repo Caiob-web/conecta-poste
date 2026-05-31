@@ -6,6 +6,9 @@ const loginMessage = document.getElementById("loginMessage");
 const logoutButton = document.getElementById("logoutButton");
 const welcomeText = document.getElementById("welcomeText");
 const greetingText = document.getElementById("greetingText");
+const releaseVersion = document.getElementById("releaseVersion");
+const releaseMeta = document.getElementById("releaseMeta");
+const downloadVersion = document.getElementById("downloadVersion");
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -16,6 +19,26 @@ function getGreeting() {
 
 if (greetingText) {
   greetingText.textContent = getGreeting();
+}
+
+async function carregarVersaoAtual() {
+  try {
+    const res = await fetch("/api/version", { cache: "no-store" });
+    if (!res.ok) throw new Error("Falha ao carregar versão.");
+
+    const data = await res.json();
+    const version = data.version || "1.0.43";
+    const label = `v${version}`;
+
+    if (releaseVersion) releaseVersion.textContent = version;
+    if (downloadVersion) downloadVersion.textContent = label;
+    if (releaseMeta) {
+      releaseMeta.textContent = `Windows • WebView2 • SQLite offline • atualizado em ${data.updatedAt || "release latest"}`;
+    }
+  } catch {
+    if (releaseVersion) releaseVersion.textContent = "1.0.43";
+    if (downloadVersion) downloadVersion.textContent = "v1.0.43";
+  }
 }
 
 function setMessage(text, ok = false) {
@@ -97,4 +120,5 @@ logoutButton.addEventListener("click", async () => {
   }
 });
 
+carregarVersaoAtual();
 checkSession();
