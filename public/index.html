@@ -9,6 +9,14 @@
 </head>
 <body>
   <div class="page-backdrop" aria-hidden="true"></div>
+  <div class="motion-layer" aria-hidden="true">
+    <span class="energy-line energy-line-a"></span>
+    <span class="energy-line energy-line-b"></span>
+    <span class="energy-line energy-line-c"></span>
+    <span class="pulse-orb pulse-orb-a"></span>
+    <span class="pulse-orb pulse-orb-b"></span>
+    <span class="pulse-orb pulse-orb-c"></span>
+  </div>
 
   <header class="topbar">
     <nav class="nav-left" aria-label="Navegação principal">
@@ -50,8 +58,8 @@
 
       <div class="release-card">
         <span>Versão atual</span>
-        <strong>1.0.43</strong>
-        <small>Windows • WebView2 • SQLite offline</small>
+        <strong id="releaseVersion">Carregando...</strong>
+        <small id="releaseMeta">Windows • WebView2 • SQLite offline</small>
       </div>
     </section>
 
@@ -86,7 +94,7 @@
       <div class="download-box">
         <div>
           <strong>ConectaPoste-Windows.zip</strong>
-          <span>Pacote oficial com instalador Windows</span>
+          <span>Pacote oficial com instalador Windows • <b id="downloadVersion">versão atual</b></span>
         </div>
         <a class="download-button" href="/api/download">Baixar ZIP</a>
       </div>
