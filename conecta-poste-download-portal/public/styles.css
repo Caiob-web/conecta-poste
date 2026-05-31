@@ -51,6 +51,70 @@ body {
   mix-blend-mode: screen;
 }
 
+.motion-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.energy-line {
+  position: absolute;
+  right: -10vw;
+  width: min(860px, 58vw);
+  height: 2px;
+  opacity: .44;
+  background: linear-gradient(90deg, transparent, rgba(82, 190, 255, .08), rgba(255, 255, 255, .74), rgba(82, 190, 255, .18), transparent);
+  filter: drop-shadow(0 0 12px rgba(42, 167, 255, .35));
+  transform-origin: right center;
+  animation: currentFlow 5.8s ease-in-out infinite;
+}
+
+.energy-line-a {
+  top: 19%;
+  transform: rotate(16deg);
+}
+
+.energy-line-b {
+  top: 26%;
+  transform: rotate(20deg);
+  animation-delay: -1.8s;
+}
+
+.energy-line-c {
+  top: 34%;
+  transform: rotate(23deg);
+  animation-delay: -3.4s;
+}
+
+.pulse-orb {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #38bcff;
+  box-shadow: 0 0 0 0 rgba(56, 188, 255, .55), 0 0 26px rgba(56, 188, 255, .7);
+  animation: pulseNode 2.7s ease-out infinite;
+}
+
+.pulse-orb-a {
+  left: 17.2%;
+  top: 21.3%;
+}
+
+.pulse-orb-b {
+  left: 31.5%;
+  top: 20.2%;
+  animation-delay: -.9s;
+}
+
+.pulse-orb-c {
+  left: 25.4%;
+  top: 13.1%;
+  animation-delay: -1.8s;
+}
+
 .topbar {
   position: fixed;
   top: 0;
@@ -67,6 +131,7 @@ body {
   letter-spacing: .08em;
   font-size: 11px;
   font-weight: 800;
+  animation: topbarDrop .7s ease both;
 }
 
 .topbar::before {
@@ -139,6 +204,7 @@ a {
   background: #fff;
   border-radius: 10px;
   box-shadow: 0 18px 50px rgba(42, 167, 255, .24);
+  animation: brandBreathe 3.8s ease-in-out infinite;
 }
 
 .brand span {
@@ -167,6 +233,7 @@ a {
   flex-direction: column;
   justify-content: space-between;
   padding: 12px 0;
+  animation: heroReveal .9s cubic-bezier(.2, .8, .2, 1) both;
 }
 
 .hero > .brand {
@@ -216,6 +283,19 @@ button,
   padding: 0 22px;
   box-shadow: 0 18px 42px rgba(8, 122, 214, .28);
   transition: transform .16s ease, filter .16s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-button::after,
+button::after,
+.download-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0 35%, rgba(255, 255, 255, .34) 48%, transparent 62% 100%);
+  transform: translateX(-120%);
+  animation: buttonShine 3.8s ease-in-out infinite;
 }
 
 .hero-button {
@@ -244,6 +324,7 @@ button:disabled {
   background: rgba(255, 255, 255, .88);
   border-left: 5px solid var(--blue);
   box-shadow: 0 24px 80px rgba(0, 0, 0, .28);
+  animation: cardRise .85s cubic-bezier(.2, .8, .2, 1) .16s both;
 }
 
 .release-card span,
@@ -279,6 +360,7 @@ button:disabled {
   background: var(--panel);
   box-shadow: 0 30px 90px rgba(0, 0, 0, .42);
   backdrop-filter: blur(18px);
+  animation: panelReveal .9s cubic-bezier(.2, .8, .2, 1) .12s both;
 }
 
 .panel::before {
@@ -403,9 +485,104 @@ input:focus {
   }
 }
 
+@keyframes currentFlow {
+  0%, 100% {
+    opacity: .16;
+    clip-path: inset(0 100% 0 0);
+  }
+  48% {
+    opacity: .52;
+    clip-path: inset(0 0 0 0);
+  }
+  70% {
+    opacity: .24;
+    clip-path: inset(0 0 0 82%);
+  }
+}
+
+@keyframes pulseNode {
+  0% {
+    transform: scale(.82);
+    box-shadow: 0 0 0 0 rgba(56, 188, 255, .55), 0 0 26px rgba(56, 188, 255, .72);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 22px rgba(56, 188, 255, 0), 0 0 30px rgba(56, 188, 255, .58);
+  }
+  100% {
+    transform: scale(.82);
+    box-shadow: 0 0 0 0 rgba(56, 188, 255, 0), 0 0 16px rgba(56, 188, 255, .32);
+  }
+}
+
+@keyframes topbarDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroReveal {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelReveal {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes brandBreathe {
+  0%, 100% {
+    box-shadow: 0 18px 50px rgba(42, 167, 255, .22);
+  }
+  50% {
+    box-shadow: 0 18px 64px rgba(42, 167, 255, .46);
+  }
+}
+
+@keyframes buttonShine {
+  0%, 42% {
+    transform: translateX(-120%);
+  }
+  58%, 100% {
+    transform: translateX(120%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .page-backdrop {
+  *,
+  *::before,
+  *::after {
     animation: none;
+    transition: none;
   }
 }
 
