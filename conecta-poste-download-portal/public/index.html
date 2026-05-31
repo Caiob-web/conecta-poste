@@ -8,19 +8,28 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="ambient" aria-hidden="true">
-    <div class="aurora aurora-one"></div>
-    <div class="aurora aurora-two"></div>
-    <div class="data-wall">
-      <span></span><span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span><span></span>
+  <div class="page-backdrop" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <nav class="nav-left" aria-label="Navegação principal">
+      <a href="#downloadPanel">Download</a>
+      <a href="#loginPanel">Acesso</a>
+      <a href="https://github.com/Caiob-web/conecta-poste/releases/latest" rel="noopener">Versões</a>
+    </nav>
+
+    <div class="brand brand-center">
+      <div class="brand-mark">CP</div>
+      <strong>Conecta Poste</strong>
     </div>
-  </div>
+
+    <nav class="nav-right" aria-label="Ações">
+      <a href="#loginPanel">Entrar</a>
+      <a class="nav-cta" href="#loginPanel">Baixar</a>
+    </nav>
+  </header>
 
   <main class="shell">
-    <section class="hero">
+    <section class="hero" aria-labelledby="heroTitle">
       <div class="brand">
         <div class="brand-mark">CP</div>
         <div>
@@ -30,12 +39,13 @@
       </div>
 
       <div class="hero-copy">
-        <p class="eyebrow">Acesso autorizado</p>
-        <h1>Baixe o pacote oficial do Conecta Poste Desktop.</h1>
+        <p class="eyebrow" id="greetingText">Conecta Poste</p>
+        <h1 id="heroTitle">Sistema desktop para gestão de postes.</h1>
         <p>
-          Use o mesmo usuário e senha cadastrados na base NEON para acessar o
-          arquivo ZIP atualizado do sistema.
+          Acesse com seu usuário da base NEON e baixe o pacote oficial do
+          Conecta Poste para Windows.
         </p>
+        <a class="hero-button" href="#loginPanel">Acessar portal</a>
       </div>
 
       <div class="release-card">
