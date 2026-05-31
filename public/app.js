@@ -5,6 +5,18 @@ const loginButton = document.getElementById("loginButton");
 const loginMessage = document.getElementById("loginMessage");
 const logoutButton = document.getElementById("logoutButton");
 const welcomeText = document.getElementById("welcomeText");
+const greetingText = document.getElementById("greetingText");
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bom dia — Conecta Poste";
+  if (hour < 18) return "Boa tarde — Conecta Poste";
+  return "Boa noite — Conecta Poste";
+}
+
+if (greetingText) {
+  greetingText.textContent = getGreeting();
+}
 
 function setMessage(text, ok = false) {
   loginMessage.textContent = text || "";
