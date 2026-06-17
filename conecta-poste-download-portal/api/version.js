@@ -1,4 +1,4 @@
-const FALLBACK_VERSION = "1.0.59";
+const FALLBACK_VERSION = "1.0.60";
 const RELEASE_API_URL = "https://api.github.com/repos/Caiob-web/conecta-poste/releases/latest";
 
 function extractVersion(tagName = "") {
