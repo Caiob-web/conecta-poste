@@ -27,7 +27,7 @@ async function carregarVersaoAtual() {
     if (!res.ok) throw new Error("Falha ao carregar versão.");
 
     const data = await res.json();
-    const version = data.version || "1.0.43";
+    const version = data.version || "1.0.61";
     const label = `v${version}`;
 
     if (releaseVersion) releaseVersion.textContent = version;
@@ -36,8 +36,8 @@ async function carregarVersaoAtual() {
       releaseMeta.textContent = `Windows • WebView2 • SQLite offline • atualizado em ${data.updatedAt || "release latest"}`;
     }
   } catch {
-    if (releaseVersion) releaseVersion.textContent = "1.0.43";
-    if (downloadVersion) downloadVersion.textContent = "v1.0.43";
+    if (releaseVersion) releaseVersion.textContent = "1.0.61";
+    if (downloadVersion) downloadVersion.textContent = "v1.0.61";
   }
 }
 
