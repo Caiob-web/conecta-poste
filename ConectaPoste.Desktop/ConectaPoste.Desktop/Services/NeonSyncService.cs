@@ -52,6 +52,12 @@ public sealed class NeonSyncService
         long Version,
         string? ChangedAt);
 
+    private sealed record NeonRemoteCounts(
+        long Postes,
+        long Empresas,
+        long Transformadores,
+        long Censo);
+
     public async Task TestConnectionAsync(string connectionString, CancellationToken cancellationToken = default)
     {
         try
@@ -126,6 +132,24 @@ public sealed class NeonSyncService
             var previousDatasetVersionText = await _db.GetSyncStateAsync(NeonDatasetVersionStateKey, cancellationToken).ConfigureAwait(false);
             var previousDatasetVersion = TryParseLong(previousDatasetVersionText);
             var localCounts = await _db.GetLocalDataCountsAsync(cancellationToken).ConfigureAwait(false);
+            var remoteCounts = await ReadRemoteDataCountsAsync(
+                pg,
+                hasEmpresaPoste,
+                hasTransformadores,
+                hasCenso,
+                cancellationToken).ConfigureAwait(false);
+
+            var emptyTableSync = await TryApplyRemoteEmptyTablesAsync(
+                remoteCounts,
+                localCounts,
+                hasEmpresaPoste,
+                hasTransformadores,
+                hasCenso,
+                remoteDatasetVersion,
+                Report,
+                cancellationToken).ConfigureAwait(false);
+            if (emptyTableSync is not null)
+                return emptyTableSync;
 
             if (mode == ImportService.ImportMode.Upsert &&
                 localCounts.Postes > 0 &&
@@ -133,6 +157,14 @@ public sealed class NeonSyncService
             {
                 if (previousDatasetVersion is null || previousDatasetVersion <= 0)
                 {
+                    if (!CountsCompatibleForCacheSkip(localCounts, remoteCounts, hasEmpresaPoste, hasTransformadores, hasCenso))
+                    {
+                        throw new InvalidOperationException(
+                            "A contagem da base local difere do NEON, mas ainda nao existe versao delta local gravada.\n\n" +
+                            "Para proteger o Network Transfer do NEON, o Conecta Poste nao vai baixar a base inteira automaticamente. " +
+                            "Use 'Forcar reimportacao completa' somente se precisar reconstruir o SQLite local do zero.");
+                    }
+
                     await _db.SetSyncStateAsync(
                         NeonDatasetVersionStateKey,
                         remoteDatasetVersion.Version.ToString(CultureInfo.InvariantCulture),
@@ -150,6 +182,15 @@ public sealed class NeonSyncService
 
                 if (previousDatasetVersion.Value == remoteDatasetVersion.Version)
                 {
+                    if (!CountsCompatibleForCacheSkip(localCounts, remoteCounts, hasEmpresaPoste, hasTransformadores, hasCenso))
+                    {
+                        throw new InvalidOperationException(
+                            "A versao NEON esta igual, mas a contagem das tabelas mudou.\n\n" +
+                            "Isso costuma acontecer apos TRUNCATE/alteracao manual feita antes do controle de TRUNCATE. " +
+                            "Para evitar custo alto no NEON, o app nao vai baixar a base completa automaticamente. " +
+                            "Se a tabela remota estiver zerada, a limpeza local ja e aplicada automaticamente; para outras divergencias, use reimportacao completa manual.");
+                    }
+
                     Report("cache", "Base NEON sem alteracoes. Usando SQLite/cache local...");
                     await EnsureLocalMapCacheAsync(Report, cancellationToken).ConfigureAwait(false);
 
@@ -708,6 +749,121 @@ public sealed class NeonSyncService
         }
     }
 
+    private static async Task<NeonRemoteCounts> ReadRemoteDataCountsAsync(
+        NpgsqlConnection cn,
+        bool hasEmpresaPoste,
+        bool hasTransformadores,
+        bool hasCenso,
+        CancellationToken ct)
+    {
+        return new NeonRemoteCounts(
+            Postes: await CountRowsAsync(cn, "dados_poste", ct).ConfigureAwait(false),
+            Empresas: hasEmpresaPoste ? await CountRowsAsync(cn, "empresa_poste", ct).ConfigureAwait(false) : 0,
+            Transformadores: hasTransformadores ? await CountRowsAsync(cn, "transformadores", ct).ConfigureAwait(false) : 0,
+            Censo: hasCenso ? await CountRowsAsync(cn, "censo_municipio", ct).ConfigureAwait(false) : 0);
+    }
+
+    private async Task<NeonSyncResult?> TryApplyRemoteEmptyTablesAsync(
+        NeonRemoteCounts remoteCounts,
+        DatabaseService.LocalDataCounts localCounts,
+        bool hasEmpresaPoste,
+        bool hasTransformadores,
+        bool hasCenso,
+        NeonDatasetVersion? remoteDatasetVersion,
+        Action<string, string, long, long> report,
+        CancellationToken cancellationToken)
+    {
+        var clearPostes = remoteCounts.Postes == 0 && localCounts.Postes > 0;
+        var clearEmpresas = hasEmpresaPoste && remoteCounts.Empresas == 0 && localCounts.Empresas > 0;
+        var clearTransformadores = hasTransformadores && remoteCounts.Transformadores == 0 && localCounts.Transformadores > 0;
+        var clearCenso = hasCenso && remoteCounts.Censo == 0 && localCounts.Censo > 0;
+
+        if (!clearPostes && !clearEmpresas && !clearTransformadores && !clearCenso)
+            return null;
+
+        report("sqlite", "NEON indica tabela vazia. Limpando SQLite local sem baixar registros...", 0, 0);
+
+        await using var sqlite = _db.OpenConnection();
+        await sqlite.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (var pragmaOff = sqlite.CreateCommand())
+        {
+            pragmaOff.CommandText = "PRAGMA foreign_keys=OFF;";
+            await pragmaOff.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var tx = (SqliteTransaction)await sqlite.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        if (clearPostes)
+        {
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM empresa_poste;", cancellationToken).ConfigureAwait(false);
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM dados_poste;", cancellationToken).ConfigureAwait(false);
+        }
+        else if (clearEmpresas)
+        {
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM empresa_poste;", cancellationToken).ConfigureAwait(false);
+        }
+
+        if (clearTransformadores)
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM transformadores;", cancellationToken).ConfigureAwait(false);
+
+        if (clearCenso)
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM censo_municipio;", cancellationToken).ConfigureAwait(false);
+
+        await RebuildQtdEmpresasAsync(sqlite, tx, cancellationToken).ConfigureAwait(false);
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (var pragmaOn = sqlite.CreateCommand())
+        {
+            pragmaOn.CommandText = "PRAGMA foreign_keys=ON;";
+            await pragmaOn.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            report("cache", "Atualizando cache local apos limpeza...", 0, 0);
+            var datasetVersion = await _db.BumpDatasetVersionAsync(cancellationToken).ConfigureAwait(false);
+            var cacheProgress = new Progress<DatabaseService.PostesLightCacheBuildProgress>(p =>
+            {
+                if (p is null) return;
+                report("cache", p.Message, p.Current, p.Total);
+            });
+            await _db.BuildPostesLightCacheAsync(datasetVersion, cacheProgress, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logs.LogError("Falha ao atualizar cache local apos limpeza por tabela vazia no NEON.", ex);
+        }
+
+        if (remoteDatasetVersion is not null)
+        {
+            await _db.SetSyncStateAsync(
+                NeonDatasetVersionStateKey,
+                remoteDatasetVersion.Version.ToString(CultureInfo.InvariantCulture),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        var counts = await _db.GetLocalDataCountsAsync(cancellationToken).ConfigureAwait(false);
+        var msg =
+            "SQLite local atualizado por estado vazio no NEON sem baixar registros. " +
+            $"postes={counts.Postes:n0}, empresas={counts.Empresas:n0}, transformadores={counts.Transformadores:n0}, censo={counts.Censo:n0}.";
+        _logs.LogInfo(msg);
+        return new NeonSyncResult(counts.Postes, counts.Empresas, counts.Transformadores, counts.Censo, msg);
+    }
+
+    private static bool CountsCompatibleForCacheSkip(
+        DatabaseService.LocalDataCounts localCounts,
+        NeonRemoteCounts remoteCounts,
+        bool hasEmpresaPoste,
+        bool hasTransformadores,
+        bool hasCenso)
+    {
+        return localCounts.Postes == remoteCounts.Postes &&
+               (!hasEmpresaPoste || localCounts.Empresas == remoteCounts.Empresas) &&
+               (!hasTransformadores || localCounts.Transformadores == remoteCounts.Transformadores) &&
+               (!hasCenso || localCounts.Censo == remoteCounts.Censo);
+    }
+
     private async Task EnsureNeonSyncControlAsync(
         NpgsqlConnection cn,
         bool hasEmpresaPoste,
@@ -765,6 +921,22 @@ public sealed class NeonSyncService
               RETURN v;
             END;
             $$;
+
+            CREATE OR REPLACE FUNCTION public.conecta_poste_touch_truncate()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $$
+            DECLARE
+              v bigint;
+            BEGIN
+              v := public.conecta_poste_next_dataset_version(TG_TABLE_NAME || ':TRUNCATE');
+
+              INSERT INTO public.conecta_poste_tombstone(version, table_name, row_key, owner_key, op, changed_at)
+              VALUES (v, TG_TABLE_NAME, '*', '*', 'T', now());
+
+              RETURN NULL;
+            END;
+            $$;
             """, ct).ConfigureAwait(false);
 
         await EnsureSyncColumnAndIndexAsync(cn, "dados_poste", ct).ConfigureAwait(false);
@@ -793,6 +965,11 @@ public sealed class NeonSyncService
             CREATE TRIGGER trg_conecta_poste_sync_dados
             BEFORE INSERT OR UPDATE OR DELETE ON public.dados_poste
             FOR EACH ROW EXECUTE FUNCTION public.conecta_poste_touch_dados_poste();
+
+            DROP TRIGGER IF EXISTS trg_conecta_poste_truncate_dados ON public.dados_poste;
+            CREATE TRIGGER trg_conecta_poste_truncate_dados
+            AFTER TRUNCATE ON public.dados_poste
+            FOR EACH STATEMENT EXECUTE FUNCTION public.conecta_poste_touch_truncate();
             """, ct).ConfigureAwait(false);
 
         if (hasEmpresaPoste &&
@@ -829,6 +1006,11 @@ public sealed class NeonSyncService
                 CREATE TRIGGER trg_conecta_poste_sync_empresa
                 BEFORE INSERT OR UPDATE OR DELETE ON public.empresa_poste
                 FOR EACH ROW EXECUTE FUNCTION public.conecta_poste_touch_empresa_poste();
+
+                DROP TRIGGER IF EXISTS trg_conecta_poste_truncate_empresa ON public.empresa_poste;
+                CREATE TRIGGER trg_conecta_poste_truncate_empresa
+                AFTER TRUNCATE ON public.empresa_poste
+                FOR EACH STATEMENT EXECUTE FUNCTION public.conecta_poste_touch_truncate();
                 """, ct).ConfigureAwait(false);
         }
 
@@ -864,6 +1046,11 @@ public sealed class NeonSyncService
                 CREATE TRIGGER trg_conecta_poste_sync_transformadores
                 BEFORE INSERT OR UPDATE OR DELETE ON public.transformadores
                 FOR EACH ROW EXECUTE FUNCTION public.conecta_poste_touch_transformadores();
+
+                DROP TRIGGER IF EXISTS trg_conecta_poste_truncate_transformadores ON public.transformadores;
+                CREATE TRIGGER trg_conecta_poste_truncate_transformadores
+                AFTER TRUNCATE ON public.transformadores
+                FOR EACH STATEMENT EXECUTE FUNCTION public.conecta_poste_touch_truncate();
                 """, ct).ConfigureAwait(false);
         }
 
@@ -895,6 +1082,11 @@ public sealed class NeonSyncService
                 CREATE TRIGGER trg_conecta_poste_sync_censo
                 BEFORE INSERT OR UPDATE OR DELETE ON public.censo_municipio
                 FOR EACH ROW EXECUTE FUNCTION public.conecta_poste_touch_censo_municipio();
+
+                DROP TRIGGER IF EXISTS trg_conecta_poste_truncate_censo ON public.censo_municipio;
+                CREATE TRIGGER trg_conecta_poste_truncate_censo
+                AFTER TRUNCATE ON public.censo_municipio
+                FOR EACH STATEMENT EXECUTE FUNCTION public.conecta_poste_touch_truncate();
                 """, ct).ConfigureAwait(false);
         }
     }
@@ -941,6 +1133,14 @@ public sealed class NeonSyncService
     {
         report("delta", $"Base NEON mudou. Baixando somente alteracoes v{previousVersion} -> v{remoteVersion.Version}...", 0, 0);
 
+        var truncatedTables = await ReadTruncatedTablesAsync(
+            pg,
+            previousVersion,
+            remoteVersion.Version,
+            cancellationToken).ConfigureAwait(false);
+        var dadosPosteTruncated = truncatedTables.Contains("dados_poste");
+        var empresaPosteTruncated = truncatedTables.Contains("empresa_poste");
+
         var changedPosteIds = await ReadLongKeysAsync(pg, """
             SELECT id::text
             FROM public.dados_poste
@@ -983,7 +1183,7 @@ public sealed class NeonSyncService
                 affectedEmpresaPostIds.Add(id);
         }
 
-        var totalTouched = changedPosteIds.Count + deletedPosteIds.Count + affectedEmpresaPostIds.Count;
+        var totalTouched = changedPosteIds.Count + deletedPosteIds.Count + affectedEmpresaPostIds.Count + truncatedTables.Count;
         if (changedPosteIds.Count > MaxDeltaKeysBeforeFullConfirmation ||
             deletedPosteIds.Count > MaxDeltaKeysBeforeFullConfirmation ||
             affectedEmpresaPostIds.Count > MaxDeltaKeysBeforeFullConfirmation ||
@@ -1017,7 +1217,19 @@ public sealed class NeonSyncService
         long censo = 0;
 
         report("delta", $"Aplicando delta local ({totalTouched:n0} chaves)...", 0, Math.Max(totalTouched, 1));
-        await DeleteLocalPostesAsync(sqlite, tx, deletedPosteIds, cancellationToken).ConfigureAwait(false);
+        if (dadosPosteTruncated)
+        {
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM empresa_poste;", cancellationToken).ConfigureAwait(false);
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM dados_poste;", cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await DeleteLocalPostesAsync(sqlite, tx, deletedPosteIds, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (empresaPosteTruncated && !dadosPosteTruncated)
+            await ExecSqliteAsync(sqlite, tx, "DELETE FROM empresa_poste;", cancellationToken).ConfigureAwait(false);
+
         postes += await UpsertPostesByIdsAsync(pg, sqlite, tx, changedPosteIds, latSql, lonSql, report, cancellationToken).ConfigureAwait(false);
 
         if (hasEmpresaPoste)
@@ -1102,6 +1314,37 @@ public sealed class NeonSyncService
         }
 
         return list.Distinct().ToList();
+    }
+
+    private static async Task<HashSet<string>> ReadTruncatedTablesAsync(
+        NpgsqlConnection cn,
+        long fromVersion,
+        long toVersion,
+        CancellationToken ct)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using var cmd = new NpgsqlCommand("""
+            SELECT DISTINCT table_name
+            FROM public.conecta_poste_tombstone
+            WHERE op = 'T'
+              AND version > @fromVersion
+              AND version <= @toVersion;
+            """, cn)
+        {
+            CommandTimeout = 30
+        };
+        cmd.Parameters.AddWithValue("fromVersion", fromVersion);
+        cmd.Parameters.AddWithValue("toVersion", toVersion);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var table = reader.IsDBNull(0) ? null : reader.GetValue(0)?.ToString();
+            if (!string.IsNullOrWhiteSpace(table))
+                set.Add(table.Trim());
+        }
+
+        return set;
     }
 
     private static async Task<bool> HasTableChangesAsync(
