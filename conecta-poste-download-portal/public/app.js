@@ -1,4 +1,4 @@
-const loginPanel = document.getElementById("loginPanel");
+﻿const loginPanel = document.getElementById("loginPanel");
 const downloadPanel = document.getElementById("downloadPanel");
 const loginForm = document.getElementById("loginForm");
 const loginButton = document.getElementById("loginButton");
@@ -12,9 +12,9 @@ const downloadVersion = document.getElementById("downloadVersion");
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia — Conecta Poste";
-  if (hour < 18) return "Boa tarde — Conecta Poste";
-  return "Boa noite — Conecta Poste";
+  if (hour < 12) return "Bom dia â€” Conecta Poste";
+  if (hour < 18) return "Boa tarde â€” Conecta Poste";
+  return "Boa noite â€” Conecta Poste";
 }
 
 if (greetingText) {
@@ -24,20 +24,20 @@ if (greetingText) {
 async function carregarVersaoAtual() {
   try {
     const res = await fetch("/api/version", { cache: "no-store" });
-    if (!res.ok) throw new Error("Falha ao carregar versão.");
+    if (!res.ok) throw new Error("Falha ao carregar versÃ£o.");
 
     const data = await res.json();
-    const version = data.version || "1.0.61";
+    const version = data.version || "1.0.62";
     const label = `v${version}`;
 
     if (releaseVersion) releaseVersion.textContent = version;
     if (downloadVersion) downloadVersion.textContent = label;
     if (releaseMeta) {
-      releaseMeta.textContent = `Windows • WebView2 • SQLite offline • atualizado em ${data.updatedAt || "release latest"}`;
+      releaseMeta.textContent = `Windows â€¢ WebView2 â€¢ SQLite offline â€¢ atualizado em ${data.updatedAt || "release latest"}`;
     }
   } catch {
-    if (releaseVersion) releaseVersion.textContent = "1.0.61";
-    if (downloadVersion) downloadVersion.textContent = "v1.0.61";
+    if (releaseVersion) releaseVersion.textContent = "1.0.62";
+    if (downloadVersion) downloadVersion.textContent = "v1.0.62";
   }
 }
 
@@ -49,7 +49,7 @@ function setMessage(text, ok = false) {
 function showDownload(user) {
   loginPanel.classList.add("hidden");
   downloadPanel.classList.remove("hidden");
-  welcomeText.textContent = `Olá, ${user.username}. Seu download está liberado.`;
+  welcomeText.textContent = `OlÃ¡, ${user.username}. Seu download estÃ¡ liberado.`;
 }
 
 function showLogin() {
@@ -94,14 +94,14 @@ loginForm.addEventListener("submit", async (event) => {
 
     const data = await res.json();
     if (!res.ok) {
-      setMessage(data.error || "Não foi possível entrar.");
+      setMessage(data.error || "NÃ£o foi possÃ­vel entrar.");
       return;
     }
 
     setMessage("Login autorizado.", true);
     showDownload(data.user);
   } catch {
-    setMessage("Falha de conexão. Tente novamente.");
+    setMessage("Falha de conexÃ£o. Tente novamente.");
   } finally {
     loginButton.disabled = false;
     loginButton.textContent = "Entrar no portal";
@@ -122,3 +122,4 @@ logoutButton.addEventListener("click", async () => {
 
 carregarVersaoAtual();
 checkSession();
+
