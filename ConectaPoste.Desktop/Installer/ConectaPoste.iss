@@ -7,7 +7,7 @@
 [Setup]
 AppId={{B03E9BA6-7A2B-4B56-9E02-70BB0710C6C2}
 AppName={#MyAppName}
-AppVersion=1.0.63
+AppVersion=1.0.64
 AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://conecta-poste.vercel.app
 AppSupportURL=https://conecta-poste.vercel.app
@@ -24,11 +24,11 @@ SolidCompression=no
 WizardStyle=modern
 SetupIconFile=..\ConectaPoste.Desktop\Assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion=1.0.63.0
+VersionInfoVersion=1.0.64.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=Instalador do Conecta Poste Desktop
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=1.0.63
+VersionInfoProductVersion=1.0.64
 
 [Languages]
 Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
