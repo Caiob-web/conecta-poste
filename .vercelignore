@@ -1,0 +1,9 @@
+ConectaPoste.Desktop/**/bin/**
+ConectaPoste.Desktop/**/obj/**
+ConectaPoste.Desktop/Installer/Output/**
+ConectaPoste.Desktop/Installer/Redist/**
+ConectaPoste.Desktop/ConectaPoste.Desktop/Data/**
+ConectaPoste.Desktop/ConectaPoste.Desktop/Web/tiles/**
+*.zip
+*.exe
+*.pdb
